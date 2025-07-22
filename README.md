@@ -1,7 +1,7 @@
 # Niraksh 2.0 - Smart Healthcare Platform
 
 <div align="center">
-  <img src="frontend/src/assets/brandLogo.png" alt="Niraksh Logo" width="200">
+  <img src="frontend/src/assets/brandLogo.png" alt="Niraksh Logo" width="150">
   <br>
   <h3>AI-powered healthcare guidance for better health decisions</h3>
 </div>
