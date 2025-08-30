@@ -1,5 +1,8 @@
+packages:
+    - "."
+
 onlyBuiltDependencies:
-  - '@firebase/util'
-  - '@swc/core'
-  - esbuild
-  - protobufjs
+    - "@firebase/util"
+    - "@swc/core"
+    - esbuild
+    - protobufjs
