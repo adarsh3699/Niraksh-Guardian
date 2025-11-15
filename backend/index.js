@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require('dotenv').config();
+require("dotenv").config();
 
 const { getMongoDb } = require("./utils");
 const { authenticateUser, optionalAuth } = require("./middleware/auth");
@@ -10,17 +10,16 @@ const UserReg = require("./routes/UserReg");
 const Gemini = require("./routes/Gemini");
 const Chat = require("./routes/Chat");
 
-
 const corsOptions = {
-    origin: [
-        'https://niraksh.bhemu.me',
-        'https://niraksh.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173'
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-    optionsSuccessStatus: 200
+	origin: [
+		"https://niraksh.bhemu.in",
+		"https://niraksh.vercel.app",
+		"http://localhost:3000",
+		"http://localhost:5173",
+	],
+	methods: ["GET", "POST", "PUT", "DELETE"],
+	credentials: true,
+	optionsSuccessStatus: 200,
 };
 
 const app = express();
@@ -38,25 +37,25 @@ app.use("/chats", authenticateUser, Chat);
 const PORT = process.env.PORT || 4000;
 
 app.get("/", function (req, res) {
-    res.send("Hello World");
+	res.send("Hello World");
 });
 
 // Test auth middleware route
 app.get("/auth-test", authenticateUser, (req, res) => {
-    res.json({
-        statusCode: 200,
-        msg: "You are authenticated!",
-        user: req.user
-    });
+	res.json({
+		statusCode: 200,
+		msg: "You are authenticated!",
+		user: req.user,
+	});
 });
 
 mongoose
-    .connect(getMongoDb()) // No options are required for modern versions
-    .then(() =>
-        app.listen(PORT, () => {
-            console.log(`Server is running at port ${PORT}`);
-        })
-    )
-    .catch((err) => {
-        console.log(err);
-    });
+	.connect(getMongoDb()) // No options are required for modern versions
+	.then(() =>
+		app.listen(PORT, () => {
+			console.log(`Server is running at port ${PORT}`);
+		})
+	)
+	.catch((err) => {
+		console.log(err);
+	});
