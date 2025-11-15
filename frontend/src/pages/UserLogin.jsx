@@ -11,8 +11,8 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const UserLogin = () => {
 	const [msg, setMsg] = useState({ text: "", type: "" });
-	const [googleLoading, setGoogleLoading] = useState(false);
-	const [loginLoading, setLoginLoading] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
+	const [loadingText, setLoadingText] = useState("");
 	const [errorMsg, setErrorMsg] = useState("");
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -100,7 +100,8 @@ const UserLogin = () => {
 	const handleSubmit = useCallback(
 		async (e) => {
 			e.preventDefault();
-			setLoginLoading(true);
+			setIsLoading(true);
+			setLoadingText("Logging in...");
 			setErrorMsg("");
 
 			const formData = {
@@ -144,7 +145,8 @@ const UserLogin = () => {
 				setErrorMsg(errorMessage);
 				handleMsgShown(errorMessage, "error");
 			} finally {
-				setLoginLoading(false);
+				setIsLoading(false);
+				setLoadingText("");
 			}
 		},
 		[handleMsgShown, location, navigate, checkAuthStatus]
@@ -152,7 +154,8 @@ const UserLogin = () => {
 
 	const handleGoogleAuth = useCallback(
 		async (credential) => {
-			setGoogleLoading(true);
+			setIsLoading(true);
+			setLoadingText("Connecting to Google...");
 			setErrorMsg("");
 
 			try {
@@ -198,7 +201,8 @@ const UserLogin = () => {
 				setErrorMsg(errorMessage);
 				handleMsgShown(errorMessage, "error");
 			} finally {
-				setGoogleLoading(false);
+				setIsLoading(false);
+				setLoadingText("");
 			}
 		},
 		[handleMsgShown, location, navigate, checkAuthStatus]
@@ -218,11 +222,11 @@ const UserLogin = () => {
 					<label htmlFor="password">Password</label>
 					<input type="password" id="password" name="password" required placeholder="Enter your password" />
 
-					<button type="submit" disabled={loginLoading}>
-						{loginLoading ? (
+					<button type="submit" disabled={isLoading}>
+						{isLoading ? (
 							<div className="loader-container">
 								<div className="loader"></div>
-								<span>Logging in...</span>
+								<span>{loadingText}</span>
 							</div>
 						) : (
 							"Login"
@@ -232,13 +236,7 @@ const UserLogin = () => {
 
 				{/* Google Sign-in Button container */}
 				<div id="google-signin-container">
-					<div id="google-signin-button"></div>
-					{googleLoading && (
-						<div className="google-loading">
-							<div className="loader"></div>
-							<span>Connecting to Google...</span>
-						</div>
-					)}
+					<div id="google-signin-button" style={{ display: isLoading ? "none" : "flex" }}></div>
 				</div>
 
 				<div className="links">
