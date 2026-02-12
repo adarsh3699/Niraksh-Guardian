@@ -231,3 +231,32 @@ Add to Users Table:
 
 - gender (VARCHAR, nullable)
 - last_login (TIMESTAMP, nullable)
+
+---
+
+# 11. Doctor Recommendation System
+
+## 11.1 Doctors Table
+
+Purpose:
+Stores doctor profiles replacing hardcoded JSON files.
+
+Fields:
+
+- id (UUID, Primary Key)
+- name (VARCHAR)
+- specialization (VARCHAR, indexed) // e.g., 'Dermatologist', 'General Physician'
+- experience_years (INTEGER)
+- consultation_fee (INTEGER)
+- location (VARCHAR)
+- bio (TEXT)
+- contact_info (VARCHAR) // Phone or Email
+- image_url (VARCHAR, nullable)
+- is_available (BOOLEAN, default true)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+
+Indexes:
+
+- Index on specialization
+- Index on location

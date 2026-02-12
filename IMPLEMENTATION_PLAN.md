@@ -23,11 +23,11 @@ Dependency: None
 
 Priority: High
 
-- [ ] Initialize Node project
-- [ ] Configure TypeScript
-- [ ] Setup ESLint & Prettier
-- [ ] Setup folder structure
-- [ ] Setup environment configuration
+- [x] Initialize Node project
+- [x] Configure TypeScript
+- [x] Setup ESLint & Prettier
+- [x] Setup folder structure
+- [x] Setup environment configuration
 
 Milestone: Project builds successfully
 
@@ -39,9 +39,9 @@ Milestone: Project builds successfully
 
 Priority: High
 
-- [ ] Install PostgreSQL
-- [ ] Configure Prisma ORM
-- [ ] Setup initial schema
+- [x] Install PostgreSQL
+- [x] Configure Prisma ORM
+- [x] Setup initial schema
 
 Dependency: Project initialization
 
@@ -51,12 +51,12 @@ Dependency: Project initialization
 
 Priority: High
 
-- [ ] Users table
-- [ ] OAuth accounts
-- [ ] Refresh tokens
-- [ ] Password reset tokens
-- [ ] Chats table (New)
-- [ ] Messages table (New)
+- [x] Users table
+- [x] OAuth accounts
+- [x] Refresh tokens
+- [x] Password reset tokens
+- [x] Chats table (New)
+- [x] Messages table (New)
 
 Milestone: Database migrations successful
 
@@ -309,9 +309,46 @@ Priority: High
 
 ---
 
-## Phase 9 – Final Testing & Deployment (Week 8)
+## Phase 9 – Doctor Recommendation System (Week 8)
 
-### Task 9.1 – Unit Tests
+### Task 9.1 – Doctors Table & Data
+
+Priority: High
+
+- [ ] Create Doctors table migration
+- [ ] Create seed script to migrate JSON data to DB
+- [ ] Execute migration
+
+### Task 9.2 – Doctor API
+
+Priority: High
+
+- [ ] Create /doctors endpoint
+- [ ] Implement filtering by specialization
+- [ ] Implement search by name/location
+
+### Task 9.3 – AI Symptom Integration (Enhanced)
+
+Priority: High
+
+- [ ] Implement Gemini JSON mode for structured output
+- [ ] Add confidence scoring and validation logic
+- [ ] Implement fallback to 'General Physician'
+- [ ] Update /ai/analyze-symptoms endpoint
+
+### Task 9.4 – Frontend Cleanup
+
+Priority: Medium
+
+- [ ] Remove `symptoms_to_category.json`
+- [ ] Remove client-side mapping logic from `DoctorSuggest.jsx`
+- [ ] Connect frontend to new `/doctors` and `/ai/analyze-symptoms` endpoints
+
+---
+
+## Phase 10 – Final Testing & Deployment (Week 9)
+
+### Task 10.1 – Unit Tests
 
 Priority: High
 
@@ -319,10 +356,11 @@ Priority: High
 - [ ] Token tests
 - [ ] Reset tests
 - [ ] Chat tests
+- [ ] Doctor API tests
 
 ---
 
-### Task 9.2 – Integration Tests
+### Task 10.2 – Integration Tests
 
 Priority: Medium
 
@@ -330,10 +368,11 @@ Priority: Medium
 - [ ] Full reset flow
 - [ ] SES event simulation
 - [ ] Chat flow
+- [ ] Doctor recommendation flow
 
 ---
 
-### Task 9.3 – Deployment
+### Task 10.3 – Deployment
 
 Priority: High
 
@@ -358,4 +397,5 @@ Milestone: Production launch
 - [ ] Structured logging
 - [ ] Health monitoring
 - [ ] Chat System
+- [ ] Doctor Recommendation System
 - [ ] Production-ready configuration

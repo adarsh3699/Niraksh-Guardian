@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String?   @map("password_hash")
+  isEmailVerified   Boolean   @default(false) @map("is_email_verified")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  lastLogin         DateTime? @map("last_login")
+  gender            String?
+  
+  oauthAccounts     OAuthAccount[]
+  refreshTokens     RefreshToken[]
+  resetTokens       PasswordResetToken[]
+  chats             Chat[]
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model Doctor {
+  id              String   @id @default(uuid())
+  name            String
+  specialization  String
+  experienceYears Int      @map("experience_years")
+  consultationFee Int      @map("consultation_fee")
+  location        String
+  bio             String   @db.Text
+  contactInfo     String   @map("contact_info")
+  imageUrl        String?  @map("image_url")
+  isAvailable     Boolean  @default(true) @map("is_available")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([specialization])
+  @@index([location])
+  @@map("doctors")
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@map("chats")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  role      String   // 'user' | 'model' | 'system'
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}

@@ -252,3 +252,32 @@ The chat system enables users to interact with AI models.
 
 - **Streaming**: Responses should be streamed to client (future enhancement).
 - **History Context**: Limited recent messages sent to model to maintain context window.
+
+---
+
+## 10. Doctor Recommendation System
+
+### 10.1 Overview
+
+Dynamically recommends doctors based on symptom analysis.
+
+- **Storage**: Doctors table (replacing static JSON files).
+- **AI Engine**: Gemini (or similar) for symptom classification.
+
+### 10.2 Workflow
+
+1.  **Symptom Input**: Frontend collects symptoms and sends directly to backend (No client-side classification).
+2.  **AI Analysis**: Backend sends symptoms to Gemini with **JSON Mode** enforced.
+3.  **Classification**: AI returns:
+    - `categories`: List of valid specializations.
+    - `confidence`: 0-1 score.
+    - `reasoning`: Explanation for the choice.
+4.  **Validation**: Backend validates returned categories against the allowed list in `Doctors` table.
+5.  **Doctor Lookup**: Backend queries `Doctors` table filtering by the validated specialization.
+6.  **Ranking**: Doctors are ranked by experience and availability.
+7.  **Response**: List of doctors returned to frontend.
+
+### 10.3 Data Migration & Cleanup
+
+1.  **Migrate Data**: Move `frontend/jsonData` (doctor profiles) to PostgreSQL `Doctors` table.
+2.  **Remove Legacy**: Delete `symptoms_to_category.json` and client-side mapping logic.
