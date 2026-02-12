@@ -7,7 +7,13 @@ require("dotenv").config();
 const app = express();
 
 // Configure multer for file uploads
-const upload = multer({ dest: "uploads/" });
+const upload = multer({
+	storage: multer.diskStorage({
+		destination: (req, file, cb) => {
+			cb(null, "uploads/");
+		},
+	}),
+});
 
 function fileToGenerativePart(path, mimeType) {
 	return {
