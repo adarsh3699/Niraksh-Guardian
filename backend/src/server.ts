@@ -1,9 +1,8 @@
 import app from "./app";
 import env from "./config/env";
 import redisClient from "./config/redis";
-import pino from "pino";
+import logger from "./config/logger";
 
-const logger = pino({ name: "server" });
 const PORT = env.PORT || 5000;
 
 const startServer = async () => {

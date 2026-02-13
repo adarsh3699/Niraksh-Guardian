@@ -1,25 +1,31 @@
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import nodemailer from "nodemailer";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import env from "../../config/env";
 import pino from "pino";
 
 const logger = pino({ name: "email-service" });
 
 class EmailService {
-	private sesClient: SESClient | null = null;
+	private transporter: nodemailer.Transporter | null = null;
 	private senderEmail: string;
 
 	constructor() {
-		this.senderEmail = process.env.SENDER_EMAIL || "noreply@niraksh-guardian.com";
+		this.senderEmail = process.env.SENDER_EMAIL || "niraksh-guardian@bhemu.in";
 
 		if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_REGION) {
-			this.sesClient = new SESClient({
+			const ses = new SESv2Client({
 				region: env.AWS_REGION,
 				credentials: {
 					accessKeyId: env.AWS_ACCESS_KEY_ID,
 					secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
 				},
 			});
-			logger.info("AWS SES Client initialized");
+
+			this.transporter = nodemailer.createTransport({
+				SES: { sesClient: ses, SendEmailCommand },
+			});
+
+			logger.info("AWS SES Email Transporter initialized (Nodemailer + SESv2)");
 		} else {
 			logger.warn("AWS SES credentials not found. Email sending will be mocked.");
 		}
@@ -60,27 +66,17 @@ class EmailService {
 		const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
 		const htmlBody = this.getResetEmailTemplate(resetLink);
 
-		if (this.sesClient) {
+		if (this.transporter) {
 			try {
-				const command = new SendEmailCommand({
-					Source: this.senderEmail,
-					Destination: {
-						ToAddresses: [email],
-					},
-					Message: {
-						Subject: {
-							Data: "Password Reset Request - Niraksh Guardian",
-						},
-						Body: {
-							Html: {
-								Data: htmlBody,
-							},
-						},
-					},
+				const info = await this.transporter.sendMail({
+					from: `"Niraksh Guardian" <${this.senderEmail}>`,
+					to: email,
+					subject: "Password Reset Request - Niraksh Guardian",
+					html: htmlBody,
+					text: `Reset your password using this link: ${resetLink}\nThis link will expire in 1 hour.`,
 				});
 
-				await this.sesClient.send(command);
-				logger.info(`Password reset email sent to ${email}`);
+				logger.info(`Password reset email sent to ${email}, MessageId: ${info.messageId}`);
 			} catch (error) {
 				logger.error(error, "Failed to send email via SES");
 				if (env.NODE_ENV === "development") {

@@ -11,7 +11,7 @@ export const handleSesWebhook = async (req: Request, res: Response) => {
 		if (typeof body === "string") {
 			try {
 				body = JSON.parse(body);
-			} catch (e) {
+			} catch {
 				console.error("Failed to parse string body in webhook");
 			}
 		}

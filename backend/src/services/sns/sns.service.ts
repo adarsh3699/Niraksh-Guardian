@@ -1,9 +1,28 @@
 import Validator from "sns-validator";
 import { PrismaClient } from "@prisma/client";
-import pino from "pino";
+import logger from "../../config/logger";
 
-const logger = pino({ name: "sns-service" });
 const prisma = new PrismaClient();
+
+interface SnsMessage {
+	Type: string;
+	TopicArn?: string;
+	SubscribeURL?: string;
+	Message: string;
+}
+
+interface BounceRecipient {
+	emailAddress: string;
+}
+
+interface Bounce {
+	bounceType: string;
+	bouncedRecipients: BounceRecipient[];
+}
+
+interface Complaint {
+	complainedRecipients: BounceRecipient[];
+}
 
 class SnsService {
 	private validator: Validator;
@@ -12,7 +31,7 @@ class SnsService {
 		this.validator = validatorInstance || new Validator();
 	}
 
-	async handleMessage(body: any): Promise<void> {
+	async handleMessage(body: Record<string, unknown>): Promise<void> {
 		return new Promise((resolve, reject) => {
 			this.validator.validate(body, async (err, message) => {
 				if (err) {
@@ -21,7 +40,7 @@ class SnsService {
 				}
 
 				try {
-					await this.processMessage(message);
+					await this.processMessage(message as unknown as SnsMessage);
 					resolve();
 				} catch (processError) {
 					logger.error(processError, "Error processing SNS message");
@@ -31,16 +50,12 @@ class SnsService {
 		});
 	}
 
-	private async processMessage(message: any) {
+	private async processMessage(message: SnsMessage) {
 		const type = message.Type;
 
 		if (type === "SubscriptionConfirmation") {
 			logger.info(`Confirming SNS subscription for topic ${message.TopicArn}`);
-			// In production, you might want to auto-confirm using `axios.get(message.SubscribeURL)`
-			// For now, logging the SubscribeURL so admin can click it is safer or good enough.
 			logger.info(`Subscribe URL: ${message.SubscribeURL}`);
-			// To auto-confirm:
-			// await axios.get(message.SubscribeURL);
 			return;
 		}
 
@@ -49,7 +64,7 @@ class SnsService {
 			let sesMessage;
 			try {
 				sesMessage = JSON.parse(rawMessage);
-			} catch (e) {
+			} catch {
 				logger.error("Failed to parse SNS Notification Message JSON");
 				return;
 			}
@@ -64,13 +79,12 @@ class SnsService {
 		}
 	}
 
-	private async handleBounce(bounce: any) {
+	private async handleBounce(bounce: Bounce) {
 		const bounceType = bounce.bounceType;
 		const bouncedRecipients = bounce.bouncedRecipients;
 
 		logger.info(`Processing Bounce: ${bounceType}`);
 
-		// Permanent bounces (Hard Bounce) should deactivate user
 		if (bounceType === "Permanent") {
 			for (const recipient of bouncedRecipients) {
 				const email = recipient.emailAddress;
@@ -79,7 +93,7 @@ class SnsService {
 		}
 	}
 
-	private async handleComplaint(complaint: any) {
+	private async handleComplaint(complaint: Complaint) {
 		const complainedRecipients = complaint.complainedRecipients;
 		logger.info("Processing Complaint");
 
@@ -91,16 +105,15 @@ class SnsService {
 
 	private async deactivateUser(email: string, reason: string) {
 		try {
-			const user = await prisma.user.update({
+			await prisma.user.update({
 				where: { email },
 				data: {
 					isActive: false,
-					// statusReason: reason, // If we added this field, useful for auditing
 				},
 			});
 			logger.warn(`User ${email} deactivated due to ${reason}`);
 		} catch (error) {
-			logger.error(`Failed to deactivate user ${email}:`, error);
+			logger.error({ err: error, email }, `Failed to deactivate user`);
 		}
 	}
 }

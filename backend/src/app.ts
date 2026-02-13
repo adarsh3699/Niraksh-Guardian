@@ -1,15 +1,34 @@
-import express, { Application, Request, Response, NextFunction } from "express";
+import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import pino from "pino";
+import pinoHttp from "pino-http";
+import logger from "./config/logger";
 
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
+import healthRoutes from "./routes/health";
+import { apiRateLimiter } from "./middlewares/rateLimiter";
+import { errorHandler } from "./middlewares/errorHandler";
 
 const app: Application = express();
-const logger = pino();
 
-import { apiRateLimiter } from "./middlewares/rateLimiter";
+// Request Logging
+app.use(
+	pinoHttp({
+		logger,
+		autoLogging: {
+			ignore: (req) => {
+				// Don't log health check requests
+				return (req as Request).url === "/health";
+			},
+		},
+		customLogLevel: (_req, res, error) => {
+			if (error || res.statusCode >= 500) return "error";
+			if (res.statusCode >= 400) return "warn";
+			return "info";
+		},
+	})
+);
 
 // Middleware
 app.use(express.json());
@@ -33,19 +52,9 @@ app.get("/api", (req: Request, res: Response) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/webhooks", webhookRoutes);
+app.use("/health", healthRoutes);
 
-// Health Check
-app.get("/health", (req: Request, res: Response) => {
-	res.status(200).json({ status: "ok", uptime: process.uptime() });
-});
-
-// Global Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-	logger.error(err);
-	res.status(500).json({
-		error: "Internal Server Error",
-		message: process.env.NODE_ENV === "development" ? err.message : undefined,
-	});
-});
+// Global Error Handler (must be last)
+app.use(errorHandler);
 
 export default app;
