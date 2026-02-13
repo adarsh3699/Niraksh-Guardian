@@ -14,7 +14,7 @@ Priority: High
 - [x] Confirm Redis
 - [x] Confirm AWS SES
 - [x] Confirm SNS for bounce tracking
-- [ ] Confirm Cloudinary for Image Storage (New)
+- [x] Confirm Cloudinary for Image Storage (New)
 
 Dependency: None
 
@@ -58,7 +58,7 @@ Priority: High
 - [x] Password reset tokens
 - [x] Chats table (New)
 - [x] Messages table (New)
-- [ ] History Tables (Medicine, Prescription, Interactions) (Update)
+- [x] History Tables (Medicine, Prescription, Interactions) (Update)
 
 Milestone: Database migrations successful
 

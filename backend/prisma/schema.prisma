@@ -22,6 +22,9 @@ model User {
   refreshTokens     RefreshToken[]
   resetTokens       PasswordResetToken[]
   chats             Chat[]
+  medicineHistory   MedicineHistory[]
+  prescriptionHistory PrescriptionHistory[]
+  drugInteractionHistory DrugInteractionHistory[]
 
   @@map("users")
 }
@@ -97,6 +100,7 @@ model Chat {
   @@map("chats")
 }
 
+
 model Message {
   id        String   @id @default(uuid())
   chatId    String   @map("chat_id")
@@ -106,5 +110,51 @@ model Message {
 
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
+  @@index([chatId])
+  @@index([createdAt])
   @@map("messages")
+}
+
+model MedicineHistory {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  imageUrl       String   @map("image_url")
+  medicineName   String?  @map("medicine_name")
+  analysisResult Json     @map("analysis_result")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("medicine_history")
+}
+
+model PrescriptionHistory {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  imageUrl       String   @map("image_url")
+  extractedText  String   @map("extracted_text") @db.Text
+  analysisResult Json     @map("analysis_result")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("prescription_history")
+}
+
+model DrugInteractionHistory {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  drugs             String[]
+  interactionResult Json     @map("interaction_result")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("drug_interaction_history")
 }
