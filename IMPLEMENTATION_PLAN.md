@@ -1,7 +1,10 @@
 # Niraksh-Guardian Backend Implementation Plan
 
-Notes: we will check for build and lint error after each phase.
-and we are using pnpm as package manager.
+### Notes:
+
+- We will check for build and lint error after each phase.
+- We are using pnpm as package manager.
+- Migrating from backend_old to new backend.
 
 ## Phase 0 – Planning & Setup (Week 1)
 
