@@ -12,6 +12,7 @@ const envSchema = z.object({
 	GOOGLE_CLIENT_ID: z.string().optional(), // Optional for now until set up
 	GOOGLE_CLIENT_SECRET: z.string().optional(),
 	GEMINI_API_KEY: z.string().optional(),
+	SENDER_EMAIL: z.string().email().optional(),
 	REDIS_URL: z.string().default("redis://localhost:6379"),
 	AWS_REGION: z.string().default("us-east-1"),
 	AWS_ACCESS_KEY_ID: z.string().optional(),

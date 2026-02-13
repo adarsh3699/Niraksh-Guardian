@@ -70,8 +70,8 @@ Milestone: Database migrations successful
 
 Priority: High
 
-- [ ] Implement bcrypt hashing
-- [ ] Implement password verification
+- [x] Implement bcrypt hashing
+- [x] Implement password verification
 
 ---
 
@@ -79,10 +79,10 @@ Priority: High
 
 Priority: High
 
-- [ ] Access token logic
-- [ ] Refresh token logic
-- [ ] Token rotation
-- [ ] Token validation middleware
+- [x] Access token logic
+- [x] Refresh token logic
+- [x] Token rotation
+- [x] Token validation middleware
 
 Dependency: Database ready
 
@@ -92,9 +92,9 @@ Dependency: Database ready
 
 Priority: High
 
-- [ ] Validation layer
-- [ ] Create user endpoint
-- [ ] Store hashed password
+- [x] Validation layer
+- [x] Create user endpoint
+- [x] Store hashed password
 
 ---
 
@@ -102,10 +102,10 @@ Priority: High
 
 Priority: High
 
-- [ ] Verify password
-- [ ] Generate tokens
-- [ ] Store refresh token hashed
-- [ ] Update last_login timestamp
+- [x] Verify password
+- [x] Generate tokens
+- [x] Store refresh token hashed
+- [x] Update last_login timestamp
 
 Milestone: Authentication fully functional
 
@@ -115,11 +115,11 @@ Milestone: Authentication fully functional
 
 Priority: Medium
 
-- [ ] Setup Google Cloud project
-- [ ] Implement OAuth callback
-- [ ] Validate Google ID token
-- [ ] Create or link user
-- [ ] Issue JWT tokens
+- [x] Setup Google Cloud project
+- [x] Implement OAuth callback
+- [x] Validate Google ID token
+- [x] Create or link user
+- [x] Issue JWT tokens
 
 Dependency: JWT system complete
 
@@ -131,8 +131,8 @@ Dependency: JWT system complete
 
 Priority: High
 
-- [ ] Connect Redis client
-- [ ] Configure environment variables
+- [x] Connect Redis client
+- [x] Configure environment variables
 
 ---
 
@@ -140,9 +140,9 @@ Priority: High
 
 Priority: High
 
-- [ ] Implement IP-based rate limiting
-- [ ] Implement login attempt limiter
-- [ ] Implement reset email limiter
+- [x] Implement IP-based rate limiting
+- [x] Implement login attempt limiter
+- [x] Implement reset email limiter
 
 Dependency: Redis connected
 
@@ -152,8 +152,8 @@ Dependency: Redis connected
 
 Priority: Medium
 
-- [ ] Store revoked tokens
-- [ ] Validate against blacklist
+- [x] Store revoked tokens
+- [x] Validate against blacklist
 
 Milestone: Security layer active
 
@@ -165,9 +165,9 @@ Milestone: Security layer active
 
 Priority: High
 
-- [ ] Verify domain/email
-- [ ] Move out of sandbox (if possible)
-- [ ] Setup credentials
+- [x] Verify domain/email
+- [x] Move out of sandbox (if possible)
+- [x] Setup credentials
 
 ---
 
@@ -175,9 +175,9 @@ Priority: High
 
 Priority: Medium
 
-- [ ] Create responsive HTML template
-- [ ] Add reset link
-- [ ] Test locally
+- [x] Create responsive HTML template
+- [x] Add reset link
+- [x] Test locally
 
 ---
 
@@ -185,9 +185,9 @@ Priority: Medium
 
 Priority: High
 
-- [ ] Secure random token
-- [ ] Store hashed token
-- [ ] Add expiration logic
+- [x] Secure random token
+- [x] Store hashed token
+- [x] Add expiration logic
 
 ---
 
@@ -195,9 +195,9 @@ Priority: High
 
 Priority: High
 
-- [ ] Validate token
-- [ ] Update password
-- [ ] Invalidate token
+- [x] Validate token
+- [x] Update password
+- [x] Invalidate token
 
 Milestone: Password reset fully operational
 

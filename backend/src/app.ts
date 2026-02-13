@@ -8,11 +8,14 @@ import authRoutes from "./routes/auth";
 const app: Application = express();
 const logger = pino();
 
+import { apiRateLimiter } from "./middlewares/rateLimiter";
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
+app.use(apiRateLimiter);
 
 app.get("/", (req: Request, res: Response) => {
 	res.status(200).json({ message: "Welcome to Niraksh Guardian API" });

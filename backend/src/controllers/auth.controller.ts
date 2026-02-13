@@ -24,9 +24,9 @@ export const signup = async (req: Request, res: Response) => {
 		const user = await prisma.user.create({
 			data: {
 				email: validatedData.email,
+				name: validatedData.name,
 				passwordHash,
 				gender: validatedData.gender,
-				// Add parsed name logic if needed, for now just using email as identifier primarily
 			},
 		});
 
@@ -257,5 +257,90 @@ export const googleLogin = async (req: Request, res: Response) => {
 	} catch (error) {
 		console.error("Google Login Error:", error);
 		res.status(401).json({ error: "Google Authentication Failed" });
+	}
+};
+
+import { forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.schema";
+import { emailService } from "../services/email/email.service";
+import crypto from "crypto";
+
+export const forgotPassword = async (req: Request, res: Response) => {
+	try {
+		const { email } = forgotPasswordSchema.parse(req.body);
+
+		const user = await prisma.user.findUnique({
+			where: { email },
+		});
+
+		if (!user) {
+			// Fail silently to prevent email enumeration
+			return res.status(200).json({ message: "If an account exists, a reset link has been sent." });
+		}
+
+		// Generate reset token
+		const resetToken = crypto.randomBytes(32).toString("hex");
+		const resetTokenHash = hashToken(resetToken);
+		const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+		// Store/Update token
+		// Revoke any existing tokens
+		await prisma.passwordResetToken.deleteMany({
+			where: { userId: user.id },
+		});
+
+		// Create new token
+		await prisma.passwordResetToken.create({
+			data: {
+				userId: user.id,
+				tokenHash: resetTokenHash,
+				expiresAt,
+			},
+		});
+
+		// Send email
+		await emailService.sendPasswordResetEmail(email, resetToken);
+
+		res.status(200).json({ message: "If an account exists, a reset link has been sent." });
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return res.status(400).json({ error: error.issues });
+		}
+		console.error("Forgot Password Error:", error);
+		res.status(500).json({ error: "Internal Server Error" });
+	}
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+	try {
+		const { token, password } = resetPasswordSchema.parse(req.body);
+		const tokenHash = hashToken(token);
+
+		const resetTokenEntry = await prisma.passwordResetToken.findUnique({
+			where: { tokenHash },
+		});
+
+		if (!resetTokenEntry || resetTokenEntry.expiresAt < new Date()) {
+			return res.status(400).json({ error: "Invalid or expired token" });
+		}
+
+		// Update password
+		const passwordHash = await hashPassword(password);
+		await prisma.user.update({
+			where: { id: resetTokenEntry.userId },
+			data: { passwordHash },
+		});
+
+		// Delete token
+		await prisma.passwordResetToken.delete({
+			where: { id: resetTokenEntry.id },
+		});
+
+		res.status(200).json({ message: "Password reset successfully" });
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return res.status(400).json({ error: error.issues });
+		}
+		console.error("Reset Password Error:", error);
+		res.status(500).json({ error: "Internal Server Error" });
 	}
 };
