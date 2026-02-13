@@ -9,11 +9,12 @@ and we are using pnpm as package manager.
 
 Priority: High
 
-- [ ] Confirm Node.js + TypeScript
-- [ ] Confirm PostgreSQL
-- [ ] Confirm Redis
-- [ ] Confirm AWS SES
-- [ ] Confirm SNS for bounce tracking
+- [x] Confirm Node.js + TypeScript
+- [x] Confirm PostgreSQL
+- [x] Confirm Redis
+- [x] Confirm AWS SES
+- [x] Confirm SNS for bounce tracking
+- [ ] Confirm Cloudinary for Image Storage (New)
 
 Dependency: None
 
@@ -57,6 +58,7 @@ Priority: High
 - [x] Password reset tokens
 - [x] Chats table (New)
 - [x] Messages table (New)
+- [ ] History Tables (Medicine, Prescription, Interactions) (Update)
 
 Milestone: Database migrations successful
 
@@ -346,9 +348,37 @@ Priority: Medium
 
 ---
 
-## Phase 10 – Final Testing & Deployment (Week 9)
+## Phase 10 – Health Tools & History (New Phase) (Week 9)
 
-### Task 10.1 – Unit Tests
+### Task 10.1 – Cloudinary Setup
+
+Priority: High
+
+- [ ] Configure Cloudinary credentials
+- [ ] Create upload middleware (Multer)
+
+### Task 10.2 – Database Updates
+
+Priority: High
+
+- [ ] Create migration for History tables
+- [ ] Run migration
+
+### Task 10.3 – History Endpoints
+
+Priority: High
+
+- [ ] Medicine Analysis & History API
+- [ ] Prescription Analysis & History API
+- [ ] Drug Interaction & History API
+
+Milestone: Full Health Tools Suite
+
+---
+
+## Phase 11 – Final Testing & Deployment (Week 10)
+
+### Task 11.1 – Unit Tests
 
 Priority: High
 
@@ -357,10 +387,11 @@ Priority: High
 - [ ] Reset tests
 - [ ] Chat tests
 - [ ] Doctor API tests
+- [ ] Health Tools tests
 
 ---
 
-### Task 10.2 – Integration Tests
+### Task 11.2 – Integration Tests
 
 Priority: Medium
 
@@ -369,10 +400,11 @@ Priority: Medium
 - [ ] SES event simulation
 - [ ] Chat flow
 - [ ] Doctor recommendation flow
+- [ ] Image upload flow
 
 ---
 
-### Task 10.3 – Deployment
+### Task 11.3 – Deployment
 
 Priority: High
 
@@ -398,4 +430,5 @@ Milestone: Production launch
 - [ ] Health monitoring
 - [ ] Chat System
 - [ ] Doctor Recommendation System
+- [ ] Health Tools History (Cloudinary)
 - [ ] Production-ready configuration

@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import pino from "pino";
 
+import authRoutes from "./routes/auth";
+
 const app: Application = express();
 const logger = pino();
 
@@ -11,6 +13,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
+
+app.get("/", (req: Request, res: Response) => {
+	res.status(200).json({ message: "Welcome to Niraksh Guardian API" });
+});
+
+app.get("/api", (req: Request, res: Response) => {
+	res.status(200).json({
+		"/": "/",
+		auth: "/api/auth",
+		users: "/api/users",
+	});
+});
+
+// Routes
+app.use("/api/auth", authRoutes);
 
 // Health Check
 app.get("/health", (req: Request, res: Response) => {

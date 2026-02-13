@@ -12,8 +12,9 @@ The system focuses on:
 - Redis-based rate limiting and session management
 - Bounce and complaint monitoring
 - Logging and monitoring (free stack)
+- AI-powered Health Tools (Image Analysis & Interaction checks)
 
-The entire system is designed using free and open-source technologies.
+The entire system is designed using free and open-source technologies, plus Cloudinary for media.
 
 ---
 
@@ -26,8 +27,10 @@ Node.js + TypeScript API (Express)
 
 ---
 
-| PostgreSQL | Redis |
-| User Data | Sessions + Rate Limit |
+| PostgreSQL | Redis | Cloudinary |
+| User Data | Rate Limit | Images |
+
+---
 
 ---
 
@@ -59,6 +62,7 @@ Responsibilities:
 - Email sending
 - SNS event handling
 - Rate limiting
+- **Image Upload & Processing**
 
 ---
 
@@ -70,6 +74,7 @@ Used for:
 - OAuth identities
 - Hashed refresh tokens
 - Password reset tokens
+- **Health Tool History (Medicine, Prescription, Interactions)**
 
 Main Tables:
 
@@ -77,6 +82,9 @@ Main Tables:
 - oauth_accounts
 - refresh_tokens
 - password_reset_tokens
+- medicine_history
+- prescription_history
+- drug_interaction_history
 
 ---
 
@@ -93,7 +101,23 @@ TTL-based storage ensures automatic cleanup.
 
 ---
 
-### 3.4 Authentication Flow
+### 3.4 Media Storage (Cloudinary)
+
+Used for:
+
+- Uploaded Medicine images
+- Uploaded Prescription images
+- Doctor profile images
+
+Strategy:
+
+- Secure uploads via API
+- Transformations (optimization, resizing)
+- Delivery via CDN URL
+
+---
+
+### 3.5 Authentication Flow
 
 #### Email/Password Login
 
@@ -118,7 +142,7 @@ TTL-based storage ensures automatic cleanup.
 
 ---
 
-### 3.5 Password Reset Flow
+### 3.6 Password Reset Flow
 
 1. User requests password reset
 2. Reset token generated (secure random)
@@ -132,7 +156,7 @@ Rate limited to prevent abuse.
 
 ---
 
-### 3.6 AWS SES Integration
+### 3.7 AWS SES Integration
 
 - Send reset emails
 - Use SES suppression list
@@ -146,7 +170,7 @@ If bounce detected:
 
 ---
 
-### 3.7 Logging Strategy
+### 3.8 Logging Strategy
 
 Logger: Pino (JSON structured logs)
 
@@ -166,7 +190,7 @@ Logs stored:
 
 ---
 
-### 3.8 Monitoring Strategy
+### 3.9 Monitoring Strategy
 
 Monitor:
 
@@ -183,7 +207,7 @@ Basic Setup:
 
 ---
 
-### 3.9 Security Measures
+### 3.10 Security Measures
 
 - HTTPS only
 - bcrypt password hashing
@@ -204,8 +228,10 @@ src/
 │ ├── auth/
 │ ├── email/
 │ ├── redis/
-│ └── jwt/
+│ ├── jwt/
+│ └── cloudinary/ <-- New
 ├── middlewares/
+│ └── upload.ts <-- Multer config
 ├── routes/
 ├── db/
 ├── utils/
@@ -221,6 +247,7 @@ src/
 - Redis for distributed rate limiting
 - Database indexed properly
 - Modular service architecture
+- CDN for static assets (Cloudinary)
 
 Future upgrade path:
 
@@ -281,3 +308,26 @@ Dynamically recommends doctors based on symptom analysis.
 
 1.  **Migrate Data**: Move `frontend/jsonData` (doctor profiles) to PostgreSQL `Doctors` table.
 2.  **Remove Legacy**: Delete `symptoms_to_category.json` and client-side mapping logic.
+
+---
+
+## 11. Health Tools & History (New)
+
+### 11.1 Medicine & Prescription Analysis
+
+- **Input**: Image (uploaded via Frontend)
+- **Process**:
+    1. Image uploaded to Cloudinary
+    2. URL sent to AI (Gemini)
+    3. AI analyzes image (OCR + Context)
+    4. Result stored in `medicine_history` or `prescription_history` table
+- **Output**: Analysis result returned to user.
+
+### 11.2 Drug Interaction Check
+
+- **Input**: List of medicine names
+- **Process**:
+    1. Backend sends list to AI
+    2. AI determines interactions/contraindications
+    3. Result stored in `drug_interaction_history`
+- **Output**: Safety report returned to user.

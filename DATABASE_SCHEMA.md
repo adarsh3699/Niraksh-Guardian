@@ -225,12 +225,63 @@ Indexes:
 
 ---
 
-# 10. Users Table Updates (Legacy Support)
+# 10. AI & Health Tools History (new)
 
-Add to Users Table:
+## 10.1 Medicine History Table
 
-- gender (VARCHAR, nullable)
-- last_login (TIMESTAMP, nullable)
+Purpose:
+Stores history of analyzed medicines.
+
+Fields:
+
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key → users.id)
+- image_url (VARCHAR) // Cloudinary URL
+- medicine_name (VARCHAR, nullable)
+- analysis_result (JSON) // Detailed AI analysis
+- created_at (TIMESTAMP)
+
+Indexes:
+
+- Index on user_id
+- Index on created_at
+
+## 10.2 Prescription History Table
+
+Purpose:
+Stores history of analyzed prescriptions.
+
+Fields:
+
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key → users.id)
+- image_url (VARCHAR) // Cloudinary URL
+- extracted_text (TEXT)
+- analysis_result (JSON) // Summary and details
+- created_at (TIMESTAMP)
+
+Indexes:
+
+- Index on user_id
+- Index on created_at
+
+## 10.3 Drug Interaction History Table
+
+Purpose:
+Stores history of drug-drug interaction checks.
+
+Fields:
+
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key → users.id)
+- drugs (VARCHAR[]) // Array of drug names checked
+- interaction_result (JSON) // Analysis result
+- created_at (TIMESTAMP)
+
+Indexes:
+
+- Index on user_id
+- Index on created_at
 
 ---
 
