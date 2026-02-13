@@ -17,6 +17,8 @@ const envSchema = z.object({
 	AWS_REGION: z.string().default("ap-south-1"),
 	AWS_ACCESS_KEY_ID: z.string().optional(),
 	AWS_SECRET_ACCESS_KEY: z.string().optional(),
+	CORS_ORIGINS: z.string().optional(),
+	FRONTEND_URL: z.string().default("http://localhost:3000"),
 });
 
 const env = envSchema.parse(process.env);

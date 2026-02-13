@@ -4,6 +4,8 @@ import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/aut
 import { ZodError } from "zod";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../services/jwt/jwt";
+import { blacklistToken } from "../services/tokenBlacklist";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
@@ -172,6 +174,20 @@ export const logout = async (req: Request, res: Response) => {
 				data: { revoked: true },
 			});
 		}
+
+		// Blacklist the access token in Redis
+		const authHeader = req.headers.authorization;
+		if (authHeader?.startsWith("Bearer ")) {
+			const accessToken = authHeader.split(" ")[1];
+			const decoded = jwt.decode(accessToken) as jwt.JwtPayload | null;
+			if (decoded?.exp) {
+				const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+				if (ttl > 0) {
+					await blacklistToken(accessToken, ttl);
+				}
+			}
+		}
+
 		res.status(200).json({ message: "Logged out successfully" });
 	} catch {
 		res.status(500).json({ error: "Internal Server Error" });
@@ -315,7 +331,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 		const { token, password } = resetPasswordSchema.parse(req.body);
 		const tokenHash = hashToken(token);
 
-		const resetTokenEntry = await prisma.passwordResetToken.findUnique({
+		const resetTokenEntry = await prisma.passwordResetToken.findFirst({
 			where: { tokenHash },
 		});
 

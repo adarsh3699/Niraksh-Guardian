@@ -253,8 +253,8 @@ Priority: Medium
 
 Priority: Medium
 
-- [x] Enable log shipping
-- [x] Create basic alarms
+- [ ] Enable log shipping
+- [ ] Create basic alarms
 
 Milestone: Monitoring operational
 
@@ -264,24 +264,24 @@ Milestone: Monitoring operational
 
 ### Task 7.1 – Middleware Security
 
-- [ ] Helmet
-- [ ] CORS configuration
-- [ ] Input validation
+- [x] Helmet
+- [x] CORS configuration
+- [x] Input validation
 
 ---
 
 ### Task 7.2 – Rate Limit Testing
 
-- [ ] Stress test endpoints
-- [ ] Verify lockouts
+- [x] Stress test endpoints
+- [x] Verify lockouts
 
 ---
 
 ### Task 7.3 – Security Audit
 
-- [ ] Test token misuse
-- [ ] Test expired tokens
-- [ ] Test brute force
+- [x] Test token misuse
+- [x] Test expired tokens
+- [x] Test brute force
 
 Milestone: Production-ready security
 
