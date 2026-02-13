@@ -10,7 +10,7 @@
 		"lint": "eslint src/**/*.ts",
 		"format": "prettier --write src/**/*.ts",
 		"prisma:generate": "prisma generate",
-		"prisma:migrate": "prisma migrate dev"
+		"prisma:migrate": "prisma miwhagrate dev"
 	},
 	"keywords": [],
 	"author": "",
