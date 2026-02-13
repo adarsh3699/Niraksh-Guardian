@@ -4,6 +4,7 @@ import helmet from "helmet";
 import pino from "pino";
 
 import authRoutes from "./routes/auth";
+import webhookRoutes from "./routes/webhook";
 
 const app: Application = express();
 const logger = pino();
@@ -31,6 +32,7 @@ app.get("/api", (req: Request, res: Response) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/webhooks", webhookRoutes);
 
 // Health Check
 app.get("/health", (req: Request, res: Response) => {

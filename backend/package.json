@@ -25,6 +25,7 @@
 		"@types/multer": "^2.0.0",
 		"@types/node": "^25.2.3",
 		"@types/pino": "^7.0.5",
+		"@types/sns-validator": "^0.3.3",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.5",

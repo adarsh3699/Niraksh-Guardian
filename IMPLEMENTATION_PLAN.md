@@ -209,8 +209,8 @@ Milestone: Password reset fully operational
 
 Priority: High
 
-- [ ] Create SNS topic
-- [ ] Subscribe webhook endpoint
+- [x] Create SNS topic
+- [x] Subscribe webhook endpoint
 
 ---
 
@@ -218,10 +218,10 @@ Priority: High
 
 Priority: High
 
-- [ ] Verify SNS signature
-- [ ] Process bounce events
-- [ ] Process complaint events
-- [ ] Mark emails inactive
+- [x] Verify SNS signature
+- [x] Process bounce events
+- [x] Process complaint events
+- [x] Mark emails inactive
 
 Milestone: Email reputation protection active
 
