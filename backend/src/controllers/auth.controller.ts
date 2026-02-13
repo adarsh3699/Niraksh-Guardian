@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
+import { ZodError } from "zod";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../services/jwt/jwt";
 
@@ -49,8 +50,8 @@ export const signup = async (req: Request, res: Response) => {
 			tokens: { accessToken, refreshToken },
 		});
 	} catch (error) {
-		if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
-			return res.status(400).json({ error: (error as any).errors });
+		if (error instanceof ZodError) {
+			return res.status(400).json({ error: error.issues });
 		}
 		const message = error instanceof Error ? error.message : "Unknown error";
 		res.status(500).json({ error: "Internal Server Error", details: message });
@@ -101,8 +102,8 @@ export const login = async (req: Request, res: Response) => {
 			tokens: { accessToken, refreshToken },
 		});
 	} catch (error) {
-		if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
-			return res.status(400).json({ error: (error as any).errors });
+		if (error instanceof ZodError) {
+			return res.status(400).json({ error: error.issues });
 		}
 		const message = error instanceof Error ? error.message : "Unknown error";
 		res.status(500).json({ error: "Internal Server Error", details: message });
@@ -156,7 +157,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 			accessToken: newAccessToken,
 			refreshToken: newRefreshToken,
 		});
-	} catch (error) {
+	} catch {
 		res.status(401).json({ error: "Invalid refresh token" });
 	}
 };
@@ -172,7 +173,7 @@ export const logout = async (req: Request, res: Response) => {
 			});
 		}
 		res.status(200).json({ message: "Logged out successfully" });
-	} catch (error) {
+	} catch {
 		res.status(500).json({ error: "Internal Server Error" });
 	}
 };
