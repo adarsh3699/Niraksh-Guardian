@@ -3,8 +3,8 @@
 ### Notes:
 
 - We will check for build and lint error after each phase.
-- We are using pnpm as package manager.
-- Migrating from backend_old to new backend.
+- Using pnpm as package manager.
+- **Updated with 10 New Advanced AI Features.**
 
 ## Phase 0 – Planning & Setup (Week 1)
 
@@ -256,8 +256,8 @@ Priority: Medium
 
 Priority: Medium
 
-- [ ] Enable log shipping
-- [ ] Create basic alarms
+- [ ] Enable log shipping (Skipped - using Pino structured logs)
+- [ ] Create basic alarms (Skipped - relying on /health endpoint)
 
 Milestone: Monitoring operational
 
@@ -296,9 +296,10 @@ Milestone: Production-ready security
 
 Priority: High
 
-- [ ] Create chat endpoint
-- [ ] Get chat history endpoint
-- [ ] Delete chat endpoint
+- [x] Create chat endpoint
+- [x] Get chat history endpoint
+- [x] Delete chat endpoint
+- [x] **Implement Multi-Language Support (Input translation)**
 
 Dependency: Authentication System, Database
 
@@ -308,15 +309,15 @@ Dependency: Authentication System, Database
 
 Priority: High
 
-- [ ] Send message endpoint
-- [ ] Integrate AI Model (Placeholder/Mock for start)
-- [ ] Store messages in DB
+- [x] Send message endpoint
+- [x] Integrate **Gemini AI Model**
+- [x] Store messages in DB
 
 ---
 
-## Phase 9 – Doctor Recommendation System (Week 8)
+## Phase 9 – Advanced Doctor Recommendation & Symptom Intelligence (Week 8)
 
-### Task 9.1 – Doctors Table & Data
+### Task 9.1 – Doctor Database
 
 Priority: High
 
@@ -332,39 +333,42 @@ Priority: High
 - [ ] Implement filtering by specialization
 - [ ] Implement search by name/location
 
-### Task 9.3 – AI Symptom Integration (Enhanced)
+### Task 9.3 – Smart Symptom Intelligence (New)
 
 Priority: High
 
 - [ ] Implement Gemini JSON mode for structured output
-- [ ] Add confidence scoring and validation logic
-- [ ] Implement fallback to 'General Physician'
-- [ ] Update /ai/analyze-symptoms endpoint
+- [ ] **Implement Multi-Symptom Reasoning logic**
+- [ ] **Implement Severity Prediction & Urgency Detection (Mild/Moderate/Emergency)**
+- [ ] **Implement Image-Based Symptom Detection (Gemini Vision)**
+- [ ] Update /ai/analyze-symptoms endpoint to return enhanced data
 
-### Task 9.4 – Frontend Cleanup
+### Task 9.4 – Disease Education & Prevention (New)
 
 Priority: Medium
 
-- [ ] Remove `symptoms_to_category.json`
-- [ ] Remove client-side mapping logic from `DoctorSuggest.jsx`
-- [ ] Connect frontend to new `/doctors` and `/ai/analyze-symptoms` endpoints
+- [ ] Implement Disease Info API (Causes, Symptoms, Prevention)
+- [ ] Implement Home Remedies Suggestion logic
+- [ ] Frontend Cleanup: Connect new endpoints
+- [ ] **Remove legacy `symptoms_to_category.json` & client-side logic**
 
 ---
 
-## Phase 10 – Health Tools & History (New Phase) (Week 9)
+## Phase 10 – Health Tools, History & Dashboard (Week 9)
 
-### Task 10.1 – Cloudinary Setup
+### Task 10.1 – Cloudinary & Uploads
 
 Priority: High
 
 - [ ] Configure Cloudinary credentials
 - [ ] Create upload middleware (Multer)
 
-### Task 10.2 – Database Updates
+### Task 10.2 – Database Updates for History & Profiles
 
 Priority: High
 
-- [ ] Create migration for History tables
+- [ ] Create migration for History tables (Medicine, Prescription, Interactions)
+- [ ] **Create migration for SymptomAnalysisHistory & PatientHealthProfile**
 - [ ] Run migration
 
 ### Task 10.3 – History Endpoints
@@ -375,37 +379,33 @@ Priority: High
 - [ ] Prescription Analysis & History API
 - [ ] Drug Interaction & History API
 
-Milestone: Full Health Tools Suite
-
----
-
-## Phase 11 – Final Testing & Deployment (Week 10)
-
-### Task 11.1 – Unit Tests
+### Task 10.4 – Personal Health Dashboard (New)
 
 Priority: High
 
-- [ ] Auth tests
-- [ ] Token tests
-- [ ] Reset tests
-- [ ] Chat tests
-- [ ] Doctor API tests
-- [ ] Health Tools tests
+- [ ] **Implement Health Risk Score Calculation Logic**
+- [ ] Create Dashboard API (Recent activity, frequent issues, risk score)
+- [ ] Implement Emergency Mode Endpoint (Notify contacts + First Aid info)
 
 ---
 
-### Task 11.2 – Integration Tests
+## Phase 11 – AI Health Reports & Final Polish (Week 10)
 
-Priority: Medium
+### Task 11.1 – AI Health Report Generator (New)
 
-- [ ] Full login flow
-- [ ] Full reset flow
-- [ ] SES event simulation
-- [ ] Chat flow
-- [ ] Doctor recommendation flow
-- [ ] Image upload flow
+Priority: High
 
----
+- [ ] create /reports/generate endpoint
+- [ ] Implement PDF generation (using `pdfkit` or similar)
+- [ ] Upload generated report to Cloudinary
+- [ ] Return report URL to user
+
+### Task 11.2 – Final Testing
+
+Priority: High
+
+- [ ] Unit Tests (Auth, Chat, Doctor, Health Tools, Dashboard)
+- [ ] Integration Tests (Full flows)
 
 ### Task 11.3 – Deployment
 
@@ -416,22 +416,18 @@ Priority: High
 - [ ] Deploy backend
 - [ ] Verify logs
 
-Milestone: Production launch
-
 ---
 
 ## Final Deliverables
 
 - [ ] Fully working backend
-- [ ] Secure authentication
-- [ ] Google OAuth
-- [ ] JWT rotation
-- [ ] Redis rate limiting
-- [ ] AWS SES password reset
-- [ ] Bounce monitoring
-- [ ] Structured logging
-- [ ] Health monitoring
+- [ ] Secure authentication & Rate Limiting
+- [ ] **Smart Symptom Intelligence (Text + Image)**
+- [ ] **Enhanced Doctor Recommendation**
+- [ ] **Personal Health Dashboard with Risk Score**
+- [ ] **Emergency Mode**
+- [ ] **AI Health Report Generator (PDF)**
+- [ ] **Multi-Language Support**
 - [ ] Chat System
-- [ ] Doctor Recommendation System
-- [ ] Health Tools History (Cloudinary)
+- [ ] Health Tools History
 - [ ] Production-ready configuration

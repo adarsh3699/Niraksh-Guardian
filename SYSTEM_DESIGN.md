@@ -13,6 +13,10 @@ The system focuses on:
 - Bounce and complaint monitoring
 - Logging and monitoring (free stack)
 - AI-powered Health Tools (Image Analysis & Interaction checks)
+- **Advanced AI Reasoning** (Smart Symptom Intelligence, Disease Prediction)
+- **Personal Health Dashboard**
+- **Emergency Response System**
+- **Multi-Language Support**
 
 The entire system is designed using free and open-source technologies, plus Cloudinary for media.
 
@@ -63,6 +67,7 @@ Responsibilities:
 - SNS event handling
 - Rate limiting
 - **Image Upload & Processing**
+- **AI Health Analysis**
 
 ---
 
@@ -74,7 +79,10 @@ Used for:
 - OAuth identities
 - Hashed refresh tokens
 - Password reset tokens
-- **Health Tool History (Medicine, Prescription, Interactions)**
+- **Health Tool History** (Medicine, Prescription, Interactions)
+- **Symptom & Disease History**
+- **Health Risk Scores**
+- **Emergency Contacts**
 
 Main Tables:
 
@@ -85,6 +93,8 @@ Main Tables:
 - medicine_history
 - prescription_history
 - drug_interaction_history
+- symptom_analysis_history
+- patient_health_profiles
 
 ---
 
@@ -96,6 +106,7 @@ Used for:
 - Token blacklist
 - Session tracking
 - Temporary lockouts
+- **Real-time Emergency Alerts (Pub/Sub)**
 
 TTL-based storage ensures automatic cleanup.
 
@@ -108,6 +119,7 @@ Used for:
 - Uploaded Medicine images
 - Uploaded Prescription images
 - Doctor profile images
+- **Skin Issue Images (Symptom Detection)**
 
 Strategy:
 
@@ -162,6 +174,7 @@ Rate limited to prevent abuse.
 - Use SES suppression list
 - Monitor bounce/complaint via SNS
 - Webhook endpoint processes events
+- **Send Emergency Alerts**
 
 If bounce detected:
 
@@ -186,7 +199,7 @@ Logs:
 Logs stored:
 
 - Console (development)
-- CloudWatch (production free tier)
+- Hosting Platform Logs (production)
 
 ---
 
@@ -201,7 +214,6 @@ Monitor:
 
 Basic Setup:
 
-- CloudWatch metrics
 - /health endpoint
 - Manual alert thresholds
 
@@ -229,7 +241,8 @@ src/
 │ ├── email/
 │ ├── redis/
 │ ├── jwt/
-│ └── cloudinary/ <-- New
+│ ├── cloudinary/
+│ └── ai/ <-- New (Gemini Integration)
 ├── middlewares/
 │ └── upload.ts <-- Multer config
 ├── routes/
@@ -265,13 +278,13 @@ The chat system enables users to interact with AI models.
 
 - **Storage**: PostgreSQL (Chats and Messages tables)
 - **API**: RESTful endpoints for creating chats, sending messages, and retrieving history.
-- **Model Integration**: (To be defined - likely calls to external AI APIs)
+- **Model Integration**: Gemini API
 
 ### 9.2 Data Flow
 
 1. User sends message -> API
 2. API saves user message to DB
-3. API calls AI Model
+3. API calls AI Model (Gemini)
 4. API saves AI response to DB
 5. API returns response to User
 
@@ -282,27 +295,26 @@ The chat system enables users to interact with AI models.
 
 ---
 
-## 10. Doctor Recommendation System
+## 10. Doctor Recommendation System (Enhanced)
 
 ### 10.1 Overview
 
-Dynamically recommends doctors based on symptom analysis.
+Dynamically recommends doctors based on **Smart Symptom Intelligence**.
 
-- **Storage**: Doctors table (replacing static JSON files).
-- **AI Engine**: Gemini (or similar) for symptom classification.
+- **Storage**: Doctors table.
+- **AI Engine**: Gemini (Advanced reasoning).
 
 ### 10.2 Workflow
 
-1.  **Symptom Input**: Frontend collects symptoms and sends directly to backend (No client-side classification).
-2.  **AI Analysis**: Backend sends symptoms to Gemini with **JSON Mode** enforced.
-3.  **Classification**: AI returns:
-    - `categories`: List of valid specializations.
-    - `confidence`: 0-1 score.
-    - `reasoning`: Explanation for the choice.
-4.  **Validation**: Backend validates returned categories against the allowed list in `Doctors` table.
-5.  **Doctor Lookup**: Backend queries `Doctors` table filtering by the validated specialization.
-6.  **Ranking**: Doctors are ranked by experience and availability.
-7.  **Response**: List of doctors returned to frontend.
+1.  **Symptom Input**: Frontend collects symptoms (text or image).
+2.  **Smart AI Analysis**: Backend sends data to Gemini with **JSON Mode**.
+    - **Multi-symptom reasoning**
+    - **Severity prediction** (Mild/Moderate/Emergency)
+    - **Urgency Level**: 🟢 Mild, 🟡 Moderate, 🔴 Emergency
+3.  **Classification**: AI returns valid specializations and reasoning.
+4.  **Doctor Lookup**: Backend queries `Doctors` table filtering by specialization.
+5.  **Ranking**: Doctors ranked by experience, availability, and user feedback.
+6.  **Response**: List of doctors + AI Analysis returned.
 
 ### 10.3 Data Migration & Cleanup
 
@@ -311,7 +323,7 @@ Dynamically recommends doctors based on symptom analysis.
 
 ---
 
-## 11. Health Tools & History (New)
+## 11. Health Tools & History
 
 ### 11.1 Medicine & Prescription Analysis
 
@@ -320,8 +332,8 @@ Dynamically recommends doctors based on symptom analysis.
     1. Image uploaded to Cloudinary
     2. URL sent to AI (Gemini)
     3. AI analyzes image (OCR + Context)
-    4. Result stored in `medicine_history` or `prescription_history` table
-- **Output**: Analysis result returned to user.
+    4. Result stored in `medicine_history` or `prescription_history`
+- **Output**: Analysis result + Explainer returned.
 
 ### 11.2 Drug Interaction Check
 
@@ -330,4 +342,46 @@ Dynamically recommends doctors based on symptom analysis.
     1. Backend sends list to AI
     2. AI determines interactions/contraindications
     3. Result stored in `drug_interaction_history`
-- **Output**: Safety report returned to user.
+- **Output**: Safety report returned.
+
+### 11.3 Personal Health Dashboard
+
+- **Purpose**: Centralized view of user's health data.
+- **Data Sources**:
+    - Chat history / Search history
+    - Symptom analysis history
+    - Medicine/Prescription history
+- **Features**:
+    - **Health Risk Score** (0-100) based on cumulative data.
+    - **Trends**: "Most Frequent Issue", "Last Checked Symptoms".
+    - **Emergency Mode**: One-click alert to contacts + First Aid info.
+
+---
+
+## 12. Advanced AI Features
+
+### 12.1 Smart Symptom Intelligence
+
+- **Input**: Symptoms, Duration, Severity
+- **Output**: Possible conditions, Triage level (Home/Doctor/ER), Recommended Specialist.
+
+### 12.2 Image-Based Symptom Detection
+
+- **Input**: Photo of skin issue/visible symptom.
+- **Process**: Cloudinary Upload -> Gemini Vision Analysis.
+- **Output**: Preliminary analysis + Disclaimer.
+
+### 12.3 AI Health Report Generator
+
+- **Input**: User's recent history (symptoms, chats).
+- **Output**: PDF Report with summary, possible causes, risk level, and suggested actions.
+
+### 12.4 Multi-Language Support
+
+- **Implementation**: AI translation layer for content + Frontend localization.
+- **Languages**: English, Hindi, Regional (optional).
+
+### 12.5 Preventive Health & Education
+
+- **Disease Education Mode**: Detailed info on predicted diseases (Causes, Prevention, Diet).
+- **Home Remedies**: AI-suggested safe home care advice for mild issues.

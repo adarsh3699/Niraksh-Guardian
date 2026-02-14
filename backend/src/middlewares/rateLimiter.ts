@@ -44,14 +44,14 @@ export const apiRateLimiter = createRateLimiter({
 
 export const loginLimiter = createRateLimiter({
 	prefix: "login",
-	limit: 5, // 5 attempts
+	limit: 10, // 10 attempts
 	window: 15 * 60, // 15 mins
 	message: "Too many login attempts, please try again later.",
 });
 
 export const resetEmailLimiter = createRateLimiter({
 	prefix: "reset_email",
-	limit: 3, // 3 requests
-	window: 60 * 60, // 1 hour
+	limit: 5, // 5 requests
+	window: 30 * 60, // 1 hour
 	message: "Too many password reset requests, please try again later.",
 });

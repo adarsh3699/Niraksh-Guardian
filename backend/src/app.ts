@@ -8,6 +8,10 @@ import env from "./config/env";
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
 import healthRoutes from "./routes/health";
+import chatRoutes from "./routes/chat";
+import doctorRoutes from "./routes/doctor";
+import symptomRoutes from "./routes/symptom";
+import educationRoutes from "./routes/education";
 import { apiRateLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
 
@@ -84,6 +88,10 @@ app.get("/api", (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/health", healthRoutes);
+app.use("/api/chats", chatRoutes);
+app.use("/api/doctors", doctorRoutes);
+app.use("/api/ai", symptomRoutes);
+app.use("/api/education", educationRoutes); // Register Education Routes
 
 // Global Error Handler (must be last)
 app.use(errorHandler);

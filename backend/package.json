@@ -5,12 +5,12 @@
 	"main": "index.js",
 	"scripts": {
 		"dev": "nodemon src/server.ts",
-		"build": "pnpm lint && tsc",
+		"build": "tsc",
 		"start": "node dist/server.js",
 		"lint": "eslint src/**/*.ts",
 		"format": "prettier --write src/**/*.ts",
 		"prisma:generate": "prisma generate",
-		"prisma:migrate": "prisma miwhagrate dev"
+		"prisma:migrate": "prisma migrate dev"
 	},
 	"keywords": [],
 	"author": "",
@@ -20,16 +20,19 @@
 		"@eslint/js": "^9.39.2",
 		"@types/cors": "^2.8.19",
 		"@types/express": "^5.0.6",
+		"@types/form-data": "^2.5.2",
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/multer": "^2.0.0",
 		"@types/node": "^25.2.3",
 		"@types/nodemailer": "^7.0.9",
+		"axios": "^1.13.5",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.5",
+		"form-data": "^4.0.5",
 		"nodemon": "^3.1.11",
 		"prettier": "^3.8.1",
-		"prisma": "^6.0.0",
+		"prisma": "6.19.2",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.55.0"
@@ -37,7 +40,7 @@
 	"dependencies": {
 		"@aws-sdk/client-sesv2": "^3.990.0",
 		"@aws-sdk/client-sns": "^3.988.0",
-		"@google/generative-ai": "^0.24.1",
+		"@google/genai": "^1.41.0",
 		"@prisma/client": "6.19.2",
 		"bcryptjs": "^3.0.3",
 		"cloudinary": "^2.9.0",
@@ -53,5 +56,8 @@
 		"pino-http": "^11.0.0",
 		"redis": "^5.10.0",
 		"zod": "^4.3.6"
+	},
+	"prisma": {
+		"seed": "ts-node prisma/seed.ts"
 	}
 }
