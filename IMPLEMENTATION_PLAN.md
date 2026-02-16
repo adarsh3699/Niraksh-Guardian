@@ -256,8 +256,8 @@ Priority: Medium
 
 Priority: Medium
 
-- [ ] Enable log shipping (Skipped - using Pino structured logs)
-- [ ] Create basic alarms (Skipped - relying on /health endpoint)
+- [x] Enable log shipping (Skipped - using Pino structured logs)
+- [x] Create basic alarms (Skipped - relying on /health endpoint)
 
 Milestone: Monitoring operational
 
@@ -321,36 +321,36 @@ Priority: High
 
 Priority: High
 
-- [ ] Create Doctors table migration
-- [ ] Create seed script to migrate JSON data to DB
-- [ ] Execute migration
+- [x] Create Doctors table migration
+- [x] Create seed script to migrate JSON data to DB
+- [x] Execute migration
 
 ### Task 9.2 – Doctor API
 
 Priority: High
 
-- [ ] Create /doctors endpoint
-- [ ] Implement filtering by specialization
-- [ ] Implement search by name/location
+- [x] Create /doctors endpoint
+- [x] Implement filtering by specialization
+- [x] Implement search by name/location
 
 ### Task 9.3 – Smart Symptom Intelligence (New)
 
 Priority: High
 
-- [ ] Implement Gemini JSON mode for structured output
-- [ ] **Implement Multi-Symptom Reasoning logic**
-- [ ] **Implement Severity Prediction & Urgency Detection (Mild/Moderate/Emergency)**
-- [ ] **Implement Image-Based Symptom Detection (Gemini Vision)**
-- [ ] Update /ai/analyze-symptoms endpoint to return enhanced data
+- [x] Implement Gemini JSON mode for structured output
+- [x] **Implement Multi-Symptom Reasoning logic**
+- [x] **Implement Severity Prediction & Urgency Detection (Mild/Moderate/Emergency)**
+- [x] **Implement Image-Based Symptom Detection (Gemini Vision)**
+- [x] Update /ai/analyze-symptoms endpoint to return enhanced data
 
 ### Task 9.4 – Disease Education & Prevention (New)
 
 Priority: Medium
 
-- [ ] Implement Disease Info API (Causes, Symptoms, Prevention)
-- [ ] Implement Home Remedies Suggestion logic
-- [ ] Frontend Cleanup: Connect new endpoints
-- [ ] **Remove legacy `symptoms_to_category.json` & client-side logic**
+- [x] Implement Disease Info API (Causes, Symptoms, Prevention)
+- [x] Implement Home Remedies Suggestion logic
+- [x] Frontend Cleanup: Connect new endpoints
+- [x] **Remove legacy `symptoms_to_category.json` & client-side logic**
 
 ---
 
@@ -360,32 +360,32 @@ Priority: Medium
 
 Priority: High
 
-- [ ] Configure Cloudinary credentials
-- [ ] Create upload middleware (Multer)
+- [x] Configure Cloudinary credentials
+- [x] Create upload middleware (Multer)
 
 ### Task 10.2 – Database Updates for History & Profiles
 
 Priority: High
 
-- [ ] Create migration for History tables (Medicine, Prescription, Interactions)
-- [ ] **Create migration for SymptomAnalysisHistory & PatientHealthProfile**
-- [ ] Run migration
+- [x] Create migration for History tables (Medicine, Prescription, Interactions)
+- [x] **Create migration for SymptomAnalysisHistory & PatientHealthProfile**
+- [x] Run migration
 
 ### Task 10.3 – History Endpoints
 
 Priority: High
 
-- [ ] Medicine Analysis & History API
-- [ ] Prescription Analysis & History API
-- [ ] Drug Interaction & History API
+- [x] Medicine Analysis & History API
+- [x] Prescription Analysis & History API
+- [x] Drug Interaction & History API
 
 ### Task 10.4 – Personal Health Dashboard (New)
 
 Priority: High
 
-- [ ] **Implement Health Risk Score Calculation Logic**
-- [ ] Create Dashboard API (Recent activity, frequent issues, risk score)
-- [ ] Implement Emergency Mode Endpoint (Notify contacts + First Aid info)
+- [x] **Implement Health Risk Score Calculation Logic**
+- [x] Create Dashboard API (Recent activity, frequent issues, risk score)
+- [x] Implement Emergency Mode Endpoint (Notify contacts + First Aid info)
 
 ---
 
@@ -395,8 +395,8 @@ Priority: High
 
 Priority: High
 
-- [ ] create /reports/generate endpoint
-- [ ] Implement PDF generation (using `pdfkit` or similar)
+- [x] create /reports/generate endpoint
+- [x] Implement PDF generation (using `pdfkit` or similar)
 - [ ] Upload generated report to Cloudinary
 - [ ] Return report URL to user
 
@@ -407,7 +407,7 @@ Priority: High
 - [ ] Unit Tests (Auth, Chat, Doctor, Health Tools, Dashboard)
 - [ ] Integration Tests (Full flows)
 
-### Task 11.3 – Deployment
+### Task 11.3 – Deployment in vercel
 
 Priority: High
 

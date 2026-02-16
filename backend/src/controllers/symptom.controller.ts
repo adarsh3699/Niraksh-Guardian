@@ -10,7 +10,7 @@ export const analyzeSymptomsController = async (req: Request, res: Response) => 
 		if (typeof req.body.symptoms === "string") {
 			try {
 				req.body.symptoms = JSON.parse(req.body.symptoms);
-			} catch (e) {
+			} catch {
 				// ignore, let validation fail if invalid
 			}
 		}

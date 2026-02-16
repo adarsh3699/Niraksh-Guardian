@@ -1,6 +1,5 @@
 {
 	"version": 2,
-	"corepack": true,
 	"installCommand": "pnpm install",
 	"buildCommand": "pnpm prisma generate && pnpm build",
 	"builds": [

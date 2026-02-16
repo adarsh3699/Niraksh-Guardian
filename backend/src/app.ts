@@ -12,6 +12,9 @@ import chatRoutes from "./routes/chat";
 import doctorRoutes from "./routes/doctor";
 import symptomRoutes from "./routes/symptom";
 import educationRoutes from "./routes/education";
+import historyRoutes from "./routes/history";
+import profileRoutes from "./routes/profile";
+import reportRoutes from "./routes/report";
 import { apiRateLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
 
@@ -48,7 +51,6 @@ const allowedOrigins = env.CORS_ORIGINS
 app.use(
 	cors({
 		origin: (origin, callback) => {
-			// Allow requests with no origin (mobile apps, curl, Postman)
 			if (!origin) return callback(null, true);
 			if (allowedOrigins.includes(origin)) {
 				return callback(null, true);
@@ -58,18 +60,18 @@ app.use(
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization"],
-		maxAge: 86400, // 24 hours preflight cache
+		maxAge: 86400,
 	})
 );
 
-// Body Parsing with size limits
+// Body Parsing
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Rate Limiting
 app.use(apiRateLimiter);
 
-// Disable x-powered-by (extra layer — Helmet also does this)
+// Disable x-powered-by
 app.disable("x-powered-by");
 
 app.get("/", (req: Request, res: Response) => {
@@ -91,9 +93,11 @@ app.use("/health", healthRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/ai", symptomRoutes);
-app.use("/api/education", educationRoutes); // Register Education Routes
-
-// Global Error Handler (must be last)
+app.use("/api/education", educationRoutes);
+app.use("/api/history", historyRoutes); // Register History Routes
+app.use("/api/profile", profileRoutes); // Register Profile Routes
+app.use("/api/reports", reportRoutes); // Register Report Routes
+// Global Error Handler
 app.use(errorHandler);
 
 export default app;

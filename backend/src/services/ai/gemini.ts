@@ -201,3 +201,19 @@ export const getDiseaseInfo = async (
 		throw new Error("Failed to get disease info");
 	}
 };
+
+export const generateContent = async (prompt: string): Promise<string> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			contents: [{ role: "user", parts: [{ text: prompt }] }],
+		});
+
+		return result.text || "";
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Generate Content Error");
+		throw new Error("Failed to generate content");
+	}
+};

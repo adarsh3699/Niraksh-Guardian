@@ -1,12 +1,17 @@
 import app from "./app";
 import env from "./config/env";
 import redisClient from "./config/redis";
+import prisma from "./db/prisma";
 import logger from "./config/logger";
 
 const PORT = env.PORT || 5000;
 
 const startServer = async () => {
 	try {
+		// Connect to Database
+		await prisma.$connect();
+		logger.info("Database connected");
+
 		await redisClient.connect();
 		logger.info("Redis connected");
 
@@ -18,6 +23,7 @@ const startServer = async () => {
 			logger.info("Shutting down server...");
 			server.close();
 			await redisClient.quit();
+			await prisma.$disconnect();
 			process.exit(0);
 		};
 
