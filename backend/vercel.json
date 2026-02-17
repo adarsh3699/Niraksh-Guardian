@@ -1,6 +1,6 @@
 {
 	"version": 2,
-	"buildCommand": "pnpm prisma generate && pnpm build",
+	"buildCommand": "pnpm prisma:generate && pnpm build",
 	"builds": [
 		{
 			"src": "src/app.ts",
