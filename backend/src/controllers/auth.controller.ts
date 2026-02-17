@@ -1,5 +1,5 @@
 import * as express from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
 import { ZodError } from "zod";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";

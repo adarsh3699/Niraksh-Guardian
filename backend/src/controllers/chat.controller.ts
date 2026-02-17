@@ -1,5 +1,5 @@
-import { Request, Response } from "express"; // Explicit import
-import { PrismaClient } from "@prisma/client";
+import { Request, Response } from "express";
+import { PrismaClient, Message } from "../generated/prisma";
 import { createChatSchema, sendMessageSchema } from "../validators/chat.schema";
 import { ZodError } from "zod";
 import logger from "../config/logger";
@@ -14,7 +14,7 @@ interface AuthenticatedRequest extends Request {
 
 // --- Chat Management ---
 
-export const createChat = async (req: Request, res: any) => {
+export const createChat = async (req: Request, res: Response) => {
 	try {
 		// Explicitly cast req to AuthenticatedRequest
 		const userId = (req as AuthenticatedRequest).user?.userId;
@@ -53,7 +53,7 @@ export const createChat = async (req: Request, res: any) => {
 	}
 };
 
-export const getChats = async (req: Request, res: any) => {
+export const getChats = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		if (!userId) {
@@ -79,7 +79,7 @@ export const getChats = async (req: Request, res: any) => {
 	}
 };
 
-export const getChatHistory = async (req: Request, res: any) => {
+export const getChatHistory = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
@@ -109,7 +109,7 @@ export const getChatHistory = async (req: Request, res: any) => {
 	}
 };
 
-export const deleteChat = async (req: Request, res: any) => {
+export const deleteChat = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		// Fix chatId typing
@@ -141,7 +141,7 @@ export const deleteChat = async (req: Request, res: any) => {
 
 import { generateAIResponse } from "../services/ai/gemini";
 
-export const sendMessage = async (req: Request, res: any) => {
+export const sendMessage = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
@@ -152,7 +152,7 @@ export const sendMessage = async (req: Request, res: any) => {
 
 		// Handle optional image file
 		// Safe access to file, assuming multer middleware usage
-		const file = (req as any).file;
+		const file = (req as AuthenticatedRequest).file;
 
 		const { content, language } = sendMessageSchema.parse(req.body);
 
@@ -177,7 +177,7 @@ export const sendMessage = async (req: Request, res: any) => {
 
 		// 3. Generate AI Response
 		// Format history for the service
-		const historyForAI = chat.messages.map((m: any) => ({ role: m.role, content: m.content }));
+		const historyForAI = chat.messages.map((m: Message) => ({ role: m.role, content: m.content }));
 
 		// Determine language preference (message override > user preference > default en)
 		// Retrieve User's preference if not provided in message

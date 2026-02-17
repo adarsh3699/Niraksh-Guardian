@@ -1,5 +1,5 @@
 import Validator from "sns-validator";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../generated/prisma";
 import logger from "../../config/logger";
 
 const prisma = new PrismaClient();

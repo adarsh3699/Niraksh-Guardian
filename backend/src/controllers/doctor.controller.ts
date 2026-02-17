@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma } from "../generated/prisma";
 import { getDoctorsSchema } from "../validators/doctor.schema";
 import { ZodError } from "zod";
 import logger from "../config/logger";
