@@ -14,7 +14,7 @@ interface AuthenticatedRequest extends Request {
 
 // --- Chat Management ---
 
-export const createChat = async (req: Request, res: Response) => {
+export const createChat = async (req: Request, res: any) => {
 	try {
 		// Explicitly cast req to AuthenticatedRequest
 		const userId = (req as AuthenticatedRequest).user?.userId;
@@ -53,7 +53,7 @@ export const createChat = async (req: Request, res: Response) => {
 	}
 };
 
-export const getChats = async (req: Request, res: Response) => {
+export const getChats = async (req: Request, res: any) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		if (!userId) {
@@ -79,7 +79,7 @@ export const getChats = async (req: Request, res: Response) => {
 	}
 };
 
-export const getChatHistory = async (req: Request, res: Response) => {
+export const getChatHistory = async (req: Request, res: any) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
@@ -109,7 +109,7 @@ export const getChatHistory = async (req: Request, res: Response) => {
 	}
 };
 
-export const deleteChat = async (req: Request, res: Response) => {
+export const deleteChat = async (req: Request, res: any) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		// Fix chatId typing
@@ -141,7 +141,7 @@ export const deleteChat = async (req: Request, res: Response) => {
 
 import { generateAIResponse } from "../services/ai/gemini";
 
-export const sendMessage = async (req: Request, res: Response) => {
+export const sendMessage = async (req: Request, res: any) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
