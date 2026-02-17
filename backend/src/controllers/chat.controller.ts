@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response } from "express"; // Explicit import
 import { PrismaClient } from "@prisma/client";
 import { createChatSchema, sendMessageSchema } from "../validators/chat.schema";
 import { ZodError } from "zod";
@@ -16,8 +16,12 @@ interface AuthenticatedRequest extends Request {
 
 export const createChat = async (req: Request, res: Response) => {
 	try {
+		// Explicitly cast req to AuthenticatedRequest
 		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
 
 		const { title, language } = createChatSchema.parse(req.body);
 
@@ -41,7 +45,8 @@ export const createChat = async (req: Request, res: Response) => {
 		res.status(201).json(chat);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			res.status(400).json({ error: error.issues });
+			return;
 		}
 		logger.error({ err: error }, "Failed to create chat");
 		res.status(500).json({ error: "Internal Server Error" });
@@ -51,7 +56,10 @@ export const createChat = async (req: Request, res: Response) => {
 export const getChats = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
 
 		const chats = await prisma.chat.findMany({
 			where: { userId },
@@ -75,14 +83,18 @@ export const getChatHistory = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
 		});
 
 		if (!chat || chat.userId !== userId) {
-			return res.status(404).json({ error: "Chat not found" });
+			res.status(404).json({ error: "Chat not found" });
+			return;
 		}
 
 		const messages = await prisma.message.findMany({
@@ -102,14 +114,18 @@ export const deleteChat = async (req: Request, res: Response) => {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		// Fix chatId typing
 		const chatId = req.params.chatId as string;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
 		});
 
 		if (!chat || chat.userId !== userId) {
-			return res.status(404).json({ error: "Chat not found" });
+			res.status(404).json({ error: "Chat not found" });
+			return;
 		}
 
 		await prisma.chat.delete({
@@ -129,10 +145,14 @@ export const sendMessage = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		const chatId = req.params.chatId as string;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
 
 		// Handle optional image file
-		const file = req.file;
+		// Safe access to file, assuming multer middleware usage
+		const file = (req as any).file;
 
 		const { content, language } = sendMessageSchema.parse(req.body);
 
