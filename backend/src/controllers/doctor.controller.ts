@@ -1,14 +1,23 @@
 import { Request, Response } from "express";
-import { PrismaClient, Prisma } from "../generated/prisma";
+import { Prisma } from "../generated/prisma";
+import prisma from "../db/prisma";
 import { getDoctorsSchema } from "../validators/doctor.schema";
 import { ZodError } from "zod";
 import logger from "../config/logger";
 
-const prisma = new PrismaClient();
+const sortFieldMap: Record<string, string> = {
+	name: "name",
+	experience: "experienceYears",
+	fee: "consultationFee",
+	rating: "rating",
+};
 
 export const getDoctors = async (req: Request, res: Response) => {
 	try {
-		const { search, specialization, location, page, limit } = getDoctorsSchema.parse({ query: req.query }).query;
+		const { search, specialization, city, state, minFee, maxFee, sortBy, order, page, limit } =
+			getDoctorsSchema.parse({
+				query: req.query,
+			}).query;
 
 		const skip = (page - 1) * limit;
 
@@ -20,23 +29,37 @@ export const getDoctors = async (req: Request, res: Response) => {
 			where.specialization = { contains: specialization, mode: "insensitive" };
 		}
 
-		if (location) {
-			where.location = { contains: location, mode: "insensitive" };
+		if (city) {
+			where.city = { contains: city, mode: "insensitive" };
+		}
+
+		if (state) {
+			where.state = { contains: state, mode: "insensitive" };
+		}
+
+		if (minFee !== undefined || maxFee !== undefined) {
+			where.consultationFee = {
+				...(minFee !== undefined && { gte: minFee }),
+				...(maxFee !== undefined && { lte: maxFee }),
+			};
 		}
 
 		if (search) {
 			where.OR = [
 				{ name: { contains: search, mode: "insensitive" } },
 				{ specialization: { contains: search, mode: "insensitive" } },
-				{ location: { contains: search, mode: "insensitive" } },
+				{ city: { contains: search, mode: "insensitive" } },
+				{ state: { contains: search, mode: "insensitive" } },
 				{ bio: { contains: search, mode: "insensitive" } },
 			];
 		}
 
+		const orderByField = sortFieldMap[sortBy || "rating"] || "rating";
+
 		const [doctors, total] = await Promise.all([
 			prisma.doctor.findMany({
 				where,
-				orderBy: { name: "asc" },
+				orderBy: { [orderByField]: order || "desc" },
 				skip,
 				take: limit,
 			}),
