@@ -46,7 +46,7 @@ app.use(
 // CORS
 const allowedOrigins = env.CORS_ORIGINS
 	? env.CORS_ORIGINS.split(",").map((o) => o.trim())
-	: ["http://localhost:3000", "http://localhost:5173"];
+	: ["http://localhost:3000", "http://localhost:5173", "https://niraksh.bhemu.in/", "https://niraksh.vercel.app/"];
 
 app.use(
 	cors({
@@ -81,8 +81,16 @@ app.get("/", (req: Request, res: Response) => {
 app.get("/api", (req: Request, res: Response) => {
 	res.status(200).json({
 		"/": "/",
+		api: "/api",
 		auth: "/api/auth",
 		users: "/api/users",
+		chats: "/api/chats",
+		doctors: "/api/doctors",
+		ai: "/api/ai",
+		education: "/api/education",
+		history: "/api/history",
+		profile: "/api/profile",
+		reports: "/api/reports",
 	});
 });
 

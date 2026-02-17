@@ -71,8 +71,13 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			} else {
 				aiInsight.detailedAnalysis = aiResponse;
 			}
-		} catch (aiError) {
+		} catch (aiError: unknown) {
+			const errorMessage = aiError instanceof Error ? aiError.message : "Unknown AI error";
 			logger.error({ err: aiError }, "Failed to generate AI health summary");
+			return res.status(503).json({
+				error: "AI Health Analysis Failed",
+				details: errorMessage || "Unable to generate report content at this time.",
+			});
 		}
 
 		// 3. Generate PDF
@@ -82,12 +87,76 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			bufferPages: true,
 		});
 
-		res.setHeader("Content-Type", "application/pdf");
-		res.setHeader("Content-Disposition", `attachment; filename=health_report_${userId}.pdf`);
+		const buffers: Buffer[] = [];
+		doc.on("data", (chunk: Buffer) => buffers.push(chunk));
+		doc.on("end", async () => {
+			const pdfBuffer = Buffer.concat(buffers);
 
-		doc.pipe(res);
+			try {
+				// Import dynamically to avoid circular dependency if any, or just import at top if clean.
+				// Using valid import from service.
+				const { uploadFile, deleteImage } = await import("../services/cloudinary/cloudinary");
 
-		// --- Header ---
+				const timestamp = Date.now();
+				const filename = `health_report_${userId}_${timestamp}`;
+
+				// Use 'image' resource type for PDFs to allow public delivery and viewing
+				// Cloudinary treats PDFs as images for transformation and delivery purposes.
+				const { url: reportUrl, publicId } = await uploadFile(pdfBuffer, "niraksh_reports", "image", filename);
+
+				// --- Implement Storage Limit (Max 10 per User) ---
+				const MAX_REPORTS = 10;
+				const reportCount = await prisma.healthReport.count({
+					where: { userId: userId },
+				});
+
+				if (reportCount >= MAX_REPORTS) {
+					// Fetch limits to keep latest 9, so we can add 1 to make 10?
+					// No, prompt says "Stores only 10 recent... and overwrite old one".
+					// So if we have 10, delete 1 (oldest), then add 1. Total 10.
+					const oldestReports = await prisma.healthReport.findMany({
+						where: { userId: userId },
+						orderBy: { createdAt: "asc" },
+						take: reportCount - MAX_REPORTS + 1,
+					});
+
+					for (const oldReport of oldestReports) {
+						// Delete from Cloudinary
+						if (oldReport.publicId) {
+							try {
+								await deleteImage(oldReport.publicId);
+								logger.info({ publicId: oldReport.publicId }, "Deleted old report from Cloudinary");
+							} catch (delErr) {
+								logger.error({ err: delErr }, "Failed to delete old report from Cloudinary");
+							}
+						}
+						// Delete from DB
+						await prisma.healthReport.delete({
+							where: { id: oldReport.id },
+						});
+					}
+				}
+
+				// Save new report to DB
+				await prisma.healthReport.create({
+					data: {
+						userId: userId,
+						reportUrl: reportUrl,
+						publicId: publicId,
+					},
+				});
+
+				res.status(200).json({
+					message: "Health report generated successfully",
+					reportUrl: reportUrl,
+				});
+			} catch (uploadError: unknown) {
+				logger.error({ err: uploadError }, "Failed to upload health report");
+				res.status(500).json({ error: "Failed to upload report to cloud storage" });
+			}
+		});
+
+		// Header
 		doc.fillColor("#333333")
 			.fontSize(24)
 			.font("Helvetica-Bold")
@@ -150,20 +219,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			width: 300,
 			lineGap: 2,
 		});
-		// Adjust height if wrapped? For simplicity, single line assume or small wrap.
-		// Actually, let's just place Allergies below or skip if overlapping.
-		// Better:
-		// Row 3 (Allergies)
-		// Fixed coord might overlap if conditions wrap.
-		// Let's use relative positioning for Allergies if possible, or just strict one-line assumption for now to keep it aligned as user requested.
-		// Actually, alignment usually implies "don't wrap messily".
-		// Let's put allergies on same line if space, or next line.
-		// Let's force next line for allergies to be safe.
-		// y position for allergies:
-		// doc.text("Allergies:", 65, boxY + 60);
-		// doc.text(profile?.allergies.join(", ") || "None", 130, boxY + 60);
 
-		// Let's just do Chronic and Allergies.
+		// Allergies
 		doc.text("Allergies:", 300, boxY + 45); // Side by side with conditions
 		doc.font("Helvetica-Bold").text(profile?.allergies.join(", ") || "None", 360, boxY + 45, {
 			width: 140,

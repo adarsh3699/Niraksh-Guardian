@@ -28,8 +28,22 @@ model User {
   refreshTokens            RefreshToken[]
   symptomAnalysisHistories SymptomAnalysisHistory[]
   patientHealthProfile     PatientHealthProfile?
+  healthReports            HealthReport[]
 
   @@map("users")
+}
+
+model HealthReport {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  reportUrl String   @map("report_url")
+  publicId  String?  @map("public_id") // Optional for backward compatibility, but we'll populate it
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("health_reports")
 }
 
 model OAuthAccount {

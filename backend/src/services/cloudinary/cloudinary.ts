@@ -32,6 +32,45 @@ export const uploadImage = async (fileBuffer: Buffer, folder: string = "niraksh_
 };
 
 /**
+ * Uploads a file buffer (image or PDF) to Cloudinary.
+ * @param fileBuffer The file buffer to upload.
+ * @param folder The folder in Cloudinary to store the file.
+ * @param resourceType The type of resource to upload (image, raw, auto). Defaults to 'auto'.
+ * @returns The secure URL of the uploaded file.
+ */
+export const uploadFile = async (
+	fileBuffer: Buffer,
+	folder: string = "niraksh_reports",
+	resourceType: "auto" | "image" | "raw" = "auto",
+	filename?: string
+): Promise<{ url: string; publicId: string }> => {
+	return new Promise((resolve, reject) => {
+		const options: any = { folder: folder, resource_type: resourceType };
+		if (filename) {
+			options.public_id = filename;
+			options.use_filename = true;
+			options.unique_filename = false; // Keep exact name if provided
+		}
+		// Force format to pdf if we are uploading a PDF as image
+		if (resourceType === "image" && filename && filename.endsWith(".pdf")) {
+			options.format = "pdf";
+		}
+
+		const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+			if (error) {
+				logger.error({ err: error }, "Cloudinary Upload Error");
+				return reject(error);
+			}
+			if (!result) {
+				return reject(new Error("Cloudinary upload failed: No result returned"));
+			}
+			resolve({ url: result.secure_url, publicId: result.public_id });
+		});
+		uploadStream.end(fileBuffer);
+	});
+};
+
+/**
  * Extracts public ID from a Cloudinary URL.
  */
 /**

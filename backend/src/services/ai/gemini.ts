@@ -8,7 +8,7 @@ const API_KEY = env.GEMINI_API_KEY || "";
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 // Constants
-const MODEL_NAME = "models/gemini-3-flash-preview"; // Explicitly using models/ prefix
+const MODEL_NAME = "gemini-1.5-flash"; // Explicitly using models/ prefix
 
 export const generateAIResponse = async (
 	history: { role: string; content: string }[],

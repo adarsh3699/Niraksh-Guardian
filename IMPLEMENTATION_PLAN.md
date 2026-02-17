@@ -397,8 +397,9 @@ Priority: High
 
 - [x] create /reports/generate endpoint
 - [x] Implement PDF generation (using `pdfkit` or similar)
-- [ ] Upload generated report to Cloudinary
-- [ ] Return report URL to user
+- [x] Upload generated report to Cloudinary
+- [x] Return report URL to user
+- [x] **Implement Report Storage Limit** (Max 10 per user, FIFO queue for DB & Cloudinary)
 
 ### Task 11.2 – Final Testing
 

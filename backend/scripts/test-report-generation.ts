@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // Ignore SSL errors for local test due to proxy/cert issues
 import axios from "axios";
 import { createServer } from "http";
 import { generateAccessToken as generateToken } from "../src/services/jwt/jwt";
@@ -77,31 +78,19 @@ async function run() {
 			},
 		});
 
-		const token = generateToken(user.id, user.email);
+		const token = generateToken(user.id);
 
-		// 2. Request PDF
-		console.log("Requesting PDF Report...");
+		// 2. Request PDF Report Generation
+		console.log("Requesting Health Report Generation...");
 		const response = await axios.get(`http://localhost:${PORT}/api/reports/health-summary`, {
 			headers: { Authorization: `Bearer ${token}` },
-			responseType: "arraybuffer", // Important for PDF
 		});
 
-		if (response.status === 200 && response.headers["content-type"] === "application/pdf") {
-			console.log("✅ PDF Generation Success!");
-			const outputPath = path.join(__dirname, "..", OUTPUT_FILE);
-			fs.writeFileSync(outputPath, response.data);
-			console.log(`PDF saved to: ${outputPath}`);
-
-			// Basic Validation
-			const fileBuffer = fs.readFileSync(outputPath);
-			// PDF signature is %PDF
-			if (fileBuffer.toString("utf8", 0, 4) === "%PDF") {
-				console.log("✅ File is a valid PDF (Header check passed)");
-			} else {
-				console.error("❌ File header check failed");
-			}
+		if (response.status === 200 && response.data.reportUrl) {
+			console.log("✅ Report Generated Successfully!");
+			console.log("📄 Report URL:", response.data.reportUrl);
 		} else {
-			console.error("❌ Failed to generate PDF", response.status, response.headers);
+			console.error("❌ Failed to generate report:", response.data);
 		}
 	} catch (error: any) {
 		console.error("❌ Test Failed:", error.message);
