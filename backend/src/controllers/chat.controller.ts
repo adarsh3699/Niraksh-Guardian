@@ -177,7 +177,7 @@ export const sendMessage = async (req: Request, res: any) => {
 
 		// 3. Generate AI Response
 		// Format history for the service
-		const historyForAI = chat.messages.map((m) => ({ role: m.role, content: m.content }));
+		const historyForAI = chat.messages.map((m: any) => ({ role: m.role, content: m.content }));
 
 		// Determine language preference (message override > user preference > default en)
 		// Retrieve User's preference if not provided in message
