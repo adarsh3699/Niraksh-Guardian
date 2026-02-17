@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import * as express from "express";
 import { PrismaClient } from "@prisma/client";
 import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
 import { ZodError } from "zod";
@@ -9,7 +9,7 @@ import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
-export const signup = async (req: Request, res: Response) => {
+export const signup = async (req: express.Request, res: express.Response) => {
 	try {
 		const validatedData = signupSchema.parse(req.body);
 
@@ -60,7 +60,7 @@ export const signup = async (req: Request, res: Response) => {
 	}
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: express.Request, res: express.Response) => {
 	try {
 		const validatedData = loginSchema.parse(req.body);
 
@@ -112,7 +112,7 @@ export const login = async (req: Request, res: Response) => {
 	}
 };
 
-export const refreshToken = async (req: Request, res: Response) => {
+export const refreshToken = async (req: express.Request, res: express.Response) => {
 	try {
 		const { refreshToken } = refreshTokenSchema.parse(req.body);
 		const decoded = verifyRefreshToken(refreshToken);
@@ -164,7 +164,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 	}
 };
 
-export const logout = async (req: Request, res: Response) => {
+export const logout = async (req: express.Request, res: express.Response) => {
 	try {
 		const { refreshToken } = req.body;
 		if (refreshToken) {
@@ -199,7 +199,7 @@ import env from "../config/env";
 
 const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
-export const googleLogin = async (req: Request, res: Response) => {
+export const googleLogin = async (req: express.Request, res: express.Response) => {
 	try {
 		const { idToken } = req.body; // Basic validation, schema validation recommended in real flow
 
@@ -280,7 +280,7 @@ import { forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.sc
 import { emailService } from "../services/email/email.service";
 import crypto from "crypto";
 
-export const forgotPassword = async (req: Request, res: Response) => {
+export const forgotPassword = async (req: express.Request, res: express.Response) => {
 	try {
 		const { email } = forgotPasswordSchema.parse(req.body);
 
@@ -326,7 +326,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 	}
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+export const resetPassword = async (req: express.Request, res: express.Response) => {
 	try {
 		const { token, password } = resetPasswordSchema.parse(req.body);
 		const tokenHash = hashToken(token);
