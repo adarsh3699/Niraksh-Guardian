@@ -405,8 +405,8 @@ Priority: High
 
 Priority: High
 
-- [ ] Unit Tests (Auth, Chat, Doctor, Health Tools, Dashboard)
-- [ ] Integration Tests (Full flows)
+- [x] Unit Tests (Auth, Chat, Doctor, Health Tools, Dashboard)
+- [x] Integration Tests (Full flows)
 
 ### Task 11.3 – Deployment in vercel
 

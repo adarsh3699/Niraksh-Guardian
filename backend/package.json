@@ -65,5 +65,16 @@
 		"redis": "^5.10.0",
 		"sns-validator": "^0.3.5",
 		"zod": "^4.3.6"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@prisma/client",
+			"@prisma/engines",
+			"prisma",
+			"protobufjs"
+		],
+		"overrides": {
+			"p-retry": "4.6.2"
+		}
 	}
 }

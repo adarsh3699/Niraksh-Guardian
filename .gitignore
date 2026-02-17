@@ -30,3 +30,5 @@ node_modules/
 # Distribution directories
 dist/
 build/
+.vercel
+.env*.local
