@@ -4,6 +4,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import logger from "./config/logger";
 import env from "./config/env";
+import redisClient from "./config/redis"; // Import Redis Client
 
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
@@ -19,6 +20,19 @@ import { apiRateLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
 
 const app: Application = express();
+
+// Ensure Redis Connection Middleware
+app.use(async (req, res, next) => {
+	if (!redisClient.isOpen) {
+		try {
+			await redisClient.connect();
+			logger.info("Redis connected via middleware");
+		} catch (error) {
+			logger.error(error, "Failed to connect to Redis in middleware");
+		}
+	}
+	next();
+});
 
 // Request Logging
 app.use(
