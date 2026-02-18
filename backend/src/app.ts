@@ -12,7 +12,7 @@ import healthRoutes from "./routes/health";
 import chatRoutes from "./routes/chat";
 import doctorRoutes from "./routes/doctor";
 import symptomRoutes from "./routes/symptom";
-import educationRoutes from "./routes/education";
+import diseaseRoutes from "./routes/education";
 import historyRoutes from "./routes/history";
 import profileRoutes from "./routes/profile";
 import reportRoutes from "./routes/report";
@@ -97,11 +97,10 @@ app.get("/api", (req: Request, res: Response) => {
 		"/": "/",
 		api: "/api",
 		auth: "/api/auth",
-		users: "/api/users",
 		chats: "/api/chats",
 		doctors: "/api/doctors",
-		ai: "/api/ai",
-		education: "/api/education",
+		ai: "/api/ai (analyze, medicine, prescription, drug-interaction)",
+		disease: "/api/disease",
 		history: "/api/history",
 		profile: "/api/profile",
 		reports: "/api/reports",
@@ -115,7 +114,7 @@ app.use("/health", healthRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/ai", symptomRoutes);
-app.use("/api/education", educationRoutes);
+app.use("/api/disease", diseaseRoutes);
 app.use("/api/history", historyRoutes); // Register History Routes
 app.use("/api/profile", profileRoutes); // Register Profile Routes
 app.use("/api/reports", reportRoutes); // Register Report Routes

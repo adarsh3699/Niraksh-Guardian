@@ -24,15 +24,47 @@ export const getProfile = async (req: Request, res: Response) => {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-		const profile = await prisma.patientHealthProfile.findUnique({
-			where: { userId },
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: {
+				id: true,
+				email: true,
+				name: true,
+				gender: true,
+				languagePreference: true,
+				patientHealthProfile: true,
+			},
 		});
 
-		if (!profile) {
-			return res.status(404).json({ message: "Profile not found" });
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
 		}
 
-		res.status(200).json(profile);
+		const profile = user.patientHealthProfile;
+
+		res.status(200).json({
+			user: {
+				id: user.id,
+				email: user.email,
+				name: user.name,
+				gender: user.gender,
+				languagePreference: user.languagePreference,
+			},
+			healthProfile: profile
+				? {
+						id: profile.id,
+						bloodGroup: profile.bloodGroup,
+						allergies: profile.allergies,
+						chronicConditions: profile.chronicConditions,
+						emergencyContactName: profile.emergencyContactName,
+						emergencyContactPhone: profile.emergencyContactPhone,
+						emergencyContactEmail: profile.emergencyContactEmail,
+						healthRiskScore: profile.healthRiskScore,
+						createdAt: profile.createdAt,
+						updatedAt: profile.updatedAt,
+					}
+				: null,
+		});
 	} catch (error) {
 		logger.error({ err: error }, "Error fetching profile");
 		res.status(500).json({ error: "Failed to fetch profile" });
@@ -45,6 +77,11 @@ export const updateProfile = async (req: Request, res: Response) => {
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
 		const {
+			// User-level fields
+			name,
+			gender,
+			languagePreference,
+			// Health profile fields
 			bloodGroup,
 			allergies,
 			chronicConditions,
@@ -52,6 +89,19 @@ export const updateProfile = async (req: Request, res: Response) => {
 			emergencyContactPhone,
 			emergencyContactEmail,
 		} = req.body;
+
+		// Update user-level fields if provided
+		const userUpdateData: Record<string, unknown> = {};
+		if (name !== undefined) userUpdateData.name = name;
+		if (gender !== undefined) userUpdateData.gender = gender;
+		if (languagePreference !== undefined) userUpdateData.languagePreference = languagePreference;
+
+		if (Object.keys(userUpdateData).length > 0) {
+			await prisma.user.update({
+				where: { id: userId },
+				data: userUpdateData,
+			});
+		}
 
 		// Calculate risk score automatically
 		const healthRiskScore = calculateRiskScore(chronicConditions || []);
@@ -79,7 +129,35 @@ export const updateProfile = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json(profile);
+		// Fetch updated user for response
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { id: true, email: true, name: true, gender: true, languagePreference: true },
+		});
+
+		res.status(200).json({
+			user: user
+				? {
+						id: user.id,
+						email: user.email,
+						name: user.name,
+						gender: user.gender,
+						languagePreference: user.languagePreference,
+					}
+				: null,
+			healthProfile: {
+				id: profile.id,
+				bloodGroup: profile.bloodGroup,
+				allergies: profile.allergies,
+				chronicConditions: profile.chronicConditions,
+				emergencyContactName: profile.emergencyContactName,
+				emergencyContactPhone: profile.emergencyContactPhone,
+				emergencyContactEmail: profile.emergencyContactEmail,
+				healthRiskScore: profile.healthRiskScore,
+				createdAt: profile.createdAt,
+				updatedAt: profile.updatedAt,
+			},
+		});
 	} catch (error) {
 		logger.error({ err: error }, "Error updating profile");
 		res.status(500).json({ error: "Failed to update profile" });

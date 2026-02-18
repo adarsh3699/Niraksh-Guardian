@@ -48,7 +48,7 @@ export const signup = async (req: express.Request, res: express.Response) => {
 
 		res.status(201).json({
 			message: "User created successfully",
-			user: { id: user.id, email: user.email },
+			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
 			tokens: { accessToken, refreshToken },
 		});
 	} catch (error) {
@@ -100,7 +100,7 @@ export const login = async (req: express.Request, res: express.Response) => {
 
 		res.status(200).json({
 			message: "Login successful",
-			user: { id: user.id, email: user.email },
+			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
 			tokens: { accessToken, refreshToken },
 		});
 	} catch (error) {
@@ -220,10 +220,11 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 		});
 
 		if (!user) {
-			// Create new user
+			// Create new user with name from Google profile
 			user = await prisma.user.create({
 				data: {
 					email,
+					name: payload.name || null,
 					isEmailVerified: true, // Google emails are verified
 				},
 			});
@@ -267,7 +268,7 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 
 		res.status(200).json({
 			message: "Google login successful",
-			user: { id: user.id, email: user.email },
+			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
 			tokens: { accessToken, refreshToken },
 		});
 	} catch (error) {

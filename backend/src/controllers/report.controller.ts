@@ -359,3 +359,25 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		}
 	}
 };
+
+export const listHealthReports = async (req: Request, res: Response) => {
+	try {
+		const userId = (req as AuthenticatedRequest).user?.userId;
+		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+		const reports = await prisma.healthReport.findMany({
+			where: { userId },
+			orderBy: { createdAt: "desc" },
+			select: {
+				id: true,
+				reportUrl: true,
+				createdAt: true,
+			},
+		});
+
+		res.json(reports);
+	} catch (error) {
+		logger.error({ err: error }, "Error listing health reports");
+		res.status(500).json({ error: "Failed to list health reports" });
+	}
+};

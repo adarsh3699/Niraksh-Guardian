@@ -139,6 +139,46 @@ export const deleteChat = async (req: Request, res: Response) => {
 	}
 };
 
+// --- Chat Update ---
+
+import { updateChatSchema } from "../validators/chat.schema";
+
+export const updateChat = async (req: Request, res: Response) => {
+	try {
+		const userId = (req as AuthenticatedRequest).user?.userId;
+		const chatId = req.params.chatId as string;
+		if (!userId) {
+			res.status(401).json({ error: "Unauthorized" });
+			return;
+		}
+
+		const { title } = updateChatSchema.parse(req.body);
+
+		const chat = await prisma.chat.findUnique({
+			where: { id: chatId },
+		});
+
+		if (!chat || chat.userId !== userId) {
+			res.status(404).json({ error: "Chat not found" });
+			return;
+		}
+
+		const updatedChat = await prisma.chat.update({
+			where: { id: chatId },
+			data: { ...(title && { title }) },
+		});
+
+		res.json(updatedChat);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			res.status(400).json({ error: error.issues });
+			return;
+		}
+		logger.error({ err: error }, "Failed to update chat");
+		res.status(500).json({ error: "Internal Server Error" });
+	}
+};
+
 import { generateAIResponse } from "../services/ai/gemini";
 
 export const sendMessage = async (req: Request, res: Response) => {

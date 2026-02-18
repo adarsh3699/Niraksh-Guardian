@@ -63,7 +63,7 @@ export const generateAIResponse = async (
 	}
 };
 
-export const analyzeSymptoms = async (
+export const diagnoseSymptoms = async (
 	symptoms: string[],
 	language: string = "en",
 	imageBuffer?: Buffer,
@@ -215,5 +215,250 @@ export const generateContent = async (prompt: string): Promise<string> => {
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Generate Content Error");
 		throw new Error("Failed to generate content");
+	}
+};
+
+// --- Summarize Chat Symptoms for Doctor ---
+
+export const summarizeChatForDoctor = async (
+	messages: { role: string; content: string }[]
+): Promise<{ summary: string; status: "success" | "non_medical" }> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		// Extract user messages only
+		const userMessages = messages
+			.filter((msg) => msg.role === "user")
+			.map((msg) => msg.content)
+			.join("\n");
+
+		if (!userMessages.trim()) {
+			return {
+				summary: "No user messages found in the conversation.",
+				status: "non_medical",
+			};
+		}
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: {
+				systemInstruction: "Only talk about medical and healthcare",
+			},
+			contents: [
+				{
+					role: "user",
+					parts: [
+						{
+							text: `Based on the following patient's conversation, summarize their key symptoms and health concerns in a clear, concise paragraph that would help a doctor understand their condition. Focus only on medical information and symptoms.
+
+If the conversation contains NO medical symptoms or health concerns, respond with EXACTLY: "NON_MEDICAL"
+
+Here's the conversation:
+
+${userMessages}`,
+						},
+					],
+				},
+			],
+		});
+
+		const summary = (result.text || "").trim();
+
+		if (
+			summary === "NON_MEDICAL" ||
+			summary.includes("not provided any medical information") ||
+			summary.includes("not related to healthcare")
+		) {
+			return {
+				summary: "This conversation does not contain any medical symptoms or health-related concerns.",
+				status: "non_medical",
+			};
+		}
+
+		return { summary, status: "success" };
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Summarize Symptoms Error");
+		throw new Error("Failed to summarize symptoms");
+	}
+};
+
+// --- Health Tool AI Functions ---
+
+export const analyzeMedicine = async (
+	medicineName?: string,
+	imageBuffer?: Buffer,
+	mimeType?: string
+): Promise<string> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const parts: any[] = [];
+
+		if (medicineName) {
+			parts.push({
+				text: `Tell me about this medicine named "${medicineName}" and its uses, side effects, dosage, composition, alternatives, and everything important about it. Format your response in clear markdown with headings. Give a small note at the end to consult a doctor for medical advice.`,
+			});
+		} else if (imageBuffer && mimeType) {
+			parts.push({
+				text: `Tell me about this medicine shown in the image — its name, uses, side effects, dosage, composition, alternatives, and everything important about it. Format your response in clear markdown with headings. Give a small note at the end to consult a doctor for medical advice.`,
+			});
+			parts.push({
+				inlineData: {
+					data: imageBuffer.toString("base64"),
+					mimeType,
+				},
+			});
+		} else {
+			throw new Error("Either medicine name or image is required");
+		}
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: { systemInstruction: "Only talk about medical and healthcare" },
+			contents: [{ role: "user", parts }],
+		});
+
+		return result.text || "";
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Medicine Analysis Error");
+		throw new Error("Failed to analyze medicine");
+	}
+};
+
+export const analyzePrescription = async (
+	imageBuffers: { buffer: Buffer; mimeType: string }[]
+): Promise<{ description: string; medicines: string[] }> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const parts: any[] = [
+			{
+				text: `Analyze this medical prescription in detail. Please provide:
+
+1. A comprehensive explanation of the prescription
+2. List all medicines with their dosages and frequencies
+3. Purpose of each medicine
+4. Important instructions for the patient
+5. Potential side effects to be aware of
+
+Format your response in clear markdown. Also, in your response, clearly list all medicines names so they can be extracted for drug interaction checking.
+
+After your explanation, include a JSON-formatted list of all medications in this format - place it on a single line at the very end of your response:
+MEDICINES_JSON:[{"name":"Medicine Name 1", "dosage":"Dosage 1"},{"name":"Medicine Name 2", "dosage":"Dosage 2"}]`,
+			},
+		];
+
+		for (const img of imageBuffers) {
+			parts.push({
+				inlineData: {
+					data: img.buffer.toString("base64"),
+					mimeType: img.mimeType,
+				},
+			});
+		}
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: { systemInstruction: "Only talk about medical and healthcare" },
+			contents: [{ role: "user", parts }],
+		});
+
+		const rawText = result.text || "";
+
+		// Extract medicines from MEDICINES_JSON tag
+		let medicines: string[] = [];
+		const jsonMatch = rawText.match(/MEDICINES_JSON:\s*(\[[\s\S]*?\])/);
+		if (jsonMatch) {
+			try {
+				const parsed = JSON.parse(jsonMatch[1]);
+				medicines = parsed.map((m: { name: string }) => m.name);
+			} catch {
+				// Fallback regex extraction
+				const nameMatches = rawText.match(
+					/\b[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*\b\s*(?:\d+\s*(?:mg|mcg|g|ml|IU))?/g
+				);
+				if (nameMatches) medicines = [...new Set(nameMatches)].slice(0, 20);
+			}
+		}
+
+		// Clean the response text
+		const description = rawText
+			.replace(/MEDICINES_JSON:.*$/m, "")
+			.replace(/MEDICINES_LIST:.*$/m, "")
+			.replace(/```json[\s\S]*?```/g, "")
+			.trim();
+
+		return { description, medicines };
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Prescription Analysis Error");
+		throw new Error("Failed to analyze prescription");
+	}
+};
+
+export const checkDrugInteraction = async (medicines: string[]): Promise<string> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const medicineList = medicines.join(", ");
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: {
+				systemInstruction:
+					"You are a helpful medical assistant that provides accurate information about drug interactions based on established medical knowledge. Always provide specific details about interactions when known medicines are mentioned, with evidence-based information. Never refuse to answer with generic disclaimers when legitimate medicines are provided.",
+			},
+			contents: [
+				{
+					role: "user",
+					parts: [
+						{
+							text: `Provide a detailed analysis of potential Drug-Drug interactions between the following medications: ${medicineList}.
+
+For these specific medications:
+
+1. Explain in detail any known interactions between these exact medications using pharmaceutical databases
+2. Rate each interaction's severity (No interaction, mild, moderate, severe) with clinical significance
+3. Provide clear recommendations for patients regarding timing, dosing, or monitoring
+
+Important guidelines:
+- If these are legitimate medications, provide specific interaction information
+- If you don't recognize a medication name, suggest possible corrections or similar medication names
+- If a true interaction exists, be specific about the mechanism and management
+- Format your response with clear headings and bullet points for readability
+
+End with a brief disclaimer reminding patients to consult healthcare providers about drug interactions.`,
+						},
+					],
+				},
+			],
+		});
+
+		const text = result.text || "";
+
+		// Fallback if response is too generic
+		if (text.length < 500 && /I am an AI|I cannot provide|I'm not able/i.test(text)) {
+			const retryResult = await ai.models.generateContent({
+				model: MODEL_NAME,
+				config: {
+					systemInstruction: "You are a medical database assistant with expertise in drug interactions.",
+				},
+				contents: [
+					{
+						role: "user",
+						parts: [
+							{
+								text: `As a pharmacology expert, analyze drug interactions between: ${medicineList}. Provide severity ratings and clinical recommendations. Be specific and evidence-based.`,
+							},
+						],
+					},
+				],
+			});
+			return retryResult.text || text;
+		}
+
+		return text;
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Drug Interaction Error");
+		throw new Error("Failed to check drug interactions");
 	}
 };
