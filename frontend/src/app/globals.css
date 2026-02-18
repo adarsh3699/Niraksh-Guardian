@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+	/* Primary — Teal (brand color) */
+	--color-primary: oklch(60.21% 0.0739 202.5); /* #448e94 */
+	--color-primary-light: oklch(70.91% 0.0864 183.9); /* #5cb3a7 */
+	--color-primary-foreground: oklch(100% 0 0); /* #ffffff */
+
+	/* Accent — Orange (CTAs, buttons) */
+	--color-accent: oklch(70.49% 0.1867 47.6); /* #f97316 */
+	--color-accent-light: oklch(75.77% 0.159 55.9); /* #fb923c */
+	--color-accent-foreground: oklch(100% 0 0); /* #ffffff */
+
+	/* Highlight — Red (emergency, hero emphasis) */
+	--color-highlight: oklch(68.36% 0.2051 24); /* #ff5657 */
+
+	/* Info — Blue/Indigo (chat, recommendations) */
+	--color-info: oklch(62.31% 0.1881 259.8); /* #3b82f6 */
+	--color-info-dark: oklch(51.06% 0.2301 277); /* #4f46e5 */
+
+	/* Semantic */
+	--color-success: oklch(67.31% 0.1624 144.2); /* #4caf50 */
+	--color-warning: oklch(76.86% 0.1646 70.1); /* #f59e0b */
+	--color-destructive: oklch(64.27% 0.2153 28.8); /* #f44336 */
+
+	/* Neutrals */
+	--color-background: oklch(98.46% 0.0018 248.6); /* #f9fafb */
+	--color-surface: oklch(100% 0 0); /* #ffffff */
+	--color-foreground: oklch(24.78% 0 0); /* #212121 */
+	--color-muted: oklch(56.24% 0 0); /* #757575 */
+	--color-border: oklch(92.76% 0.0059 264.5); /* #e5e7eb */
+
+	/* Radius */
+	--radius-sm: 0.375rem;
+	--radius-md: 0.5rem;
+	--radius-lg: 0.75rem;
+	--radius-xl: 1rem;
+	--radius-full: 9999px;
+
+	/* Shadows */
+	--shadow-card: 0 4px 12px oklch(0% 0 0 / 0.05);
+	--shadow-card-hover: 0 10px 25px oklch(0% 0 0 / 0.08);
+	--shadow-dropdown: 0 10px 30px oklch(0% 0 0 / 0.12);
+
+	/* Fonts */
+	--font-heading: var(--font-poppins);
+	--font-body: var(--font-inter);
+}
+
+/* Dark mode variant */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Base styles */
+body {
+	background-color: var(--color-background);
+	color: var(--color-foreground);
+	font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-heading);
+}

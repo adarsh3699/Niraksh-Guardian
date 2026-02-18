@@ -214,33 +214,33 @@ Preserving the existing brand identity with Tailwind CSS v4 `@theme` tokens:
 
 @theme {
 	/* Primary — Teal (brand color) */
-	--color-primary: oklch(56% 0.08 185); /* #448e94 */
-	--color-primary-light: oklch(65% 0.08 175); /* #5cb3a7 */
-	--color-primary-foreground: oklch(98% 0 0); /* white */
+	--color-primary: oklch(60.21% 0.0739 202.5); /* #448e94 */
+	--color-primary-light: oklch(70.91% 0.0864 183.9); /* #5cb3a7 */
+	--color-primary-foreground: oklch(100% 0 0); /* #ffffff */
 
 	/* Accent — Orange (CTAs, buttons) */
-	--color-accent: oklch(72% 0.18 55); /* #f97316 */
-	--color-accent-light: oklch(76% 0.15 55); /* #fb923c */
-	--color-accent-foreground: oklch(98% 0 0);
+	--color-accent: oklch(70.49% 0.1867 47.6); /* #f97316 */
+	--color-accent-light: oklch(75.77% 0.159 55.9); /* #fb923c */
+	--color-accent-foreground: oklch(100% 0 0); /* #ffffff */
 
 	/* Highlight — Red (emergency, hero emphasis) */
-	--color-highlight: oklch(62% 0.22 20); /* #ff5657 */
+	--color-highlight: oklch(68.36% 0.2051 24); /* #ff5657 */
 
 	/* Info — Blue/Indigo (chat, recommendations) */
-	--color-info: oklch(55% 0.18 260); /* #3b82f6 */
-	--color-info-dark: oklch(45% 0.2 275); /* #4f46e5 */
+	--color-info: oklch(62.31% 0.1881 259.8); /* #3b82f6 */
+	--color-info-dark: oklch(51.06% 0.2301 277); /* #4f46e5 */
 
 	/* Semantic */
-	--color-success: oklch(65% 0.17 145); /* green */
-	--color-warning: oklch(78% 0.16 75); /* amber */
-	--color-destructive: oklch(55% 0.22 27); /* red */
+	--color-success: oklch(67.31% 0.1624 144.2); /* #4caf50 */
+	--color-warning: oklch(76.86% 0.1646 70.1); /* #f59e0b */
+	--color-destructive: oklch(64.27% 0.2153 28.8); /* #f44336 */
 
 	/* Neutrals */
-	--color-background: oklch(98.5% 0 0); /* #f9fafb */
+	--color-background: oklch(98.46% 0.0018 248.6); /* #f9fafb */
 	--color-surface: oklch(100% 0 0); /* #ffffff */
-	--color-foreground: oklch(16% 0.01 260); /* #212121 */
-	--color-muted: oklch(55% 0.01 260); /* #757575 */
-	--color-border: oklch(91% 0.005 260); /* #e5e7eb */
+	--color-foreground: oklch(24.78% 0 0); /* #212121 */
+	--color-muted: oklch(56.24% 0 0); /* #757575 */
+	--color-border: oklch(92.76% 0.0059 264.5); /* #e5e7eb */
 
 	/* Radius */
 	--radius-sm: 0.375rem; /* 6px */
@@ -335,7 +335,7 @@ Centralized fetch wrapper with:
 // Simplified API client pattern
 async function apiClient<T>(
 	endpoint: string,
-	options?: { method?: string; body?: unknown; isFile?: boolean }
+	options?: { method?: string; body?: unknown; isFile?: boolean },
 ): Promise<ApiResponse<T>>;
 ```
 
