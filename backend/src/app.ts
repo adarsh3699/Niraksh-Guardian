@@ -46,6 +46,21 @@ app.use(
 			if (res.statusCode >= 400) return "warn";
 			return "info";
 		},
+		customSuccessMessage: (req, res) => {
+			return `${(req as Request).method} ${(req as Request).url} → ${res.statusCode}`;
+		},
+		customErrorMessage: (req, res) => {
+			return `${(req as Request).method} ${(req as Request).url} → ${res.statusCode}`;
+		},
+		serializers: {
+			req: (req) => ({
+				method: req.method,
+				url: req.url,
+			}),
+			res: (res) => ({
+				status: res.statusCode,
+			}),
+		},
 	})
 );
 

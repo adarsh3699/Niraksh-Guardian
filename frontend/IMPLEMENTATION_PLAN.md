@@ -193,49 +193,49 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 3.1 Auth Route Group (`src/app/(auth)/`)
 
-- [ ] Shared layout: centered card on gradient background, redirect if already authenticated
+- [x] Shared layout: centered card on gradient background, redirect if already authenticated
 
 ### 3.2 Login Page (`/login`)
 
-- [ ] `LoginForm` (client component)
-- [ ] Email + Password fields with Zod validation
-- [ ] "Forgot Password?" link
-- [ ] Submit → `POST /api/auth/login`
-- [ ] On success: store tokens (`tokens.accessToken`, `tokens.refreshToken`), store user (`user.id`, `user.email`, `user.name`, `user.gender`), redirect to returnUrl or `/dashboard`
-- [ ] Error states: invalid credentials, server error
-- [ ] Google OAuth button below separator ("— OR —")
-- [ ] "Don't have an account? Sign up" link
+- [x] `LoginForm` (client component)
+- [x] Email + Password fields with Zod validation
+- [x] "Forgot Password?" link
+- [x] Submit → `POST /api/auth/login`
+- [x] On success: store tokens (`tokens.accessToken`, `tokens.refreshToken`), store user (`user.id`, `user.email`, `user.name`, `user.gender`), redirect to returnUrl or `/dashboard`
+- [x] Error states: invalid credentials, server error
+- [x] Google OAuth button below separator ("— OR —")
+- [x] "Don't have an account? Sign up" link
 
 ### 3.3 Signup Page (`/register`)
 
-- [ ] `SignupForm` (client component)
-- [ ] Name + Email + Password + Confirm Password + Gender (optional dropdown: Male/Female/Other)
-- [ ] Real-time validation (password match, email format)
-- [ ] Submit → `POST /api/auth/signup`
-- [ ] On success: auto-login (store tokens + user details), redirect to returnUrl or `/dashboard`
-- [ ] "Already have an account? Login" link
+- [x] `SignupForm` (client component)
+- [x] Name + Email + Password + Confirm Password + Gender (optional dropdown: Male/Female/Other)
+- [x] Real-time validation (password match, email format)
+- [x] Submit → `POST /api/auth/signup`
+- [x] On success: auto-login (store tokens + user details), redirect to returnUrl or `/dashboard`
+- [x] "Already have an account? Login" link
 
 ### 3.4 Forgot Password Page (`/forgot-password`)
 
-- [ ] Email input + Submit button
-- [ ] Submit → `POST /api/auth/forgot-password`
-- [ ] Always show: "If an account exists, a reset link has been sent" (prevents email enumeration)
-- [ ] Backend returns 200 for all emails (existing or not) — no error to handle
+- [x] Email input + Submit button
+- [x] Submit → `POST /api/auth/forgot-password`
+- [x] Always show: "If an account exists, a reset link has been sent" (prevents email enumeration)
+- [x] Backend returns 200 for all emails (existing or not) — no error to handle
 
 ### 3.5 Google OAuth Flow
 
-- [ ] `GoogleAuthButton` component using `@react-oauth/google`
-- [ ] On credential response → `POST /api/auth/google` with `idToken`
-- [ ] On success: store tokens + user details, redirect to returnUrl or `/dashboard`
+- [x] `GoogleAuthButton` component using `@react-oauth/google`
+- [x] On credential response → `POST /api/auth/google` with `idToken`
+- [x] On success: store tokens + user details, redirect to returnUrl or `/dashboard`
 
 ### 3.6 Reset Password Page (`/reset-password`)
 
-- [ ] `ResetPasswordForm` (client component)
-- [ ] Extract `token` from URL search params (`?token=...`)
-- [ ] New Password + Confirm Password fields
-- [ ] Submit → `POST /api/auth/reset-password` with `{ token, password }`
-- [ ] On success: show message + redirect to `/login`
-- [ ] Handle invalid/expired token error
+- [x] `ResetPasswordForm` (client component)
+- [x] Extract `token` from URL search params (`?token=...`)
+- [x] New Password + Confirm Password fields
+- [x] Submit → `POST /api/auth/reset-password` with `{ token, password }`
+- [x] On success: show message + redirect to `/login`
+- [x] Handle invalid/expired token error
 
 **Deliverable:** Complete authentication flow — login, signup, forgot password, reset password, Google OAuth.
 

@@ -22,7 +22,7 @@ class EmailService {
 			});
 
 			this.transporter = nodemailer.createTransport({
-				SES: { sesClient: ses, aws: { SendEmailCommand } },
+				SES: { sesClient: ses, SendEmailCommand },
 			} as unknown as nodemailer.TransportOptions);
 
 			logger.info("AWS SES Email Transporter initialized (Nodemailer + SESv2)");

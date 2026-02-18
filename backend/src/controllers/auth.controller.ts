@@ -201,30 +201,54 @@ const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req: express.Request, res: express.Response) => {
 	try {
-		const { idToken } = req.body; // Basic validation, schema validation recommended in real flow
+		const { idToken, accessToken: googleAccessToken } = req.body;
 
-		const ticket = await client.verifyIdToken({
-			idToken,
-			audience: env.GOOGLE_CLIENT_ID,
-		});
-		const payload = ticket.getPayload();
+		let email: string | undefined;
+		let googleId: string | undefined;
+		let name: string | undefined | null;
 
-		if (!payload || !payload.email) {
-			return res.status(400).json({ error: "Invalid Google Token" });
+		if (idToken) {
+			// Legacy: credential/id_token flow from <GoogleLogin> component
+			const ticket = await client.verifyIdToken({
+				idToken,
+				audience: env.GOOGLE_CLIENT_ID,
+			});
+			const payload = ticket.getPayload();
+			if (!payload || !payload.email) {
+				return res.status(400).json({ error: "Invalid Google Token" });
+			}
+			email = payload.email;
+			googleId = payload.sub;
+			name = payload.name;
+		} else if (googleAccessToken) {
+			// New: access_token flow from useGoogleLogin hook
+			const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+				headers: { Authorization: `Bearer ${googleAccessToken}` },
+			});
+			if (!response.ok) {
+				return res.status(401).json({ error: "Invalid Google Access Token" });
+			}
+			const info = (await response.json()) as { email?: string; sub?: string; name?: string };
+			if (!info.email || !info.sub) {
+				return res.status(400).json({ error: "Could not retrieve Google user info" });
+			}
+			email = info.email;
+			googleId = info.sub;
+			name = info.name;
+		} else {
+			return res.status(400).json({ error: "Google token is required" });
 		}
 
-		const { email, sub: googleId } = payload;
-
 		let user = await prisma.user.findUnique({
-			where: { email },
+			where: { email: email! },
 		});
 
 		if (!user) {
 			// Create new user with name from Google profile
 			user = await prisma.user.create({
 				data: {
-					email,
-					name: payload.name || null,
+					email: email!,
+					name: name || null,
 					isEmailVerified: true, // Google emails are verified
 				},
 			});
@@ -235,14 +259,14 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 			where: {
 				provider_providerAccountId: {
 					provider: "google",
-					providerAccountId: googleId,
+					providerAccountId: googleId!,
 				},
 			},
 			update: {},
 			create: {
 				userId: user.id,
 				provider: "google",
-				providerAccountId: googleId,
+				providerAccountId: googleId!,
 			},
 		});
 
