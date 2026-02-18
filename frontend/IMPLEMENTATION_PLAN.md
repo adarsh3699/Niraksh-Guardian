@@ -4,6 +4,10 @@
 
 Phased plan to build the Niraksh-Guardian Next.js frontend from scratch. Each phase is self-contained and deployable. Backend API is live at `https://niraksh-guardian-api.vercel.app/`.
 
+### Design Approach
+
+> **Uniform & professional.** All colors come from the single `@theme` palette in `globals.css`. No hardcoded hex values in components. The website should look cohesive and polished across every page — consistent spacing, typography, border-radii, and shadows.
+
 ---
 
 ## Phase 0: Project Scaffolding & Configuration
@@ -12,10 +16,10 @@ Phased plan to build the Niraksh-Guardian Next.js frontend from scratch. Each ph
 
 ### 0.1 Initialize Project
 
-- [ ] Create Next.js 15 project with TypeScript (`create-next-app`)
-- [ ] Configure `pnpm` as package manager, add `pnpm-workspace.yaml` if needed
-- [ ] Set up `tsconfig.json` with strict mode, path aliases (`@/` → `src/`)
-- [ ] Configure `next.config.ts` (images domains, env vars, experimental features)
+- [x] Create Next.js 15 project with TypeScript (`create-next-app`)
+- [x] Configure `pnpm` as package manager, add `pnpm-workspace.yaml` if needed
+- [x] Set up `tsconfig.json` with strict mode, path aliases (`@/` → `src/`)
+- [x] Configure `next.config.ts` (images domains, env vars, experimental features)
 
 ### 0.2 Install Dependencies
 
@@ -32,31 +36,31 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 0.3 Tailwind CSS v4 Setup
 
-- [ ] Install Tailwind CSS v4 (`@tailwindcss/postcss`, `tailwindcss`)
-- [ ] Create `globals.css` with `@import "tailwindcss"` and full `@theme` token block
-- [ ] Define color tokens (primary/teal, accent/orange, highlight/red, info/blue)
-- [ ] Define radius, shadow, and spacing tokens
-- [ ] Add dark mode custom variant (`@custom-variant dark`)
+- [x] Install Tailwind CSS v4 (`@tailwindcss/postcss`, `tailwindcss`)
+- [x] Create `globals.css` with `@import "tailwindcss"` and full `@theme` token block
+- [x] Define color tokens (primary/teal, accent/orange, highlight/red, info/blue)
+- [x] Define radius, shadow, and spacing tokens
+- [x] Add dark mode custom variant (`@custom-variant dark`)
 
 ### 0.4 Font Configuration
 
-- [ ] Set up `next/font` for Poppins (600, 700) and Inter (400, 500, 600)
-- [ ] Apply `font-poppins` to headings, `font-inter` to body in root layout
-- [ ] Verify zero-CLS font loading
+- [x] Set up `next/font` for Poppins (600, 700) and Inter (400, 500, 600)
+- [x] Apply `font-poppins` to headings, `font-inter` to body in root layout
+- [x] Verify zero-CLS font loading
 
 ### 0.5 Environment & Tooling
 
-- [ ] Create `.env.local` with `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-- [ ] Configure ESLint flat config with Next.js rules
-- [ ] Set up Prettier config
-- [ ] Add `.gitignore` entries for `.next/`, `node_modules/`, `.env*.local`
+- [x] Create `.env.local` with `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- [x] Configure ESLint flat config with Next.js rules
+- [x] Set up Prettier config
+- [x] Add `.gitignore` entries for `.next/`, `node_modules/`, `.env*.local`
 
 ### 0.6 Base File Structure
 
-- [ ] Create directory skeleton: `src/app/`, `src/components/`, `src/lib/`, `src/hooks/`, `src/contexts/`, `src/types/`
-- [ ] Create root `layout.tsx` with HTML lang, fonts, viewport meta
-- [ ] Create root `page.tsx` with placeholder content
-- [ ] Verify `pnpm dev` works and shows the page
+- [x] Create directory skeleton: `src/app/`, `src/components/`, `src/lib/`, `src/hooks/`, `src/contexts/`, `src/types/`
+- [x] Create root `layout.tsx` with HTML lang, fonts, viewport meta
+- [x] Create root `page.tsx` with placeholder content
+- [x] Verify `pnpm dev` works and shows the page
 
 **Deliverable:** Empty Next.js app running with Tailwind v4, custom theme tokens, and fonts loaded.
 
@@ -68,56 +72,56 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 1.1 Type Definitions (`src/types/`)
 
-- [ ] `api.ts` — `ApiResponse<T>`, `ApiError`, `PaginatedResponse<T>` (`{ data: T[], meta: { total, page, limit, pages } }`)
-- [ ] `auth.ts` — `User` (id, email, name, gender), `Tokens`, `LoginRequest`, `SignupRequest`, `GoogleAuthRequest`
-- [ ] `chat.ts` — `Chat` (id, userId, title, createdAt, updatedAt), `Message` (id, chatId, role, content, createdAt), `CreateChatRequest`, `UpdateChatRequest`, `SendMessageRequest`. Note: `GET /api/chats` includes `messages: Message[]` (1-element array for last msg), `GET /api/chats/:chatId` returns flat `Message[]`, `POST /api/chats` returns `Chat`, `DELETE /api/chats/:id` returns `{ message }`
-- [ ] `doctor.ts` — `Doctor` (id, name, email, phone?, imageUrl?, specialization, qualification?, experienceYears, rating, consultationFee, city, state, bio?, createdAt), `DoctorSearchParams` (search, specialization, city, state, minFee, maxFee, sortBy, order, page, limit), `SymptomAnalysis`, `SymptomSummaryRequest` ({ chatId: string }), `SymptomSummaryResponse` ({ summary: string, status: "success" | "non_medical" })
-- [ ] `health.ts` — `ProfileResponse` (user + healthProfile), `HealthProfile` (bloodGroup, allergies, chronicConditions, emergencyContact\*, healthRiskScore), `MedicineHistory` (id, userId, imageUrl, medicineName, analysisResult, createdAt), `PrescriptionHistory` (id, userId, imageUrl, extractedText, analysisResult, createdAt), `DrugInteractionHistory` (id, userId, drugs[], interactionResult, createdAt), `SymptomAnalysisHistory` (id, userId, symptoms[], imageUrl, predictedConditions, urgencyLevel, recommendedSpecialist, createdAt). Note: `analysisResult`/`interactionResult`/`predictedConditions` are JSON types.
-- [ ] `report.ts` — `HealthReport` (id, reportUrl, createdAt)
+- [x] `api.ts` — `ApiResponse<T>`, `ApiError`, `PaginatedResponse<T>` (`{ data: T[], meta: { total, page, limit, pages } }`)
+- [x] `auth.ts` — `User` (id, email, name, gender), `Tokens`, `LoginRequest`, `SignupRequest`, `GoogleAuthRequest`
+- [x] `chat.ts` — `Chat` (id, userId, title, createdAt, updatedAt), `Message` (id, chatId, role, content, createdAt), `CreateChatRequest`, `UpdateChatRequest`, `SendMessageRequest`. Note: `GET /api/chats` includes `messages: Message[]` (1-element array for last msg), `GET /api/chats/:chatId` returns flat `Message[]`, `POST /api/chats` returns `Chat`, `DELETE /api/chats/:id` returns `{ message }`
+- [x] `doctor.ts` — `Doctor` (id, name, email, phone?, imageUrl?, specialization, qualification?, experienceYears, rating, consultationFee, city, state, bio?, createdAt), `DoctorSearchParams` (search, specialization, city, state, minFee, maxFee, sortBy, order, page, limit), `SymptomAnalysis`, `SymptomSummaryRequest` ({ chatId: string }), `SymptomSummaryResponse` ({ summary: string, status: "success" | "non_medical" })
+- [x] `health.ts` — `ProfileResponse` (user + healthProfile), `HealthProfile` (bloodGroup, allergies, chronicConditions, emergencyContact\*, healthRiskScore), `MedicineHistory` (id, userId, imageUrl, medicineName, analysisResult, createdAt), `PrescriptionHistory` (id, userId, imageUrl, extractedText, analysisResult, createdAt), `DrugInteractionHistory` (id, userId, drugs[], interactionResult, createdAt), `SymptomAnalysisHistory` (id, userId, symptoms[], imageUrl, predictedConditions, urgencyLevel, recommendedSpecialist, createdAt). Note: `analysisResult`/`interactionResult`/`predictedConditions` are JSON types.
+- [x] `report.ts` — `HealthReport` (id, reportUrl, createdAt)
 
 ### 1.2 API Client (`src/lib/api.ts`)
 
-- [ ] Create `apiClient<T>(endpoint, options)` function
-- [ ] Implement auto-inject `Authorization: Bearer <token>` header
-- [ ] Implement pre-flight token expiry check (decode JWT, check `exp`)
-- [ ] Implement auto-refresh flow: refresh token → retry original request
-- [ ] Implement FormData mode for file uploads (no Content-Type header)
-- [ ] Implement error handling: parse API error response, throw typed `ApiError`
-- [ ] Handle 401 globally: clear tokens, redirect to `/login`
+- [x] Create `apiClient<T>(endpoint, options)` function
+- [x] Implement auto-inject `Authorization: Bearer <token>` header
+- [x] Implement pre-flight token expiry check (decode JWT, check `exp`)
+- [x] Implement auto-refresh flow: refresh token → retry original request
+- [x] Implement FormData mode for file uploads (no Content-Type header)
+- [x] Implement error handling: parse API error response, throw typed `ApiError`
+- [x] Handle 401 globally: clear tokens, redirect to `/login`
 
 ### 1.3 Auth Utilities (`src/lib/auth.ts`)
 
-- [ ] `getAccessToken()` / `setAccessToken(token)` / `clearTokens()`
-- [ ] `getRefreshToken()` / `setRefreshToken(token)`
-- [ ] `getUserDetails()` / `setUserDetails(user)` / `clearUserDetails()`
-- [ ] `isTokenExpired(token)` — decode JWT and check `exp` claim
-- [ ] `getTokenExpiryTime(token)` — return ms until expiry
+- [x] `getAccessToken()` / `setAccessToken(token)` / `clearTokens()`
+- [x] `getRefreshToken()` / `setRefreshToken(token)`
+- [x] `getUserDetails()` / `setUserDetails(user)` / `clearUserDetails()`
+- [x] `isTokenExpired(token)` — decode JWT and check `exp` claim
+- [x] `getTokenExpiryTime(token)` — return ms until expiry
 
 ### 1.4 Validation Schemas (`src/lib/validations.ts`)
 
-- [ ] `loginSchema` — email (required, valid email), password (required, min 1) _(Note: backend has no min length on login — only signup enforces min 8)_", "oldString": "- [ ] `loginSchema` — email (required, valid email), password (required, min 8)
-- [ ] `signupSchema` — name, email, password (min 8), confirmPassword (match), gender (optional: Male/Female/Other)
-- [ ] `forgotPasswordSchema` — email only
-- [ ] `resetPasswordSchema` — token (required), password (required, min 8), confirmPassword (match)
-- [ ] `chatMessageSchema` — content (required, max 5000)
-- [ ] `symptomSearchSchema` — symptoms (array of strings, min 1), language (optional string, default "en")
-- [ ] `summarizeSymptomsSchema` — chatId (required, string)
-- [ ] `profileSchema` — name (optional), gender (optional: Male/Female/Other), languagePreference (optional), bloodGroup, allergies[], chronicConditions[], emergencyContact fields
-- [ ] `drugInteractionSchema` — medicines (array of strings, min 2)
+- [x] `loginSchema` — email (required, valid email), password (required, min 1) _(Note: backend has no min length on login — only signup enforces min 8)_", "oldString": "- [ ] `loginSchema` — email (required, valid email), password (required, min 8)
+- [x] `signupSchema` — name, email, password (min 8), confirmPassword (match), gender (optional: Male/Female/Other)
+- [x] `forgotPasswordSchema` — email only
+- [x] `resetPasswordSchema` — token (required), password (required, min 8), confirmPassword (match)
+- [x] `chatMessageSchema` — content (required, max 5000)
+- [x] `symptomSearchSchema` — symptoms (array of strings, min 1), language (optional string, default "en")
+- [x] `summarizeSymptomsSchema` — chatId (required, string)
+- [x] `profileSchema` — name (optional), gender (optional: Male/Female/Other), languagePreference (optional), bloodGroup, allergies[], chronicConditions[], emergencyContact fields
+- [x] `drugInteractionSchema` — medicines (array of strings, min 2)
 
 ### 1.5 Utility Functions (`src/lib/utils.ts`)
 
-- [ ] `cn(...classes)` — class name merger (clsx + tailwind-merge)
-- [ ] `formatDate(date)` — locale-aware date formatting
-- [ ] `truncateText(text, maxLength)`
-- [ ] `debounce(fn, delay)`
+- [x] `cn(...classes)` — class name merger (clsx + tailwind-merge)
+- [x] `formatDate(date)` — locale-aware date formatting
+- [x] `truncateText(text, maxLength)`
+- [x] `debounce(fn, delay)`
 
 ### 1.6 Constants (`src/lib/constants.ts`)
 
-- [ ] API endpoints map (`API_ROUTES`)
-- [ ] Disease categories list with icons
-- [ ] Quick symptoms list
-- [ ] Navigation items (path, label, icon, requiresAuth)
+- [x] API endpoints map (`API_ROUTES`)
+- [x] Disease categories list with icons
+- [x] Quick symptoms list
+- [x] Navigation items (path, label, icon, requiresAuth)
 
 **Deliverable:** Complete utility layer — API client, auth helpers, types, validations.
 
@@ -129,55 +133,55 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 2.1 Root Layout (`src/app/layout.tsx`)
 
-- [ ] HTML structure with lang, viewport, theme-color meta
-- [ ] Font providers (Poppins + Inter)
-- [ ] Wrap children in `AuthProvider` → `ToastProvider` → `GoogleOAuthProvider`
-- [ ] Include `<Navbar />` and `<Footer />` around `{children}`
-- [ ] Generate root metadata: title template, description, OG tags
+- [x] HTML structure with lang, viewport, theme-color meta
+- [x] Font providers (Poppins + Inter)
+- [x] Wrap children in `AuthProvider` → `ToastProvider` → `GoogleOAuthProvider`
+- [x] Include `<Navbar />` and `<Footer />` around `{children}`
+- [x] Generate root metadata: title template, description, OG tags
 
 ### 2.2 Navbar (`src/components/layout/Navbar.tsx`)
 
-- [ ] `'use client'` — needs `usePathname()` for active state
-- [ ] Desktop: Logo on left, nav links center, auth buttons right
-- [ ] Mobile: Logo + hamburger icon → slide-in `MobileMenu`
-- [ ] Auth state: Show "Login/Signup" when unauthenticated, "Profile/Logout" when authenticated
-- [ ] Active link highlighting with teal underline
-- [ ] Sticky header with backdrop blur on scroll
-- [ ] Teal background gradient (`primary` → `primary-light`)
+- [x] `'use client'` — needs `usePathname()` for active state
+- [x] Desktop: Logo on left, nav links center, auth buttons right
+- [x] Mobile: Logo + hamburger icon → slide-in `MobileMenu`
+- [x] Auth state: Show "Login/Signup" when unauthenticated, "Profile/Logout" when authenticated
+- [x] Active link highlighting with teal underline
+- [x] Sticky header with box-shadow
+- [x] White background, consistent with overall design
 
 ### 2.3 Mobile Menu (`src/components/layout/MobileMenu.tsx`)
 
-- [ ] Slide-in drawer from right with overlay
-- [ ] Close on overlay click, Escape key, or navigation
-- [ ] Focus trap while open
-- [ ] Navigation items with icons
-- [ ] Auth section at bottom
+- [x] Slide-in drawer from left with overlay
+- [x] Close on overlay click, Escape key, or navigation
+- [x] Focus trap while open
+- [x] Navigation items with icons
+- [x] Auth section at bottom
 
 ### 2.4 Footer (`src/components/layout/Footer.tsx`)
 
-- [ ] Server component (static content)
-- [ ] Brand name + description
-- [ ] Quick links: Home, About, Doctor Suggest, AI Assistant
-- [ ] Social links (GitHub, etc.)
-- [ ] Copyright notice
+- [x] Server component (static content)
+- [x] Brand name + description
+- [x] Quick links: Home, About, Doctor Suggest, AI Assistant
+- [x] Social links (GitHub, etc.)
+- [x] Copyright notice
 
 ### 2.5 Providers
 
-- [ ] `AuthProvider` (`src/contexts/AuthProvider.tsx`)
-    - Wrap entire app
-    - On mount: check localStorage for existing tokens, validate, hydrate user state
-    - Provide `login()`, `logout()`, `refreshAuth()`, `isAuthenticated`, `user`, `isLoading`
-- [ ] `ToastProvider` (`src/contexts/ToastProvider.tsx`)
-    - Stack up to 3 toasts, auto-dismiss after 5s
-    - Types: `success`, `error`, `warning`, `info`
-    - Position: bottom-right
+- [x] `AuthProvider` (`src/contexts/AuthProvider.tsx`)
+  - Wrap entire app
+  - On mount: check localStorage for existing tokens, validate, hydrate user state
+  - Provide `login()`, `logout()`, `refreshAuth()`, `isAuthenticated`, `user`, `isLoading`
+- [x] `ToastProvider` (`src/contexts/ToastProvider.tsx`)
+  - Stack up to 3 toasts, auto-dismiss after 5s
+  - Types: `success`, `error`, `warning`, `info`
+  - Position: bottom-right
 
 ### 2.6 UI Primitives (Batch 1)
 
-- [ ] `Button` — variants: primary, accent, outline, ghost, destructive; sizes: sm, md, lg; loading state
-- [ ] `Input` — label, error message, icon prefix; extends native input props
-- [ ] `Spinner` — animated SVG, sizes: sm (16px), md (24px), lg (40px)
-- [ ] `Toast` — slide-in from bottom-right, auto-dismiss, close button
+- [x] `Button` — variants: primary, accent, outline, ghost, destructive; sizes: sm, md, lg; loading state
+- [x] `Input` — label, error message, icon prefix; extends native input props
+- [x] `Spinner` — animated SVG, sizes: sm (16px), md (24px), lg (40px)
+- [x] `Toast` — slide-in from bottom-right, auto-dismiss, close button (rendered inline in ToastProvider)
 
 **Deliverable:** Fully functional layout with navbar, footer, auth state, and base UI components.
 
@@ -263,10 +267,10 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 - [ ] Section heading: "Explore Health Tools"
 - [ ] Large CTA cards (2 cols):
-    - **Prescription Explainer** — icon + description + "Try Now" button → `/prescription`
-    - **Drug-Drug Interaction** — icon + description + "Check Now" button → `/drug-interaction`
-    - **Medicine Search** — icon + description + "Search" button → `/medicine`
-    - **AI Health Assistant** — icon + description + "Chat Now" button → `/assistance`
+  - **Prescription Explainer** — icon + description + "Try Now" button → `/prescription`
+  - **Drug-Drug Interaction** — icon + description + "Check Now" button → `/drug-interaction`
+  - **Medicine Search** — icon + description + "Search" button → `/medicine`
+  - **AI Health Assistant** — icon + description + "Chat Now" button → `/assistance`
 - [ ] Gradient accents matching existing design
 
 ### 4.4 SEO
@@ -335,20 +339,20 @@ pnpm add -D @types/node @types/react @types/react-dom
 - [ ] Text input for symptoms (paragraph-style) + optional image upload (📷)
 - [ ] "Analyze Symptoms" button → `POST /api/ai/analyze` (FormData with symptoms array + optional image + language, default `"en"`)
 - [ ] Display AI analysis result:
-    - Severity badge (Mild/Moderate/Severe/Emergency with color coding)
-    - Possible conditions list
-    - Urgency level (Home Care / Doctor Visit / Emergency Room)
-    - Recommended specialist type
-    - Home remedies
-    - Reasoning text
+  - Severity badge (Mild/Moderate/Severe/Emergency with color coding)
+  - Possible conditions list
+  - Urgency level (Home Care / Doctor Visit / Emergency Room)
+  - Recommended specialist type
+  - Home remedies
+  - Reasoning text
 
 #### 6.1.1 Summarize Chat Symptoms for Doctor Referral
 
 - [ ] Add "Summarize for Doctor" button (shown when user navigates from a chat context)
 - [ ] On click → `POST /api/ai/summarize-symptoms` with `{ chatId }` from route/query params
 - [ ] Handle response:
-    - `status: "success"` → Display summary paragraph in a card, usable for doctor referral
-    - `status: "non_medical"` → Show info message: "This conversation has no medical content to summarize"
+  - `status: "success"` → Display summary paragraph in a card, usable for doctor referral
+  - `status: "non_medical"` → Show info message: "This conversation has no medical content to summarize"
 - [ ] Summary can be used alongside symptom analysis to provide doctor with full patient context
 
 ### 6.2 Doctor Search & Filters
@@ -429,12 +433,12 @@ pnpm add -D @types/node @types/react @types/react-dom
 - [ ] Language selector dropdown (en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
 - [ ] "Get Info" button → `GET /api/disease/info?topic=<name>&language=<lang>`
 - [ ] Display structured AI response:
-    - Disease name + description
-    - Symptoms list
-    - Causes list
-    - Prevention steps
-    - Treatment options
-    - "When to See a Doctor" section
+  - Disease name + description
+  - Symptoms list
+  - Causes list
+  - Prevention steps
+  - Treatment options
+  - "When to See a Doctor" section
 - [ ] "Find Related Doctors" button → navigates to `/doctor-suggest?condition=<disease>`
 - [ ] Pre-fill from URL search params (`?topic=Cold&language=en`) when linked from HomePage disease cards
 - [ ] SWR caching with 1-hour stale time (same topic won't re-fetch)
@@ -458,11 +462,11 @@ pnpm add -D @types/node @types/react @types/react-dom
 - [ ] Response shape: `{ user: { id, email, name, gender, languagePreference }, healthProfile: { ... } | null }`
 - [ ] Display user info section: name (editable), email (read-only), gender (editable dropdown)
 - [ ] Health profile form:
-    - Blood group (dropdown: A+, A-, B+, B-, AB+, AB-, O+, O-)
-    - Allergies (tag input, add/remove)
-    - Chronic conditions (tag input, add/remove)
-    - Emergency contact: name, phone, email
-    - Language preference (dropdown: en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
+  - Blood group (dropdown: A+, A-, B+, B-, AB+, AB-, O+, O-)
+  - Allergies (tag input, add/remove)
+  - Chronic conditions (tag input, add/remove)
+  - Emergency contact: name, phone, email
+  - Language preference (dropdown: en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
 - [ ] Display health risk score (auto-calculated by backend, read-only gauge/badge)
 - [ ] Save → `PUT /api/profile` (sends both user fields and health fields in single request)
 - [ ] Toast on success/error
@@ -471,10 +475,10 @@ pnpm add -D @types/node @types/react @types/react-dom
 ### 8.2 Health History (`/history`)
 
 - [ ] Fetch history from 4 separate endpoints via SWR:
-    - `GET /api/history/medicine` → Medicine analyses
-    - `GET /api/history/prescription` → Prescription analyses
-    - `GET /api/history/interaction` → Drug interaction checks
-    - `GET /api/history/symptom` → Symptom analyses
+  - `GET /api/history/medicine` → Medicine analyses
+  - `GET /api/history/prescription` → Prescription analyses
+  - `GET /api/history/interaction` → Drug interaction checks
+  - `GET /api/history/symptom` → Symptom analyses
 - [ ] Tabbed or filtered view by history type
 - [ ] Each entry: date, type badge, key details (medicine name / symptoms / drugs)
 - [ ] Click to expand → full analysis result (markdown)
@@ -502,23 +506,23 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 - [ ] Main landing page for authenticated users
 - [ ] Fetch data in parallel via `Promise.all` + SWR:
-    - `GET /api/profile` → Health risk score, profile data, emergency contacts
-    - `GET /api/history/medicine` → Recent (take 5)
-    - `GET /api/history/prescription` → Recent (take 5)
-    - `GET /api/history/interaction` → Recent (take 5)
-    - `GET /api/history/symptom` → Recent (take 5)
-    - `GET /api/reports` → Past reports list
+  - `GET /api/profile` → Health risk score, profile data, emergency contacts
+  - `GET /api/history/medicine` → Recent (take 5)
+  - `GET /api/history/prescription` → Recent (take 5)
+  - `GET /api/history/interaction` → Recent (take 5)
+  - `GET /api/history/symptom` → Recent (take 5)
+  - `GET /api/reports` → Past reports list
 
 ### 8.5.2 Dashboard Components
 
 - [ ] `RiskScoreCard` — Circular gauge showing health risk score (0-100)
-    - Color coding: 0-30 green, 31-60 yellow, 61-100 red
-    - Based on `patientHealthProfile.healthRiskScore`
+  - Color coding: 0-30 green, 31-60 yellow, 61-100 red
+  - Based on `patientHealthProfile.healthRiskScore`
 - [ ] `HealthSummary` — Blood group, allergies badges, chronic conditions, emergency contact quick view
 - [ ] `QuickActions` — Grid of shortcut cards to health tools (Medicine, Prescription, Drug Interaction, AI Chat, Doctor Suggest, Generate Report)
 - [ ] `RecentActivity` — Unified timeline of last 10 activities across all history types, sorted by `createdAt` desc
-    - Icon + type badge per entry (💊 Medicine, 📋 Prescription, ⚠️ Interaction, 🔬 Symptom)
-    - Clickable → navigates to `/history` with type filter
+  - Icon + type badge per entry (💊 Medicine, 📋 Prescription, ⚠️ Interaction, 🔬 Symptom)
+  - Clickable → navigates to `/history` with type filter
 
 ### 8.5.3 Empty States
 

@@ -4,10 +4,12 @@
 
 This document describes the complete frontend architecture for Niraksh-Guardian, rebuilt from scratch using **Next.js 15 (App Router)** with **TypeScript** and **Tailwind CSS v4**.
 
-The frontend replaces the legacy React + Vite SPA while preserving the same design language, theme, and user experience.
+The frontend replaces the legacy React + Vite SPA with a modern, **uniform, and professional** design built on a single source-of-truth color palette defined in `globals.css` via Tailwind CSS v4 `@theme` tokens. The goal is a cohesive, polished experience — not a pixel-perfect clone of the old UI.
 
 ### Design Principles
 
+- **Single color palette** — All colors come from `globals.css` `@theme` tokens. No hardcoded hex values in components.
+- **Uniform & professional** — Consistent spacing, typography, border-radii, and shadows across every page and component
 - **Server-first rendering** — RSC (React Server Components) by default, `'use client'` only when needed
 - **Performance-obsessed** — No waterfalls, minimal bundle, streaming with Suspense
 - **Accessible by default** — Semantic HTML, keyboard navigation, ARIA support
@@ -292,6 +294,20 @@ Using `next/font` for zero-CLS font loading:
 - Rounded-md border, `focus:ring-2 ring-primary`, 200ms transition
 - Error state: `border-destructive`, error message below
 - Consistent `h-11` height
+
+### 5.4 Design Consistency Rules
+
+> All visual styling derives from the `@theme` tokens in `globals.css`. No hardcoded hex, rgb, or oklch values in component files.
+
+| Rule          | Convention                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Colors        | Use only Tailwind token classes (`text-primary`, `bg-accent`, `border-destructive`, etc.) |
+| Spacing       | Tailwind spacing scale (`p-4`, `gap-6`, `mt-8`) — consistent across all pages             |
+| Border radius | `rounded-md` (inputs) → `rounded-lg` (cards) → `rounded-full` (buttons, pills)            |
+| Shadows       | `shadow-card` (resting) → `shadow-card-hover` (hover) → `shadow-dropdown` (overlays)      |
+| Transitions   | `transition-all duration-200` default; `duration-300` for overlays/menus                  |
+| Hover lift    | `hover:-translate-y-0.5` (subtle) on cards and interactive elements                       |
+| Max width     | `max-w-7xl` (1280px) centered with `mx-auto px-4 sm:px-6 lg:px-8`                         |
 
 ---
 
