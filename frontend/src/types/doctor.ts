@@ -17,6 +17,7 @@ export interface Doctor {
 	phone: string | null;
 	imageUrl: string | null;
 	isAvailable: boolean;
+	tags: string[];
 	createdAt: string;
 	updatedAt: string;
 }
@@ -24,6 +25,7 @@ export interface Doctor {
 /** Query parameters for `GET /api/doctors`. */
 export interface DoctorSearchParams {
 	search?: string;
+	/** Single specialization or comma-separated list for multi-specialist queries */
 	specialization?: string;
 	city?: string;
 	state?: string;
@@ -41,7 +43,8 @@ export interface SymptomAnalysis {
 	severity: "Mild" | "Moderate" | "Severe" | "Emergency";
 	urgency: "Home Care" | "Doctor Visit" | "Emergency Room";
 	reasoning: string;
-	recommendedSpecialist: string;
+	/** Array of 1–3 specialist names, each matching a known DB specialization */
+	recommendedSpecialists: string[];
 	homeRemedies: string[];
 }
 

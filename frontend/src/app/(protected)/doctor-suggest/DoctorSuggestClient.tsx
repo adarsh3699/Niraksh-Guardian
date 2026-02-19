@@ -45,10 +45,12 @@ export function DoctorSuggestClient() {
 		setParams((prev) => ({ ...prev, ...partial }));
 	}, []);
 
-	const handleSpecialistFound = useCallback((specialist: string) => {
+	const handleSpecialistFound = useCallback((specialists: string[]) => {
+		// Join multiple specialists as comma-separated for backend OR query
+		const specialization = specialists.join(",");
 		setParams((prev) => ({
 			...prev,
-			specialization: specialist,
+			specialization,
 			search: undefined,
 			page: 1,
 		}));

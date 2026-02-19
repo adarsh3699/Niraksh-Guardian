@@ -19,14 +19,28 @@ export const getDoctors = async (req: Request, res: Response) => {
 				query: req.query,
 			}).query;
 
+		// Support comma-separated multiple specializations e.g. ?specialization=Cardiologist,Neurologist
+		const specializationList = specialization
+			? specialization
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
+
 		const skip = (page - 1) * limit;
 
 		const where: Prisma.DoctorWhereInput = {
 			isAvailable: true,
 		};
 
-		if (specialization) {
-			where.specialization = { contains: specialization, mode: "insensitive" };
+		if (specializationList.length === 1) {
+			where.specialization = { contains: specializationList[0], mode: "insensitive" };
+		} else if (specializationList.length > 1) {
+			where.OR = [
+				...specializationList.map((s) => ({
+					specialization: { contains: s, mode: "insensitive" as const },
+				})),
+			];
 		}
 
 		if (city) {
@@ -45,13 +59,22 @@ export const getDoctors = async (req: Request, res: Response) => {
 		}
 
 		if (search) {
-			where.OR = [
+			const searchConditions: Prisma.DoctorWhereInput[] = [
 				{ name: { contains: search, mode: "insensitive" } },
 				{ specialization: { contains: search, mode: "insensitive" } },
 				{ city: { contains: search, mode: "insensitive" } },
 				{ state: { contains: search, mode: "insensitive" } },
 				{ bio: { contains: search, mode: "insensitive" } },
+				{ tags: { has: search } },
 			];
+
+			// Merge with existing OR (multi-specialization) if present
+			if (where.OR) {
+				where.AND = [{ OR: where.OR as Prisma.DoctorWhereInput[] }, { OR: searchConditions }];
+				delete where.OR;
+			} else {
+				where.OR = searchConditions;
+			}
 		}
 
 		const orderByField = sortFieldMap[sortBy || "rating"] || "rating";

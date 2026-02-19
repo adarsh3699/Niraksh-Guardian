@@ -73,7 +73,7 @@ export const diagnoseSymptoms = async (
 	severity: "Mild" | "Moderate" | "Severe" | "Emergency";
 	urgency: "Home Care" | "Doctor Visit" | "Emergency Room";
 	reasoning: string;
-	recommendedSpecialist: string;
+	recommendedSpecialists: string[];
 	homeRemedies: string[];
 }> => {
 	try {
@@ -83,20 +83,30 @@ export const diagnoseSymptoms = async (
 
 		// Add text prompt
 		const promptText = `
-        Act as an expert medical AI (Niraksh Guardian). 
+        Act as an expert medical AI (Niraksh Guardian).
         Analyze the following symptoms: ${symptoms.join(", ")}.
         ${imageBuffer ? "Also analyze the attached medical image (e.g., skin rash, visible symptom)." : ""}
-        
+
         Provide a structured analysis in JSON format ONLY. Do not include markdown code blocks.
         Language: ${language}.
-        
+
+        You MUST choose recommended specialists ONLY from this exact list:
+        General Physician, Cardiologist, Dermatologist, Orthopedic Surgeon, Gynecologist,
+        Pediatrician, Neurologist, ENT Specialist, Ophthalmologist, Psychiatrist, Dentist,
+        Gastroenterologist, Urologist, Pulmonologist, Endocrinologist, Nephrologist,
+        Oncologist, Rheumatologist, General Surgeon, Physiotherapist.
+
+        Return 1–3 specialists that best match the symptoms. If the symptoms could indicate
+        a serious condition (e.g. chest pain → Cardiologist + Pulmonologist), list all relevant ones.
+        Only include General Physician if no more specific specialist fits.
+
         Output Structure:
         {
-            "possibleConditions": ["Condition 1", "Condition 2"],
+            "possibleConditions": ["Condition 1", "Condition 2", ...],
             "severity": "Mild" | "Moderate" | "Severe" | "Emergency",
             "urgency": "Home Care" | "Doctor Visit" | "Emergency Room",
-            "reasoning": "Brief explanation of why...",
-            "recommendedSpecialist": "Specialist Name",
+            "reasoning": "Brief clinical reasoning...",
+            "recommendedSpecialists": ["Specialist from the list above"],
             "homeRemedies": ["Remedy 1", "Remedy 2"]
         }
         `;
@@ -133,7 +143,17 @@ export const diagnoseSymptoms = async (
 			throw new Error("Invalid AI response format");
 		}
 
-		return JSON.parse(jsonStr);
+		const parsed = JSON.parse(jsonStr);
+
+		// Normalise: AI might still return the old single-string field — coerce to array
+		if (!Array.isArray(parsed.recommendedSpecialists)) {
+			parsed.recommendedSpecialists = parsed.recommendedSpecialist
+				? [parsed.recommendedSpecialist]
+				: ["General Physician"];
+			delete parsed.recommendedSpecialist;
+		}
+
+		return parsed;
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Symptom Analysis Error");
 		throw new Error("Failed to analyze symptoms");

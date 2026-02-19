@@ -36,117 +36,6 @@ const URGENCY_ICONS: Record<string, typeof Home> = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Known specializations (must match backend DB values)              */
-/* ------------------------------------------------------------------ */
-
-const KNOWN_SPECIALIZATIONS = [
-	"General Physician",
-	"Cardiologist",
-	"Dermatologist",
-	"Orthopedic Surgeon",
-	"Gynecologist",
-	"Pediatrician",
-	"Neurologist",
-	"ENT Specialist",
-	"Ophthalmologist",
-	"Psychiatrist",
-	"Dentist",
-	"Gastroenterologist",
-	"Urologist",
-	"Pulmonologist",
-	"Endocrinologist",
-	"Nephrologist",
-	"Oncologist",
-	"Rheumatologist",
-	"General Surgeon",
-	"Physiotherapist",
-] as const;
-
-/** Keyword → known specialization mapping for AI responses */
-const SPECIALIST_KEYWORD_MAP: Record<string, string> = {
-	// Common AI response keywords → DB specialization
-	"emergency physician": "General Physician",
-	"emergency medicine": "General Physician",
-	"emergency room": "General Physician",
-	"family medicine": "General Physician",
-	"internal medicine": "General Physician",
-	"primary care": "General Physician",
-	"heart": "Cardiologist",
-	"cardiac": "Cardiologist",
-	"cardio": "Cardiologist",
-	"skin": "Dermatologist",
-	"derma": "Dermatologist",
-	"bone": "Orthopedic Surgeon",
-	"orthopedic": "Orthopedic Surgeon",
-	"ortho": "Orthopedic Surgeon",
-	"gynec": "Gynecologist",
-	"obstet": "Gynecologist",
-	"child": "Pediatrician",
-	"pediatric": "Pediatrician",
-	"neuro": "Neurologist",
-	"brain": "Neurologist",
-	"ear": "ENT Specialist",
-	"nose": "ENT Specialist",
-	"throat": "ENT Specialist",
-	"ent": "ENT Specialist",
-	"eye": "Ophthalmologist",
-	"ophthalm": "Ophthalmologist",
-	"mental": "Psychiatrist",
-	"psych": "Psychiatrist",
-	"dental": "Dentist",
-	"tooth": "Dentist",
-	"gastro": "Gastroenterologist",
-	"stomach": "Gastroenterologist",
-	"digestive": "Gastroenterologist",
-	"urol": "Urologist",
-	"kidney": "Nephrologist",
-	"nephro": "Nephrologist",
-	"lung": "Pulmonologist",
-	"pulmon": "Pulmonologist",
-	"respiratory": "Pulmonologist",
-	"endocrin": "Endocrinologist",
-	"hormone": "Endocrinologist",
-	"diabetes": "Endocrinologist",
-	"thyroid": "Endocrinologist",
-	"cancer": "Oncologist",
-	"oncol": "Oncologist",
-	"rheumat": "Rheumatologist",
-	"arthritis": "Rheumatologist",
-	"joint": "Rheumatologist",
-	"surgeon": "General Surgeon",
-	"surgery": "General Surgeon",
-	"physio": "Physiotherapist",
-	"rehabilitation": "Physiotherapist",
-};
-
-/**
- * Extract a clean, known specialization from the AI's verbose response.
- * Falls back to "General Physician" if no match found.
- */
-function extractSpecialist(raw: string): string {
-	const lower = raw.toLowerCase();
-
-	// 1. Exact match against known specializations (case-insensitive)
-	const exact = KNOWN_SPECIALIZATIONS.find((s) => lower === s.toLowerCase());
-	if (exact) return exact;
-
-	// 2. Check if any known specialization appears within the string
-	const contained = KNOWN_SPECIALIZATIONS.find((s) => lower.includes(s.toLowerCase()));
-	if (contained) return contained;
-
-	// 3. Keyword-based matching (sorted by longer keywords first for specificity)
-	const keywords = Object.keys(SPECIALIST_KEYWORD_MAP).sort((a, b) => b.length - a.length);
-	for (const keyword of keywords) {
-		if (lower.includes(keyword)) {
-			return SPECIALIST_KEYWORD_MAP[keyword];
-		}
-	}
-
-	// 4. Default fallback
-	return "General Physician";
-}
-
-/* ------------------------------------------------------------------ */
 /*  Analysis result display                                           */
 /* ------------------------------------------------------------------ */
 
@@ -155,10 +44,10 @@ function AnalysisResult({
 	onFindDoctors,
 }: {
 	result: SymptomAnalysisType;
-	onFindDoctors: (specialist: string) => void;
+	onFindDoctors: (specialists: string[]) => void;
 }) {
 	const UrgencyIcon = URGENCY_ICONS[result.urgency] ?? Activity;
-	const mappedSpecialist = extractSpecialist(result.recommendedSpecialist);
+	const specialists = result.recommendedSpecialists ?? [];
 
 	return (
 		<div className="space-y-4 rounded-xl border border-border bg-surface p-4 shadow-card sm:p-6">
@@ -195,11 +84,21 @@ function AnalysisResult({
 			)}
 
 			{/* Recommended specialist */}
-			<div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
-				<Stethoscope className="size-4 text-primary" />
-				<span className="text-sm text-foreground">
-					Recommended specialist: <strong>{result.recommendedSpecialist}</strong>
-				</span>
+			<div className="rounded-lg bg-primary/5 px-3 py-2">
+				<div className="mb-1.5 flex items-center gap-2">
+					<Stethoscope className="size-4 text-primary" />
+					<span className="text-sm font-medium text-foreground">Recommended specialist</span>
+				</div>
+				<div className="flex flex-wrap gap-1.5">
+					{specialists.map((spec) => (
+						<span
+							key={spec}
+							className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
+						>
+							{spec}
+						</span>
+					))}
+				</div>
 			</div>
 
 			{/* Home remedies */}
@@ -227,16 +126,32 @@ function AnalysisResult({
 				</div>
 			)}
 
-			{/* Find doctors CTA */}
-			<Button
-				variant="primary"
-				size="md"
-				onClick={() => onFindDoctors(mappedSpecialist)}
-				className="w-full sm:w-auto"
-			>
-				<Stethoscope className="mr-1.5 size-4" />
-				Find a {mappedSpecialist} Near You
-			</Button>
+			{/* Find doctors CTA — one button per matched specialist */}
+			<div className="flex flex-wrap gap-2">
+				{specialists.map((spec, idx) => (
+					<Button
+						key={spec}
+						variant={idx === 0 ? "primary" : "outline"}
+						size="md"
+						onClick={() => onFindDoctors([spec])}
+						className="flex-shrink-0"
+					>
+						<Stethoscope className="mr-1.5 size-4" />
+						Find a {spec}
+					</Button>
+				))}
+				{specialists.length > 1 && (
+					<Button
+						variant="ghost"
+						size="md"
+						onClick={() => onFindDoctors(specialists)}
+						className="flex-shrink-0 border border-border"
+					>
+						<Stethoscope className="mr-1.5 size-4" />
+						Find All Specialists
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -293,7 +208,8 @@ function ChatSummarySection({ chatId }: { chatId: string }) {
 interface SymptomAnalysisProps {
 	chatId?: string | null;
 	initialSymptoms?: string;
-	onSpecialistFound: (specialist: string) => void;
+	/** Called with an array of matched specialists (usually 1, can be multiple) */
+	onSpecialistFound: (specialists: string[]) => void;
 }
 
 export function SymptomAnalysis({

@@ -52,7 +52,8 @@ export const symptomDiagnosisController = async (req: Request, res: Response) =>
 					imageUrl: imageUrl || null,
 					predictedConditions: analysis.possibleConditions || [],
 					urgencyLevel: analysis.urgency || "Unknown",
-					recommendedSpecialist: analysis.recommendedSpecialist || "General Physician",
+					// DB column is a single string — store comma-joined list
+					recommendedSpecialist: analysis.recommendedSpecialists?.join(", ") || "General Physician",
 				},
 			});
 		} catch (dbErr) {

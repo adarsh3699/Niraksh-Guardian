@@ -4,7 +4,12 @@ import useSWR from "swr";
 import { useCallback, useMemo, useState } from "react";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
-import type { Doctor, DoctorSearchParams, SymptomAnalysis, SymptomSummaryResponse } from "@/types/doctor";
+import type {
+	Doctor,
+	DoctorSearchParams,
+	SymptomAnalysis,
+	SymptomSummaryResponse,
+} from "@/types/doctor";
 import type { PaginatedResponse } from "@/types/api";
 
 /* ------------------------------------------------------------------ */

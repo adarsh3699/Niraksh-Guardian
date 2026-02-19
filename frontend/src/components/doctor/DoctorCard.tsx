@@ -110,6 +110,25 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
 
 			{/* Expandable section */}
 			<div className="flex-1 p-4 pt-3">
+				{/* Tags / condition chips */}
+				{doctor.tags && doctor.tags.length > 0 && (
+					<div className="mb-2 flex flex-wrap gap-1">
+						{doctor.tags.slice(0, 5).map((tag) => (
+							<span
+								key={tag}
+								className="inline-flex items-center rounded-full bg-primary/8 px-2 py-0.5 text-[10px] font-medium text-primary/80"
+							>
+								{tag}
+							</span>
+						))}
+						{doctor.tags.length > 5 && (
+							<span className="inline-flex items-center rounded-full bg-border px-2 py-0.5 text-[10px] font-medium text-muted">
+								+{doctor.tags.length - 5} more
+							</span>
+						)}
+					</div>
+				)}
+
 				{doctor.bio && (
 					<p className={cn("text-xs leading-relaxed text-muted", !expanded && "line-clamp-2")}>
 						{doctor.bio}
