@@ -1,0 +1,172 @@
+"use client";
+
+import { useCallback, type ChangeEvent } from "react";
+import { Search, ArrowUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { DoctorSearchParams } from "@/types/doctor";
+
+/* ------------------------------------------------------------------ */
+/*  Specialization options                                            */
+/* ------------------------------------------------------------------ */
+
+const SPECIALIZATIONS = [
+	"General Physician",
+	"Gynecologist",
+	"Obstetrician",
+	"Dermatologist",
+	"Orthopedic Surgeon",
+	"Dental Surgeon",
+	"Dentist",
+	"Periodontist",
+	"Cosmetic/Aesthetic Dentist",
+	"Sexologist",
+	"AYUSH/Homoeopath",
+	"Cardiologist",
+	"Neurologist",
+	"ENT Specialist",
+	"Ophthalmologist",
+	"Pediatrician",
+	"Psychiatrist",
+	"Pulmonologist",
+	"Gastroenterologist",
+	"Urologist",
+] as const;
+
+const SORT_OPTIONS = [
+	{ value: "rating", label: "Rating" },
+	{ value: "experience", label: "Experience" },
+	{ value: "fee", label: "Consultation Fee" },
+	{ value: "name", label: "Name" },
+] as const;
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
+
+interface DoctorFiltersProps {
+	params: DoctorSearchParams;
+	onChange: (params: Partial<DoctorSearchParams>) => void;
+}
+
+export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
+	const handleInput = useCallback(
+		(field: keyof DoctorSearchParams) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+			const raw = e.target.value;
+			// Convert number fields
+			if (field === "minFee" || field === "maxFee") {
+				onChange({ [field]: raw === "" ? undefined : Number(raw), page: 1 });
+			} else {
+				onChange({ [field]: raw || undefined, page: 1 });
+			}
+		},
+		[onChange],
+	);
+
+	const toggleOrder = useCallback(() => {
+		onChange({ order: params.order === "asc" ? "desc" : "asc", page: 1 });
+	}, [params.order, onChange]);
+
+	const inputClass = cn(
+		"h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground",
+		"placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+	);
+
+	return (
+		<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-5">
+			<h3 className="mb-3 font-heading text-base font-bold text-foreground">Find a Doctor</h3>
+
+			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+				{/* Free-text search */}
+				<div className="relative sm:col-span-2 lg:col-span-4">
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+					<input
+						type="text"
+						value={params.search ?? ""}
+						onChange={handleInput("search")}
+						placeholder="Search by name, qualification…"
+						className={cn(inputClass, "pl-9")}
+					/>
+				</div>
+
+				{/* Specialization */}
+				<select
+					value={params.specialization ?? ""}
+					onChange={handleInput("specialization")}
+					className={inputClass}
+					aria-label="Specialization"
+				>
+					<option value="">All Specializations</option>
+					{SPECIALIZATIONS.map((s) => (
+						<option key={s} value={s}>
+							{s}
+						</option>
+					))}
+				</select>
+
+				{/* City */}
+				<input
+					type="text"
+					value={params.city ?? ""}
+					onChange={handleInput("city")}
+					placeholder="City"
+					className={inputClass}
+				/>
+
+				{/* State */}
+				<input
+					type="text"
+					value={params.state ?? ""}
+					onChange={handleInput("state")}
+					placeholder="State"
+					className={inputClass}
+				/>
+
+				{/* Sort + order */}
+				<div className="flex gap-2">
+					<select
+						value={params.sortBy ?? "rating"}
+						onChange={handleInput("sortBy")}
+						className={cn(inputClass, "flex-1")}
+						aria-label="Sort by"
+					>
+						{SORT_OPTIONS.map((o) => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</select>
+					<button
+						type="button"
+						onClick={toggleOrder}
+						className={cn(
+							"flex h-10 items-center gap-1 rounded-lg border border-border px-3 text-xs font-medium text-muted",
+							"transition-colors hover:bg-border hover:text-foreground",
+						)}
+						aria-label={`Sort ${params.order === "asc" ? "ascending" : "descending"}`}
+					>
+						<ArrowUpDown className="size-3.5" />
+						{params.order === "asc" ? "ASC" : "DESC"}
+					</button>
+				</div>
+
+				{/* Fee range */}
+				<input
+					type="number"
+					min={0}
+					value={params.minFee ?? ""}
+					onChange={handleInput("minFee")}
+					placeholder="Min Fee (₹)"
+					className={inputClass}
+				/>
+				<input
+					type="number"
+					min={0}
+					value={params.maxFee ?? ""}
+					onChange={handleInput("maxFee")}
+					placeholder="Max Fee (₹)"
+					className={inputClass}
+				/>
+			</div>
+		</div>
+	);
+}
