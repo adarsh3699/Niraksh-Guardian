@@ -247,36 +247,35 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 4.1 Hero Section
 
-- [ ] Gradient background (blue → indigo, matching existing)
-- [ ] Headline: "Find the best doctor based on your symptoms"
-- [ ] Description text
-- [ ] Symptom search input (text input with search icon)
-- [ ] Search button → navigates to `/doctor-suggest?symptoms=<query>`
-- [ ] Responsive: Full-width on mobile, constrained on desktop
+- [x] Headline: "Find the best doctor based on your symptoms"
+- [x] Description text
+- [x] Symptom search input (text input with search icon)
+- [x] Search button → navigates to `/doctor-suggest?symptoms=<query>`
+- [x] Responsive: Full-width on mobile, constrained on desktop
 
 ### 4.2 Disease Cards Section
 
-- [ ] Section heading: "Common Health Conditions"
-- [ ] Grid of disease cards (2 cols mobile, 3 cols tablet, 4+ cols desktop)
-- [ ] Each card: icon/emoji + disease name + short description
-- [ ] Click → navigate to `/disease?topic=<disease>`
-- [ ] Cards: Cold & Flu, Diabetes, Heart Disease, Mental Health, COVID-19, Headache, etc.
-- [ ] Hover lift effect (translateY(-2px), enhanced shadow)
+- [x] Grid of disease cards (6 cols desktop, responsive)
+- [x] Each card: SVG icon + disease name
+- [x] Click → navigate to `/disease?topic=<disease>`
+- [x] Cards: Cancer, Diabetes, Heart Disease, Mental Health, COVID-19, HMPV
+- [x] Hover lift effect (translateY(-5px))
 
 ### 4.3 Do More Section
 
-- [ ] Section heading: "Explore Health Tools"
-- [ ] Large CTA cards (2 cols):
-  - **Prescription Explainer** — icon + description + "Try Now" button → `/prescription`
-  - **Drug-Drug Interaction** — icon + description + "Check Now" button → `/drug-interaction`
-  - **Medicine Search** — icon + description + "Search" button → `/medicine`
-  - **AI Health Assistant** — icon + description + "Chat Now" button → `/assistance`
-- [ ] Gradient accents matching existing design
+- [x] Section heading: "Explore Health Tools" (bento grid layout)
+- [x] Large CTA cards (5-col bento, alternating 2/3 span):
+  - **Prescription Explainer** → `/prescription`
+  - **Drug Interaction Checker** → `/drug-interaction`
+  - **Doctor Suggestion** → `/doctor-suggest`
+  - **AI Health Assistant** → `/assistance`
+- [x] Theme-colored accent borders and hover shadows
+- [x] Additional sections: HowItWorks (3-step process), StatsStrip (trust metrics), CTABanner
 
 ### 4.4 SEO
 
-- [ ] Page metadata: title, description, OG image
-- [ ] Structured data: WebSite, MedicalOrganization
+- [x] Page metadata: title, description, OG tags
+- [x] Structured data: WebSite, MedicalOrganization
 
 **Deliverable:** Fully designed home page matching existing visual design.
 
