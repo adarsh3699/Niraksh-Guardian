@@ -299,43 +299,42 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 5.1 Chat Page Layout (`/assistance`)
 
-- [ ] Two-panel layout: Sidebar (chat list) + Main area (messages)
-- [ ] Mobile: Sidebar as overlay, toggle button
-- [ ] Gradient header matching existing (#3b82f6 → #4f46e5)
-- [ ] Dynamic import with `next/dynamic` (heavy client component)
+- [x] Two-panel layout: Sidebar (chat list) + Main area (messages)
+- [x] Mobile: Sidebar as overlay, toggle button
+- [x] Dynamic import with `next/dynamic` (heavy client component, SSR disabled, loading spinner)
 
 ### 5.2 Chat Sidebar
 
-- [ ] "New Chat" button at top
-- [ ] List of existing chats: `GET /api/chats` via SWR
-- [ ] Each chat: title (truncated), timestamp, active highlight
-- [ ] Edit chat title (inline rename → `PUT /api/chats/:id`)
-- [ ] Delete chat with confirmation dialog → `DELETE /api/chats/:id`
-- [ ] SWR `mutate` after create/edit/delete
-- [ ] Language selector (en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
+- [x] "New Chat" button at top
+- [x] List of existing chats: `GET /api/chats` via SWR
+- [x] Each chat: title (truncated), timestamp, active highlight
+- [x] Edit chat title (inline rename → `PUT /api/chats/:id`)
+- [x] Delete chat with confirmation dialog → `DELETE /api/chats/:id`
+- [x] SWR `mutate` after create/edit/delete
+- [x] Language selector (en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
 
 ### 5.3 Chat Window
 
-- [ ] Message list with auto-scroll to bottom
-- [ ] User messages: right-aligned, teal/primary background
-- [ ] AI messages: left-aligned, gray background, markdown rendered (`react-markdown`)
-- [ ] Typing indicator: animated dots during AI response
-- [ ] Image messages: thumbnail preview for uploaded images
+- [x] Message list with auto-scroll to bottom
+- [x] User messages: right-aligned, teal/primary background
+- [x] AI messages: left-aligned, gray background, markdown rendered (`react-markdown`)
+- [x] Typing indicator: animated dots during AI response
+- [x] Image messages: badge indicator for uploaded images (backend stores `[Image Uploaded]` prefix, no imageUrl on Message model)
 
 ### 5.4 Message Input
 
-- [ ] Text input + Send button
-- [ ] Image upload button → file picker or camera
-- [ ] Attach image preview before send
-- [ ] Send → `POST /api/chats/:id/messages` (or create new chat first)
-- [ ] Disable input while AI is responding
-- [ ] Quick symptom chips above input (clickable to pre-fill)
+- [x] Text input + Send button
+- [x] Image upload button → file picker (accepts image/\*, 5MB max)
+- [x] Attach image preview before send
+- [x] Send → `POST /api/chats/:id/messages` (or create new chat first)
+- [x] Disable input while AI is responding
+- [x] Quick symptom chips above input (clickable to pre-fill)
 
 ### 5.5 New Chat Flow
 
-- [ ] Click "New Chat" → `POST /api/chats` → navigate to new chat
-- [ ] Welcome message from AI on empty chat
-- [ ] First message auto-generates chat title
+- [x] Click "New Chat" → `POST /api/chats` → navigate to new chat
+- [x] Empty state with welcome prompt + quick symptom chips (replaces static welcome message since backend doesn't auto-generate one)
+- [x] First message auto-generates chat title (backend behavior, SWR mutateChats refreshes titles)
 
 **Deliverable:** Full chat interface with sidebar, messaging, image upload, and AI responses.
 

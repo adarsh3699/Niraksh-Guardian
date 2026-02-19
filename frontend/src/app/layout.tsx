@@ -1,24 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins, Inter } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import { ToastProvider } from "@/contexts/ToastProvider";
 import { GoogleAuthWrapper } from "@/contexts/GoogleAuthWrapper";
 import { SITE_CONFIG } from "@/lib/seo";
 import "./globals.css";
-
-const poppins = Poppins({
-	variable: "--font-poppins",
-	subsets: ["latin"],
-	weight: ["600", "700"],
-	display: "swap",
-});
-
-const inter = Inter({
-	variable: "--font-inter",
-	subsets: ["latin"],
-	weight: ["400", "500", "600"],
-	display: "swap",
-});
 
 export const viewport: Viewport = {
 	width: "device-width",
@@ -67,7 +52,7 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<link rel="dns-prefetch" href="https://niraksh-guardian-api.vercel.app" />
 				<link
@@ -76,7 +61,7 @@ export default function RootLayout({
 					crossOrigin="anonymous"
 				/>
 			</head>
-			<body className={`${poppins.variable} ${inter.variable} antialiased`}>
+			<body className="antialiased">
 				<GoogleAuthWrapper>
 					<AuthProvider>
 						<ToastProvider>{children}</ToastProvider>

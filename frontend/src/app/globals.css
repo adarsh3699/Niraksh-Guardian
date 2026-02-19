@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
 	/* Primary — Teal (brand color) */
@@ -42,9 +43,8 @@
 	--shadow-card-hover: 0 10px 25px oklch(0% 0 0 / 0.08);
 	--shadow-dropdown: 0 10px 30px oklch(0% 0 0 / 0.12);
 
-	/* Fonts */
-	--font-heading: var(--font-poppins);
-	--font-body: var(--font-inter);
+	--font-heading: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Dark mode variant */
