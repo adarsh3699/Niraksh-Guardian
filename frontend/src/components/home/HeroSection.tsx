@@ -38,6 +38,7 @@ export function HeroSection() {
 							placeholder="Search Your symptoms here"
 							value={symptoms}
 							onChange={(e) => setSymptoms(e.target.value)}
+							aria-label="Search symptoms"
 							className="h-[50px] w-full rounded-[10px] border-none px-[10px] text-base outline-none"
 						/>
 					</div>

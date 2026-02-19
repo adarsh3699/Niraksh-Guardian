@@ -5,22 +5,37 @@ import { StatsStrip } from "@/components/home/StatsStrip";
 import { DoMoreCards } from "@/components/home/DoMoreCards";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { CTABanner } from "@/components/home/CTABanner";
+import {
+	generatePageMetadata,
+	generateWebsiteJsonLd,
+	generateMedicalOrgJsonLd,
+	generateFaqJsonLd,
+} from "@/lib/seo";
 
-export const metadata: Metadata = {
-	title: "Niraksh Guardian — AI-Powered Health Assistant",
+export const metadata: Metadata = generatePageMetadata({
+	title: "AI-Powered Health Assistant — Symptom Checker & Doctor Finder",
 	description:
 		"Describe your symptoms and get AI-powered health guidance, doctor recommendations, prescription analysis, and medicine information — all in one place.",
-	openGraph: {
-		title: "Niraksh Guardian — AI-Powered Health Assistant",
-		description:
-			"AI symptom analysis, doctor suggestions, prescription explainer, drug interaction checker, and medicine search.",
-		type: "website",
-	},
-};
+	path: "/",
+	keywords: [
+		"symptom checker online",
+		"find doctor by symptoms",
+		"AI health diagnosis",
+		"free health assistant",
+	],
+});
+
+/* JSON-LD structured data for rich search results */
+const jsonLd = [generateWebsiteJsonLd(), generateMedicalOrgJsonLd(), generateFaqJsonLd()];
 
 export default function HomePage() {
 	return (
 		<>
+			<script
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+			/>
+
 			{/* Hero + diseases — padded */}
 			<div id="homePage" className="px-[5%] pt-[20px]">
 				<HeroSection />

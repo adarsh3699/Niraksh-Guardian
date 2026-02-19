@@ -14,10 +14,10 @@ const QUICK_LINKS = [
 ];
 
 const SERVICES = [
-	{ label: "Symptom Analysis", href: "/assistance" },
-	{ label: "Medicine Info", href: "/dashboard" },
+	{ label: "Symptom Analysis", href: "/doctor-suggest" },
+	{ label: "Medicine Info", href: "/medicine" },
 	{ label: "Health Assistant", href: "/assistance" },
-	{ label: "Prescription", href: "/dashboard" },
+	{ label: "Prescription", href: "/prescription" },
 ];
 
 const SOCIALS = [

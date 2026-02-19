@@ -274,8 +274,20 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 4.4 SEO
 
-- [x] Page metadata: title, description, OG tags
-- [x] Structured data: WebSite, MedicalOrganization
+- [x] Centralized SEO lib (`src/lib/seo.ts`) — `SITE_CONFIG`, `generatePageMetadata()`, JSON-LD generators
+- [x] Page metadata: title template (`%s | Niraksh Guardian`), description, OG tags, Twitter cards
+- [x] Structured data: WebSite, MedicalOrganization, FAQPage (JSON-LD)
+- [x] `robots.ts` — allow public pages, disallow dashboard/profile/history/reports
+- [x] `sitemap.ts` — all public + tool pages with change frequency and priority
+- [x] `manifest.ts` — PWA manifest with theme color and app info
+- [x] Viewport export (separate from metadata per Next.js best practice)
+- [x] `metadataBase` set for canonical URL resolution
+- [x] Google bot directives: max-image-preview, max-snippet
+- [x] DNS prefetch + preconnect for backend API
+- [x] Auth pages marked `noIndex: true` (no crawling login/signup)
+- [x] Proper heading hierarchy: single `<h1>` per page, sections use `<h2>`
+- [x] Semantic `<section>` tags with `aria-labelledby`
+- [x] Search input `aria-label` for accessibility
 
 **Deliverable:** Fully designed home page matching existing visual design.
 

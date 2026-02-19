@@ -16,7 +16,7 @@ const STEPS = [
 		icon: Brain,
 		title: "AI Analyzes in Seconds",
 		description:
-			"Our Gemini-powered AI cross-references your symptoms with thousands of conditions and suggests the most likely causes.",
+			"Our AI cross-references your symptoms with thousands of conditions and suggests the most likely causes.",
 		color: "text-violet-600",
 		bg: "bg-violet-50",
 		border: "border-violet-200",

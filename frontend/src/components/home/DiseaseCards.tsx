@@ -12,10 +12,13 @@ const DISEASES = [
 
 export function DiseaseCards() {
 	return (
-		<div className="py-8">
-			<h1 className="font-heading mb-16 text-center text-[2.5rem] font-bold max-sm:text-[1.5rem]">
-				Diseases
-			</h1>
+		<section className="py-8" aria-labelledby="diseases-heading">
+			<h2
+				id="diseases-heading"
+				className="font-heading mb-16 text-center text-[2.5rem] font-bold max-sm:text-[1.5rem]"
+			>
+				Common Health Conditions
+			</h2>
 
 			{/* Cards grid — matches old: 6 per row, beige bg, square, hover lift */}
 			<div className="flex flex-wrap justify-center gap-6 max-md:gap-4">
@@ -30,9 +33,9 @@ export function DiseaseCards() {
 							minWidth: "120px",
 						}}
 					>
-						<h2 className="font-heading mt-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.25rem] font-bold max-md:text-[1rem] max-sm:text-[0.75rem]">
+						<h3 className="font-heading mt-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.25rem] font-bold max-md:text-[1rem] max-sm:text-[0.75rem]">
 							{disease.title}
-						</h2>
+						</h3>
 						<div className="relative mt-auto flex h-[70%] w-full items-center justify-center">
 							<Image
 								src={disease.icon}
@@ -45,6 +48,6 @@ export function DiseaseCards() {
 					</Link>
 				))}
 			</div>
-		</div>
+		</section>
 	);
 }
