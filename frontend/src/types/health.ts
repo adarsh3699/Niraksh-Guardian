@@ -25,6 +25,10 @@ export interface HealthProfile {
 	emergencyContactPhone: string | null;
 	emergencyContactEmail: string | null;
 	healthRiskScore: number;
+	/** User's city — used for location-based doctor sorting */
+	city: string | null;
+	/** User's state — used for location-based doctor sorting */
+	state: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -40,6 +44,8 @@ export interface UpdateProfileRequest {
 	emergencyContactName?: string;
 	emergencyContactPhone?: string;
 	emergencyContactEmail?: string;
+	city?: string;
+	state?: string;
 }
 
 /* ------------------------------------------------------------------ */

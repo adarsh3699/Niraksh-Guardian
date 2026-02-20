@@ -2,14 +2,14 @@
 
 import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { useDoctorSearch } from "@/hooks/useDoctors";
+import { useDoctorSearch, useUserProfile } from "@/hooks/useDoctors";
 import { SymptomAnalysis } from "@/components/doctor/SymptomAnalysis";
 import { DoctorFilters } from "@/components/doctor/DoctorFilters";
 import { DoctorCard } from "@/components/doctor/DoctorCard";
 import { Pagination } from "@/components/doctor/Pagination";
 import { Spinner } from "@/components/ui/Spinner";
 import { Stethoscope, SearchX } from "lucide-react";
-import type { DoctorSearchParams } from "@/types/doctor";
+import type { DoctorSearchParams, SymptomAnalysis as SymptomAnalysisType } from "@/types/doctor";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                         */
@@ -34,6 +34,12 @@ export function DoctorSuggestClient() {
 	const urlCondition = searchParams.get("condition") ?? undefined;
 	const chatId = searchParams.get("chatId") ?? undefined;
 
+	// User's location for doctor proximity sorting
+	const { city: userCity, state: userState } = useUserProfile();
+
+	// Latest full analysis result (for possibleConditions → matchTags)
+	const [lastAnalysis, setLastAnalysis] = useState<SymptomAnalysisType | null>(null);
+
 	const [params, setParams] = useState<DoctorSearchParams>(() => ({
 		...DEFAULT_PARAMS,
 		specialization: urlCondition || undefined,
@@ -45,19 +51,34 @@ export function DoctorSuggestClient() {
 		setParams((prev) => ({ ...prev, ...partial }));
 	}, []);
 
-	const handleSpecialistFound = useCallback((specialists: string[]) => {
-		// Join multiple specialists as comma-separated for backend OR query
-		const specialization = specialists.join(",");
-		setParams((prev) => ({
-			...prev,
-			specialization,
-			search: undefined,
-			page: 1,
-		}));
-
-		// Scroll to doctor results
-		document.getElementById("doctor-results")?.scrollIntoView({ behavior: "smooth" });
+	/** Fired when symptom analysis completes — store the result for matchTags extraction */
+	const handleAnalysisComplete = useCallback((result: SymptomAnalysisType) => {
+		setLastAnalysis(result);
 	}, []);
+
+	const handleSpecialistFound = useCallback(
+		(specialists: string[]) => {
+			// Join multiple specialists as comma-separated for backend OR query
+			const specialization = specialists.join(",");
+
+			// Extract condition keywords from analysis for relevance scoring
+			const matchTags = lastAnalysis?.possibleConditions?.join(",") ?? undefined;
+
+			setParams((prev) => ({
+				...prev,
+				specialization,
+				search: undefined,
+				page: 1,
+				matchTags,
+				userCity: userCity ?? undefined,
+				userState: userState ?? undefined,
+			}));
+
+			// Scroll to doctor results
+			document.getElementById("doctor-results")?.scrollIntoView({ behavior: "smooth" });
+		},
+		[lastAnalysis, userCity, userState],
+	);
 
 	const handlePageChange = useCallback((page: number) => {
 		setParams((prev) => ({ ...prev, page }));
@@ -83,6 +104,7 @@ export function DoctorSuggestClient() {
 				chatId={chatId}
 				initialSymptoms={urlSymptoms}
 				onSpecialistFound={handleSpecialistFound}
+				onAnalysisComplete={handleAnalysisComplete}
 			/>
 
 			{/* Filters */}
@@ -109,10 +131,30 @@ export function DoctorSuggestClient() {
 				</div>
 			) : (
 				<>
+					{/* Relevance sort indicator */}
+					{params.matchTags && (
+						<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+							<span className="flex items-center gap-1.5 font-medium text-primary">
+								<svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+									<path d="M8 1l1.9 3.8 4.1.6-3 2.9.7 4.1L8 10.4l-3.7 2 .7-4.1L2 5.4l4.1-.6z" />
+								</svg>
+								Sorted by symptom relevance
+							</span>
+							{!userCity && (
+								<a
+									href="/profile"
+									className="text-muted underline-offset-2 hover:text-primary hover:underline"
+								>
+									📍 Add your location for nearby doctor boost
+								</a>
+							)}
+						</div>
+					)}
+
 					{/* Doctor cards grid */}
 					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-						{doctors.map((doctor) => (
-							<DoctorCard key={doctor.id} doctor={doctor} />
+						{doctors.map((doctor, index) => (
+							<DoctorCard key={doctor.id} doctor={doctor} rank={index} />
 						))}
 					</div>
 

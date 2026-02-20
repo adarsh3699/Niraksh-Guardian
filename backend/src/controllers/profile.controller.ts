@@ -60,6 +60,8 @@ export const getProfile = async (req: Request, res: Response) => {
 						emergencyContactPhone: profile.emergencyContactPhone,
 						emergencyContactEmail: profile.emergencyContactEmail,
 						healthRiskScore: profile.healthRiskScore,
+						city: profile.city,
+						state: profile.state,
 						createdAt: profile.createdAt,
 						updatedAt: profile.updatedAt,
 					}
@@ -88,6 +90,8 @@ export const updateProfile = async (req: Request, res: Response) => {
 			emergencyContactName,
 			emergencyContactPhone,
 			emergencyContactEmail,
+			city,
+			state,
 		} = req.body;
 
 		// Update user-level fields if provided
@@ -115,6 +119,8 @@ export const updateProfile = async (req: Request, res: Response) => {
 				emergencyContactName,
 				emergencyContactPhone,
 				emergencyContactEmail,
+				city,
+				state,
 				healthRiskScore,
 			},
 			create: {
@@ -125,6 +131,8 @@ export const updateProfile = async (req: Request, res: Response) => {
 				emergencyContactName,
 				emergencyContactPhone,
 				emergencyContactEmail,
+				city,
+				state,
 				healthRiskScore,
 			},
 		});
@@ -154,6 +162,8 @@ export const updateProfile = async (req: Request, res: Response) => {
 				emergencyContactPhone: profile.emergencyContactPhone,
 				emergencyContactEmail: profile.emergencyContactEmail,
 				healthRiskScore: profile.healthRiskScore,
+				city: profile.city,
+				state: profile.state,
 				createdAt: profile.createdAt,
 				updatedAt: profile.updatedAt,
 			},

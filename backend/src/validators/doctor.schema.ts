@@ -26,5 +26,11 @@ export const getDoctorsSchema = z.object({
 			.string()
 			.optional()
 			.transform((val) => Math.min(50, Math.max(1, val ? parseInt(val, 10) : 10))),
+		/** Comma-separated condition/tag keywords to compute relevance score against doctor tags */
+		matchTags: z.string().optional(),
+		/** User's city for location-based boosting */
+		userCity: z.string().optional(),
+		/** User's state for location-based boosting */
+		userState: z.string().optional(),
 	}),
 });

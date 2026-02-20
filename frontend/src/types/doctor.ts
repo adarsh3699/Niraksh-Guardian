@@ -20,6 +20,10 @@ export interface Doctor {
 	tags: string[];
 	createdAt: string;
 	updatedAt: string;
+	/** Computed relevance score — present only when matchTags/location params were sent */
+	_relevanceScore?: number;
+	/** True when the doctor's city matches the user's city */
+	_isNearby?: boolean;
 }
 
 /** Query parameters for `GET /api/doctors`. */
@@ -35,6 +39,12 @@ export interface DoctorSearchParams {
 	order?: "asc" | "desc";
 	page?: number;
 	limit?: number;
+	/** Comma-separated condition/tag keywords from symptom analysis for relevance scoring */
+	matchTags?: string;
+	/** User's city — enables location-based boosting in relevance sort */
+	userCity?: string;
+	/** User's state — enables location-based boosting in relevance sort */
+	userState?: string;
 }
 
 /** Response from `POST /api/ai/analyze`. */

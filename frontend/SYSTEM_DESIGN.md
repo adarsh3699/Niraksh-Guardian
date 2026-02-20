@@ -618,12 +618,12 @@ All history GETs return arrays sorted by `createdAt` DESC, no pagination:
 │  [Min Fee] [Max Fee]                     │
 │  [Sort by ▾] [Order ▾]                  │
 ├──────────────────────────────────────────┤
-│  Doctor Cards Grid                       │
+│  Doctor Cards Grid (sorted by relevance) │
 │  ┌────────────┐ ┌────────────┐          │
 │  │ 🖼 Dr. A   │ │ 🖼 Dr. B   │          │
 │  │ Neurologist│ │ Neurologist│          │
+│  │ 📍 Near You│ │            │          │
 │  │ MBBS, MD   │ │ MBBS       │          │
-│  │ 10yr exp   │ │ 5yr exp    │          │
 │  │ ⭐ 4.5    │ │ ⭐ 4.2    │          │
 │  │ ₹500      │ │ ₹700      │          │
 │  │ Mumbai, MH │ │ Delhi, DL  │          │
@@ -631,6 +631,17 @@ All history GETs return arrays sorted by `createdAt` DESC, no pagination:
 │  [← Page 1 of 5 →]                      │
 └──────────────────────────────────────────┘
 ```
+
+#### Doctor Relevance Sorting
+
+When a user completes symptom analysis, the front end passes two extra query params:
+
+- `matchTags` — comma-separated `possibleConditions` from the AI result, matched against `doctor.tags`
+- `userCity` / `userState` — from `GET /api/profile` → `healthProfile.city/state`
+
+The backend performs **in-memory scoring** (tag match + proximity + quality) and returns doctors sorted by `_relevanceScore` descending. Doctors in the user's city receive a **"Near You"** badge in `DoctorCard`.
+
+> **Planned enhancement (Phase 8):** Attempt to extract city from Google profile on OAuth login. See `IMPLEMENTATION_PLAN.md §8` and `WEB_FLOW.md §Post-Login Profile Prompt`.
 
 ### 9.4 Health Tools Pages
 
@@ -863,3 +874,44 @@ NEXT_PUBLIC_APP_URL=https://niraksh-guardian.vercel.app
 - **Production:** Main branch auto-deploy
 - **CDN:** Vercel Edge Network (automatic)
 - **Analytics:** Vercel Analytics (optional)
+
+---
+
+## 15. Planned / Future Enhancements
+
+### 15.1 Post-Login Profile Completion Prompt
+
+> **Status:** Planned — Phase 8
+
+After signup (email or Google OAuth), if the user's `healthProfile` is `null` **or** `city`/`state` are missing, redirect the user to a lightweight onboarding modal/page asking for:
+
+- City & State (critical for doctor relevance ranking)
+- Blood group
+- Any known allergies or chronic conditions
+
+This ensures the doctor recommendation engine has location context immediately.
+
+### 15.2 Google OAuth Location Auto-Fill
+
+> **Status:** Planned — Phase 8
+
+When a user signs in via Google OAuth (`POST /api/auth/google`), the backend receives the Google ID token. Google's token doesn't contain location by default, but:
+
+1. If the Google profile contains a `locale` field, it can be used to infer language preference.
+2. A future enhancement: request the `profile` scope to retrieve additional account metadata (if available), or prompt the user to confirm/set their city after OAuth login.
+
+**Implementation steps (when ready):**
+
+- Backend: After Google OAuth success, check if `healthProfile.city` is null for the user.
+- Return `profileIncomplete: true` in the auth response when city/state are missing.
+- Frontend: `AuthProvider.login()` checks `profileIncomplete` → sets a context flag.
+- A `ProfilePromptModal` component renders on `/dashboard` first load when flag is set.
+- Modal collects city, state (and optionally blood group), calls `PUT /api/profile`, dismisses.
+
+### 15.3 Browser Geolocation API (Optional, User-Prompted)
+
+> **Status:** Future consideration
+
+As an alternative/supplement to stored profile location, the `/doctor-suggest` page could prompt (with user permission) for `navigator.geolocation.getCurrentPosition()`, reverse-geocode to city/state using a geocoding API, and pass to doctor search without storing. This provides real-time location without requiring profile completion.
+
+**Consideration:** Requires HTTPS, user permission, and an external geocoding service (e.g., Google Maps Geocoding API, OpenStreetMap Nominatim).

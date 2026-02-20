@@ -202,6 +202,8 @@ model PatientHealthProfile {
   emergencyContactName  String?  @map("emergency_contact_name")
   emergencyContactPhone String?  @map("emergency_contact_phone")
   emergencyContactEmail String?  @map("emergency_contact_email")
+  city                  String?
+  state                 String?
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -210,12 +210,15 @@ interface SymptomAnalysisProps {
 	initialSymptoms?: string;
 	/** Called with an array of matched specialists (usually 1, can be multiple) */
 	onSpecialistFound: (specialists: string[]) => void;
+	/** Called when analysis completes — passes the full result for parent use (e.g. matchTags) */
+	onAnalysisComplete?: (result: SymptomAnalysisType) => void;
 }
 
 export function SymptomAnalysis({
 	chatId,
 	initialSymptoms,
 	onSpecialistFound,
+	onAnalysisComplete,
 }: SymptomAnalysisProps) {
 	const [symptoms, setSymptoms] = useState(initialSymptoms ?? "");
 	const [image, setImage] = useState<File | null>(null);
@@ -236,9 +239,10 @@ export function SymptomAnalysis({
 
 			if (symptomList.length === 0) return;
 
-			await analyze(symptomList, image ?? undefined);
+			const analysisResult = await analyze(symptomList, image ?? undefined);
+			if (analysisResult) onAnalysisComplete?.(analysisResult);
 		},
-		[symptoms, image, analyze],
+		[symptoms, image, analyze, onAnalysisComplete],
 	);
 
 	const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

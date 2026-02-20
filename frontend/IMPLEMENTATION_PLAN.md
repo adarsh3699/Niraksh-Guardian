@@ -713,23 +713,95 @@ https://niraksh-guardian-api.vercel.app
 
 ## Timeline Summary
 
-| Phase     | Name                  | Duration            | Priority |
-| --------- | --------------------- | ------------------- | -------- |
-| 0         | Project Scaffolding   | 1 session           | P0       |
-| 1         | Shared Infrastructure | 1 session           | P0       |
-| 2         | Layout & Navigation   | 1 session           | P0       |
-| 3         | Authentication Pages  | 1 session           | P0       |
-| 4         | Home Page             | 1 session           | P1       |
-| 5         | AI Health Assistant   | 1–2 sessions        | P1       |
-| 6         | Doctor Suggestion     | 1 session           | P1       |
-| 7         | Health Tools          | 1–2 sessions        | P1       |
-| 7.5       | Disease Info Page     | 0.5 session         | P1       |
-| 8         | Profile & History     | 1 session           | P2       |
-| 8.5       | User Dashboard        | 1 session           | P1       |
-| 9         | Static Pages          | 0.5 session         | P2       |
-| 10        | Polish & Optimization | 1 session           | P2       |
-| 11        | Testing & Deployment  | 1 session           | P1       |
-| **Total** |                       | **~12–15 sessions** |          |
+| Phase     | Name                                   | Duration            | Priority |
+| --------- | -------------------------------------- | ------------------- | -------- |
+| 0         | Project Scaffolding                    | 1 session           | P0       |
+| 1         | Shared Infrastructure                  | 1 session           | P0       |
+| 2         | Layout & Navigation                    | 1 session           | P0       |
+| 3         | Authentication Pages                   | 1 session           | P0       |
+| 4         | Home Page                              | 1 session           | P1       |
+| 5         | AI Health Assistant                    | 1–2 sessions        | P1       |
+| 6         | Doctor Suggestion                      | 1 session           | P1       |
+| 7         | Health Tools                           | 1–2 sessions        | P1       |
+| 7.5       | Disease Info Page                      | 0.5 session         | P1       |
+| 8         | Profile & History                      | 1 session           | P2       |
+| 8.5       | User Dashboard                         | 1 session           | P1       |
+| Phase 8B  | Profile Onboarding & Location Features | 1 session           | P2       |
+| 9         | Static Pages                           | 0.5 session         | P2       |
+| 10        | Polish & Optimization                  | 1 session           | P2       |
+| 11        | Testing & Deployment                   | 1 session           | P1       |
+| **Total** |                                        | **~12–15 sessions** |          |
+
+---
+
+---
+
+## Phase 8B: Profile Onboarding & Location Features
+
+**Status:** Planned | **Priority:** P2
+
+This phase introduces post-signup onboarding and location-based doctor ranking improvements. The core relevance scoring engine (matchTags + location boost) is **already implemented** in Phase 6. This phase adds the discovery path so users actually populate their location.
+
+---
+
+### 8B.1 Post-Signup/Login Profile Completion Prompt
+
+**Goal:** Surface the location prompt to users who haven't set `city`/`state` yet.
+
+| Task                                                        | File                                                     | Notes                                                               |
+| ----------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
+| Backend: include `profileIncomplete` flag in auth responses | `backend/src/controllers/auth.controller.ts`             | Check `healthProfile.city == null \|\| healthProfile.state == null` |
+| Update auth response type                                   | `frontend/src/types/auth.ts`                             | Add `profileIncomplete?: boolean` to `AuthResponse`                 |
+| Store flag in `AuthProvider`                                | `frontend/src/contexts/AuthProvider.tsx`                 | Keep in component state, not localStorage                           |
+| Dashboard: show location prompt banner                      | `frontend/src/app/(protected)/dashboard/`                | Conditionally render a dismissable banner linking to `/profile`     |
+| Clear flag after profile save                               | `frontend/src/app/(protected)/profile/ProfileClient.tsx` | After successful PUT, mutate auth state / dismiss banner            |
+
+**Banner copy:**
+
+> 📍 Add your city and state to get nearby doctor recommendations. [Complete Profile →]
+
+---
+
+### 8B.2 Google OAuth Location Auto-Fill
+
+**Goal:** When a user signs up via Google, attempt to pre-fill city/state from their Google profile locale.
+
+| Task                                                  | File                                         | Notes                                                                                                       |
+| ----------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Parse `locale` from Google ID token                   | `backend/src/controllers/auth.controller.ts` | Google ID token may contain `locale` (e.g. `"en-IN"` or `"en-US"`) — map country code to default state hint |
+| Save parsed location hint to DB on first Google login | `backend/src/controllers/auth.controller.ts` | Only populate if `healthProfile.city` is null; do **not** overwrite user-set values                         |
+| Show `ProfilePromptModal` on first Google login       | `frontend/src/app/(protected)/dashboard/`    | If `profileIncomplete && isGoogleUser`, open modal with pre-filled location suggestion                      |
+
+> **Note:** Google OAuth does not reliably return precise city/state. This should be treated as a hint, never used without user confirmation.
+
+---
+
+### 8B.3 Browser Geolocation API (Optional — Session-Local Only)
+
+**Goal:** Let users get nearby doctors without saving location to DB.
+
+| Task                                              | File                                                                  | Notes                                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Add "📍 Use my location" button to Doctor Suggest | `frontend/src/app/(protected)/doctor-suggest/DoctorSuggestClient.tsx` | Only show if `userCity` from profile is empty                             |
+| Call `navigator.geolocation.getCurrentPosition()` | Same file                                                             | Handle `PERMISSION_DENIED` gracefully                                     |
+| Reverse geocode with Nominatim (free, no API key) | New helper `frontend/src/lib/geolocation.ts`                          | `GET https://nominatim.openstreetmap.org/reverse?lat=…&lon=…&format=json` |
+| Pass city/state to doctor query params            | `useDoctors.ts` / `DoctorSuggestClient.tsx`                           | Session-only; do not persist to DB unless user clicks "Save to profile"   |
+
+**Geolocation helper sketch:**
+
+```typescript
+// frontend/src/lib/geolocation.ts
+export async function reverseGeocode(lat: number, lon: number) {
+	const res = await fetch(
+		`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+	);
+	const data = await res.json();
+	return {
+		city: data.address?.city ?? data.address?.town ?? data.address?.village ?? "",
+		state: data.address?.state ?? "",
+	};
+}
+```
 
 ---
 

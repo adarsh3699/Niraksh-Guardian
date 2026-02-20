@@ -2,7 +2,16 @@
 
 import { useState, useCallback } from "react";
 import Image from "next/image";
-import { Star, MapPin, Phone, ChevronDown, ChevronUp, IndianRupee, Briefcase } from "lucide-react";
+import {
+	Star,
+	MapPin,
+	Phone,
+	ChevronDown,
+	ChevronUp,
+	IndianRupee,
+	Briefcase,
+	Navigation,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Doctor } from "@/types/doctor";
 
@@ -33,9 +42,12 @@ function StarRating({ rating }: { rating: number }) {
 
 interface DoctorCardProps {
 	doctor: Doctor;
+	/** 0-based position in the relevance-sorted list — used to show "Best Match" ribbon */
+	rank?: number;
 }
 
-export function DoctorCard({ doctor }: DoctorCardProps) {
+export function DoctorCard({ doctor, rank }: DoctorCardProps) {
+	const isTopMatch = rank === 0 && doctor._relevanceScore !== undefined;
 	const [expanded, setExpanded] = useState(false);
 
 	const toggle = useCallback(() => setExpanded((prev) => !prev), []);
@@ -43,9 +55,18 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
 	return (
 		<div
 			className={cn(
-				"flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-card transition-shadow hover:shadow-md",
+				"relative flex flex-col overflow-hidden rounded-xl border bg-surface shadow-card transition-shadow hover:shadow-md",
+				isTopMatch ? "border-primary ring-1 ring-primary/30" : "border-border",
 			)}
 		>
+			{/* Best Match ribbon */}
+			{isTopMatch && (
+				<div className="absolute right-0 top-0 z-10 overflow-hidden">
+					<div className="bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+						Best Match
+					</div>
+				</div>
+			)}
 			{/* Header */}
 			<div className="flex items-start gap-3 p-4">
 				{/* Avatar / image */}
@@ -76,7 +97,15 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
 				{/* Info */}
 				<div className="min-w-0 flex-1">
 					<h4 className="truncate font-heading text-sm font-bold text-foreground">{doctor.name}</h4>
-					<p className="truncate text-xs font-medium text-primary">{doctor.specialization}</p>
+					<div className="flex flex-wrap items-center gap-1.5">
+						<p className="truncate text-xs font-medium text-primary">{doctor.specialization}</p>
+						{doctor._isNearby && (
+							<span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+								<Navigation className="size-2.5" />
+								Near You
+							</span>
+						)}
+					</div>
 					{doctor.qualification && (
 						<p className="mt-0.5 truncate text-xs text-muted">{doctor.qualification}</p>
 					)}

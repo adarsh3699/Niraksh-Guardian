@@ -11,6 +11,7 @@ import type {
 	SymptomSummaryResponse,
 } from "@/types/doctor";
 import type { PaginatedResponse } from "@/types/api";
+import type { ProfileResponse } from "@/types/health";
 
 /* ------------------------------------------------------------------ */
 /*  Build query string from DoctorSearchParams                        */
@@ -26,6 +27,9 @@ function buildDoctorQuery(params: DoctorSearchParams): string {
 	if (params.maxFee !== undefined) qs.set("maxFee", String(params.maxFee));
 	if (params.sortBy) qs.set("sortBy", params.sortBy);
 	if (params.order) qs.set("order", params.order);
+	if (params.matchTags) qs.set("matchTags", params.matchTags);
+	if (params.userCity) qs.set("userCity", params.userCity);
+	if (params.userState) qs.set("userState", params.userState);
 	qs.set("page", String(params.page ?? 1));
 	qs.set("limit", String(params.limit ?? 12));
 	return `${API_ROUTES.DOCTORS}?${qs.toString()}`;
@@ -131,4 +135,23 @@ export function useChatSummary() {
 	}, []);
 
 	return { summary, isSummarizing, error, summarize, reset };
+}
+
+/* ------------------------------------------------------------------ */
+/*  useUserProfile — GET /api/profile (city/state for doctor sorting) */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lightweight hook used by DoctorSuggestClient to grab the user's
+ * city and state for location-based relevance sorting.
+ */
+export function useUserProfile() {
+	const { data } = useSWR<ProfileResponse>(API_ROUTES.PROFILE, swrFetcher, {
+		revalidateOnFocus: false,
+	});
+
+	return {
+		city: data?.healthProfile?.city ?? undefined,
+		state: data?.healthProfile?.state ?? undefined,
+	};
 }

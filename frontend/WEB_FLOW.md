@@ -68,6 +68,12 @@ Landing (/)
   ├─ Sees "Get started" CTAs → Links to health tools
   ├─ Risk score shows 0/100 (no chronic conditions yet)
   └─ Recent activity is empty → "No recent activity"
+
+  PLANNED (Phase 8 — not yet implemented):
+  └─ If healthProfile.city/state are null:
+      └─ Show location prompt banner:
+          "📍 Add your location to get nearby doctor recommendations"
+          └─ Click → /profile (pre-scrolled to Location section)
 ```
 
 ### 2.2 Returning User (Login → Dashboard → Use Features)
@@ -195,9 +201,11 @@ Landing (/)
   │   │   ├─ Sort by (name/experience/fee/rating)
   │   │   └─ Sort order (asc/desc)
   │   │
-  │   └─ GET /api/doctors?specialization=...&page=1&limit=12 via SWR
-  │       └─ Response: { data: Doctor[], meta: { total, page, limit, pages } }
-  │           └─ Doctor cards grid (image, name, specialization, rating, fee, location)
+   └─ GET /api/doctors?specialization=...&matchTags=...&userCity=...&userState=...&page=1&limit=12 via SWR
+       └─ Response: { data: Doctor[], meta: { total, page, limit, pages } }
+           └─ Doctor cards grid (image, name, specialization, rating, fee, location)
+               └─ When relevance sort active: ordered by _relevanceScore (tag match + proximity + quality)
+                   └─ Doctors in user's city show "📍 Near You" badge
   │
   └─ STEP 3: Pagination
       ├─ [← Previous] [Page X of Y] [Next →]
@@ -266,6 +274,12 @@ Landing (/)
   │   ├─ Email (read-only, display only)
   │   └─ Gender (dropdown: Male/Female/Other)
   │
+  ├─ YOUR LOCATION SECTION (new — affects doctor sorting):
+  │   ├─ City (text input, optional)
+  │   └─ State (text input, optional)
+  │       └─ Note: "Used to prioritise doctors near you.
+  │               City match boosts ranking by 50 pts, state by 20 pts."
+  │
   ├─ HEALTH PROFILE SECTION (from healthProfile, may be null):
   │   ├─ Blood Group (dropdown: A+, A-, B+, B-, AB+, AB-, O+, O-)
   │   ├─ Allergies (tag input — add/remove pills)
@@ -276,9 +290,33 @@ Landing (/)
   ├─ RISK SCORE DISPLAY (read-only gauge, auto-calculated):
   │   └─ 10 points per chronic condition, max 100
   │
-  └─ [Save] → PUT /api/profile { name, gender, languagePreference, bloodGroup, allergies, ... }
+  └─ [Save] → PUT /api/profile { name, gender, city, state, languagePreference, bloodGroup, allergies, ... }
       ├─ Success → Toast "Profile updated" → SWR mutate
       └─ Error → Toast with error message
+```
+
+#### 3.5.1 Location-Based Doctor Sorting (Implemented)
+
+```
+/profile → User fills city + state → Save (PUT /api/profile)
+  │
+  └─ Next visit to /doctor-suggest
+      │
+      ├─ useUserProfile() fetches GET /api/profile → { city, state }
+      │
+      └─ After symptom analysis, doctors auto-fetched with:
+          GET /api/doctors?specialization=...&matchTags=cond1,cond2&userCity=...&userState=...
+          │
+          └─ Backend relevance scoring (in-memory when matchTags/location present):
+              ├─ Tag match:   +10 pts per condition keyword matching a doctor tag
+              ├─ City match:  +50 pts (exact city match → _isNearby = true)
+              ├─ State match: +20 pts (state hit when city misses)
+              ├─ Rating:      rating × 3 pts
+              ├─ Experience:  min(years,20) / 2 pts
+              └─ Fee:         (10000 − fee) / 1000 pts (lower fee → higher score)
+              │
+              └─ Doctors sorted by _relevanceScore desc
+                  └─ _isNearby=true doctors show "📍 Near You" badge in DoctorCard
 ```
 
 ### 3.6 Health History (`/history`)

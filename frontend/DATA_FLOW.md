@@ -840,3 +840,56 @@ apiClient receives response
 | `doctor.rating`          | 0   | 5.0 | 0       | Star rating display     |
 | Pagination `page`        | 1   | ∞   | 1       | Page X of Y             |
 | Pagination `limit`       | 1   | 50  | 10      | Items per page          |
+
+---
+
+## 14. Doctor Relevance Sorting (Implemented)
+
+When the user completes a symptom analysis, the doctor search uses **in-memory relevance scoring** instead of the default DB `ORDER BY`.
+
+### 14.1 Signal Sources
+
+| Signal             | How it arrives                                  | How stored                                          |
+| ------------------ | ----------------------------------------------- | --------------------------------------------------- |
+| Symptom conditions | `POST /api/ai/analyze` → `possibleConditions[]` | Passed as `matchTags` query param (comma-separated) |
+| User location      | `GET /api/profile` → `healthProfile.city/state` | Passed as `userCity`/`userState` query params       |
+
+### 14.2 Scoring Algorithm (backend `doctor.controller.ts`)
+
+```
+score = 0
+
+// Tag relevance (case-insensitive substring match)
+for each keyword in matchTags:
+  if any(doctor.tags).includes(keyword):  score += 10
+
+// Proximity boost
+if doctor.city == userCity:   score += 50
+elif doctor.state == userState: score += 20
+
+// Quality signals
+score += doctor.rating * 3          // 0–15 pts
+score += min(experienceYears, 20)/2  // 0–10 pts
+score += (10000 - consultationFee) / 1000  // fee inverse
+```
+
+Doctors are sorted descending by `_relevanceScore`, with `rating` as tie-breaker. Pagination happens **after** in-memory sort.
+
+### 14.3 Response Shape (when relevance sort active)
+
+Each `Doctor` in the response receives two extra computed fields:
+
+```typescript
+_relevanceScore: number; // total score
+_isNearby: boolean; // true if city matched userCity
+```
+
+`DoctorCard` displays a **"Near You"** pill badge when `_isNearby === true`.
+
+### 14.4 Future: Location from Google OAuth (Planned)
+
+> See `IMPLEMENTATION_PLAN.md` Phase 8 for the full plan.
+
+Currently, location comes only from the user's profile (`city`/`state` fields added in migration `20260219195244`). If the user hasn't filled in their profile, `userCity`/`userState` are omitted and the relevance sort falls back to tag-only scoring.
+
+The planned enhancement: when a user signs in via Google OAuth, attempt to extract location from the Google profile (if available and consented), pre-populate the profile form, and prompt for confirmation on first login.

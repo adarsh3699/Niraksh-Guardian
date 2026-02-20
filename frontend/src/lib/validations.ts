@@ -75,6 +75,8 @@ export const profileSchema = z.object({
 	emergencyContactName: z.string().optional(),
 	emergencyContactPhone: z.string().optional(),
 	emergencyContactEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+	city: z.string().optional(),
+	state: z.string().optional(),
 });
 export type ProfileFormData = z.infer<typeof profileSchema>;
 
