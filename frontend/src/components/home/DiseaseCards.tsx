@@ -41,6 +41,7 @@ export function DiseaseCards() {
 								src={disease.icon}
 								alt={`${disease.title} icon`}
 								fill
+								sizes="(max-width: 768px) 120px, 16vw"
 								className="object-contain"
 								loading="lazy"
 							/>

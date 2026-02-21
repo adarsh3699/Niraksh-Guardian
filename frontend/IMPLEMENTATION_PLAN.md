@@ -346,9 +346,9 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 6.1 Symptom Analysis
 
-- [ ] Text input for symptoms (paragraph-style) + optional image upload (📷)
-- [ ] "Analyze Symptoms" button → `POST /api/ai/analyze` (FormData with symptoms array + optional image + language, default `"en"`)
-- [ ] Display AI analysis result:
+- [x] Text input for symptoms (paragraph-style) + optional image upload (📷)
+- [x] "Analyze Symptoms" button → `POST /api/ai/analyze` (FormData with symptoms array + optional image + language, default `"en"`)
+- [x] Display AI analysis result:
   - Severity badge (Mild/Moderate/Severe/Emergency with color coding)
   - Possible conditions list
   - Urgency level (Home Care / Doctor Visit / Emergency Room)
@@ -358,40 +358,40 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 #### 6.1.1 Summarize Chat Symptoms for Doctor Referral
 
-- [ ] Add "Summarize for Doctor" button (shown when user navigates from a chat context)
-- [ ] On click → `POST /api/ai/summarize-symptoms` with `{ chatId }` from route/query params
-- [ ] Handle response:
+- [x] Add "Summarize for Doctor" button (shown when user navigates from a chat context)
+- [x] On click → `POST /api/ai/summarize-symptoms` with `{ chatId }` from route/query params
+- [x] Handle response:
   - `status: "success"` → Display summary paragraph in a card, usable for doctor referral
   - `status: "non_medical"` → Show info message: "This conversation has no medical content to summarize"
-- [ ] Summary can be used alongside symptom analysis to provide doctor with full patient context
+- [x] Summary can be used alongside symptom analysis to provide doctor with full patient context
 
 ### 6.2 Doctor Search & Filters
 
-- [ ] Specialization dropdown filter
-- [ ] City + State text filters
-- [ ] Fee range inputs (min/max)
-- [ ] Sort by dropdown (name, experience, fee, rating)
-- [ ] Sort order toggle (asc/desc)
-- [ ] Free-text search input
-- [ ] Results: `GET /api/doctors?specialization=...&city=...&state=...&minFee=...&maxFee=...&sortBy=...&order=...&search=...&page=1&limit=12`
+- [x] Specialization dropdown filter
+- [x] City + State text filters
+- [x] Fee range inputs (min/max)
+- [x] Sort by dropdown (name, experience, fee, rating)
+- [x] Sort order toggle (asc/desc)
+- [x] Free-text search input
+- [x] Results: `GET /api/doctors?specialization=...&city=...&state=...&minFee=...&maxFee=...&sortBy=...&order=...&search=...&page=1&limit=12`
 
 ### 6.3 Doctor Cards Grid
 
-- [ ] Card: Doctor image, name, specialization, qualification, experience years, rating (stars), consultation fee, city/state, bio (truncated)
-- [ ] Phone/contact info on expand or click
-- [ ] Responsive grid: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop)
+- [x] Card: Doctor image, name, specialization, qualification, experience years, rating (stars), consultation fee, city/state, bio (truncated)
+- [x] Phone/contact info on expand or click
+- [x] Responsive grid: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop)
 
 ### 6.4 Pagination
 
-- [ ] Previous/Next buttons + page indicator
-- [ ] "Showing X of Y results"
-- [ ] Scroll to top on page change
+- [x] Previous/Next buttons + page indicator
+- [x] "Showing X of Y results"
+- [x] Scroll to top on page change
 
 ### 6.5 Pre-filled from Home
 
-- [ ] Read `?symptoms=` or `?condition=` from URL search params
-- [ ] Auto-trigger analysis if symptoms provided
-- [ ] Auto-set specialization filter if condition provided
+- [x] Read `?symptoms=` or `?condition=` from URL search params
+- [x] Auto-trigger analysis if symptoms provided
+- [x] Auto-set specialization filter if condition provided
 
 **Deliverable:** Doctor suggestion page with AI analysis, search, filters, and pagination.
 

@@ -75,7 +75,7 @@ app.use(
 // CORS
 const allowedOrigins = env.CORS_ORIGINS
 	? env.CORS_ORIGINS.split(",").map((o) => o.trim())
-	: ["http://localhost:3000", "http://localhost:5173", "https://niraksh.bhemu.in/", "https://niraksh.vercel.app/"];
+	: ["http://localhost:3000", "http://localhost:5173", "https://niraksh.bhemu.in", "https://niraksh.vercel.app"];
 
 app.use(
 	cors({

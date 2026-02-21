@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback, type FormEvent, type KeyboardEvent } from "react";
+import {
+	useState,
+	useRef,
+	useCallback,
+	forwardRef,
+	useImperativeHandle,
+	type FormEvent,
+	type KeyboardEvent,
+} from "react";
 import { Send, ImagePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -15,16 +23,32 @@ interface ChatInputProps {
 	placeholder?: string;
 }
 
-export function ChatInput({
-	onSend,
-	disabled = false,
-	placeholder = "Describe your symptoms or ask a health question...",
-}: ChatInputProps) {
+export interface ChatInputRef {
+	setDraftMessage: (msg: string) => void;
+}
+
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
+	{ onSend, disabled = false, placeholder = "Describe your symptoms or ask a health question..." },
+	ref,
+) {
 	const [message, setMessage] = useState("");
 	const [image, setImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+	useImperativeHandle(ref, () => ({
+		setDraftMessage: (msg: string) => {
+			setMessage(msg);
+			// Auto-resize for the new text
+			setTimeout(() => {
+				if (textareaRef.current) {
+					textareaRef.current.style.height = "auto";
+					textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+				}
+			}, 0);
+		},
+	}));
 
 	const handleSubmit = useCallback(
 		(e?: FormEvent) => {
@@ -173,4 +197,4 @@ export function ChatInput({
 			</form>
 		</div>
 	);
-}
+});

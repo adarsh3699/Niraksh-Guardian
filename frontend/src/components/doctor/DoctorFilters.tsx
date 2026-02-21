@@ -46,9 +46,10 @@ const SORT_OPTIONS = [
 interface DoctorFiltersProps {
 	params: DoctorSearchParams;
 	onChange: (params: Partial<DoctorSearchParams>) => void;
+	onReset?: () => void;
 }
 
-export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
+export function DoctorFilters({ params, onChange, onReset }: DoctorFiltersProps) {
 	const handleInput = useCallback(
 		(field: keyof DoctorSearchParams) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
 			const raw = e.target.value;
@@ -73,7 +74,18 @@ export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
 
 	return (
 		<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-5">
-			<h3 className="mb-3 font-heading text-base font-bold text-foreground">Find a Doctor</h3>
+			<div className="mb-3 flex items-center justify-between">
+				<h3 className="font-heading text-base font-bold text-foreground">Find a Doctor</h3>
+				{onReset && (
+					<button
+						type="button"
+						onClick={onReset}
+						className="text-xs font-medium text-muted hover:text-foreground hover:underline"
+					>
+						Reset Filters
+					</button>
+				)}
+			</div>
 
 			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 				{/* Free-text search */}
@@ -92,8 +104,9 @@ export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
 				<select
 					value={params.specialization ?? ""}
 					onChange={handleInput("specialization")}
-					className={inputClass}
+					className={cn(inputClass, params.matchTags && "cursor-not-allowed opacity-50")}
 					aria-label="Specialization"
+					disabled={!!params.matchTags}
 				>
 					<option value="">All Specializations</option>
 					{SPECIALIZATIONS.map((s) => (
@@ -126,8 +139,13 @@ export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
 					<select
 						value={params.sortBy ?? "rating"}
 						onChange={handleInput("sortBy")}
-						className={cn(inputClass, "flex-1")}
+						className={cn(
+							inputClass,
+							"flex-1",
+							params.matchTags && "cursor-not-allowed opacity-50",
+						)}
 						aria-label="Sort by"
+						disabled={!!params.matchTags}
 					>
 						{SORT_OPTIONS.map((o) => (
 							<option key={o.value} value={o.value}>
@@ -140,9 +158,11 @@ export function DoctorFilters({ params, onChange }: DoctorFiltersProps) {
 						onClick={toggleOrder}
 						className={cn(
 							"flex h-10 items-center gap-1 rounded-lg border border-border px-3 text-xs font-medium text-muted",
-							"transition-colors hover:bg-border hover:text-foreground",
+							"transition-colors hover:bg-border",
+							params.matchTags ? "cursor-not-allowed opacity-50" : "hover:text-foreground",
 						)}
 						aria-label={`Sort ${params.order === "asc" ? "ascending" : "descending"}`}
+						disabled={!!params.matchTags}
 					>
 						<ArrowUpDown className="size-3.5" />
 						{params.order === "asc" ? "ASC" : "DESC"}

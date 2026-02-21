@@ -53,6 +53,10 @@ export const generateAIResponse = async (
 
 		const result = await ai.models.generateContent({
 			model: MODEL_NAME,
+			config: {
+				systemInstruction:
+					"You are a Smart Healthcare Assistant. Only discuss topics related to healthcare, medicine, symptoms, medical procedures, or general well-being. If a user asks a non-medical question, politely decline by saying: 'As a Smart Healthcare Assistant, I can only discuss topics related to healthcare and medicine.'",
+			},
 			contents: contents,
 		});
 

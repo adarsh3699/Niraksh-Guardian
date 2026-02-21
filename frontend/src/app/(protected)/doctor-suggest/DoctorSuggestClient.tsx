@@ -84,6 +84,11 @@ export function DoctorSuggestClient() {
 		setParams((prev) => ({ ...prev, page }));
 	}, []);
 
+	const handleResetFilters = useCallback(() => {
+		setParams({ ...DEFAULT_PARAMS });
+		setLastAnalysis(null);
+	}, []);
+
 	return (
 		<div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 			{/* Page header */}
@@ -109,7 +114,7 @@ export function DoctorSuggestClient() {
 
 			{/* Filters */}
 			<div id="doctor-results">
-				<DoctorFilters params={params} onChange={handleFilterChange} />
+				<DoctorFilters params={params} onChange={handleFilterChange} onReset={handleResetFilters} />
 			</div>
 
 			{/* Results */}
