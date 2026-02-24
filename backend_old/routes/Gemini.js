@@ -24,7 +24,7 @@ function fileToGenerativePart(path, mimeType) {
 	};
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyC7jSBWnP8zMq3qgndwbTM4nMH3hUTCyWM");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post("/medicine", upload.single("file"), async (req, res) => {
 	const name = req.body.name;

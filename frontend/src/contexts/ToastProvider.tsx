@@ -76,21 +76,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 		<ToastContext.Provider value={value}>
 			{children}
 
-			{/* Toast container — bottom-right */}
+			{/* Toast container — top-right */}
 			{toasts.length > 0 && (
-				<div className="fixed right-4 bottom-4 z-[9999] flex flex-col gap-2">
+				<div className="fixed right-4 top-4 z-[9999] flex flex-col gap-2 pointer-events-none">
 					{toasts.map((toast) => {
 						const Icon = ICON_MAP[toast.type];
 						return (
 							<div
 								key={toast.id}
 								className={cn(
-									"flex w-80 items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm",
-									"animate-[slide-in-right_0.3s_ease-out]",
-									"bg-surface",
-									STYLE_MAP[toast.type],
-								)}
-								role="alert"
+									"flex w-80 items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm pointer-events-auto",
+								"animate-[slide-in-right_0.3s_ease-out]",
+								"bg-surface",
+								STYLE_MAP[toast.type],
+								"",
+							)}
+							role="alert"
 							>
 								<Icon className="size-5 shrink-0" />
 								<p className="flex-1 text-sm font-medium text-foreground">{toast.message}</p>
