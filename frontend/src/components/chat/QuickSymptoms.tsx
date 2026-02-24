@@ -12,7 +12,7 @@ interface QuickSymptomsProps {
 
 export function QuickSymptoms({ onSelect }: QuickSymptomsProps) {
 	return (
-		<div className="flex flex-wrap justify-center gap-2 px-4 pb-2">
+		<div className="flex flex-wrap gap-2">
 			{QUICK_SYMPTOMS.map((symptom) => (
 				<button
 					key={symptom}

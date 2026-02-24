@@ -34,6 +34,20 @@ export function DoctorSuggestClient() {
 	const urlCondition = searchParams.get("condition") ?? undefined;
 	const chatId = searchParams.get("chatId") ?? undefined;
 
+	// Read symptom summary from sessionStorage (set by chat "Find Doctors" flow)
+	const [storedSummary] = useState<string | undefined>(() => {
+		if (typeof window === "undefined") return undefined;
+		const summary = sessionStorage.getItem("symptomSummary");
+		if (summary) {
+			sessionStorage.removeItem("symptomSummary"); // one-time read
+			return summary;
+		}
+		return undefined;
+	});
+
+	// Priority: storedSummary (from chat) > urlSymptoms (from URL)
+	const effectiveSymptoms = storedSummary || urlSymptoms;
+
 	// User's location for doctor proximity sorting
 	const { city: userCity, state: userState } = useUserProfile();
 
@@ -107,7 +121,8 @@ export function DoctorSuggestClient() {
 			{/* Symptom analysis */}
 			<SymptomAnalysis
 				chatId={chatId}
-				initialSymptoms={urlSymptoms}
+				initialSymptoms={effectiveSymptoms}
+				autoAnalyze={!!storedSummary}
 				onSpecialistFound={handleSpecialistFound}
 				onAnalysisComplete={handleAnalysisComplete}
 			/>

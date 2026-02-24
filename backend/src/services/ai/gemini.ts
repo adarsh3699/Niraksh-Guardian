@@ -286,7 +286,17 @@ ${userMessages}`,
 			],
 		});
 
-		const summary = (result.text || "").trim();
+		// Safely extract text — result.text getter can throw on blocked/empty responses
+		let summary = "";
+		try {
+			summary = (result.text || "").trim();
+		} catch {
+			logger.warn({ candidates: result.candidates }, "Gemini returned no usable text for symptom summary");
+			return {
+				summary: "Unable to analyze the conversation. Please try again.",
+				status: "non_medical",
+			};
+		}
 
 		if (
 			summary === "NON_MEDICAL" ||

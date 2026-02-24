@@ -111,15 +111,28 @@ export function useChat() {
 		}
 	}, [chatsLoading, chats, activeChatId, setActiveChatId]);
 
-	/* ---- Create chat ---- */
+	/* ---- Create chat (optimistic) ---- */
 	const createChat = useCallback(
 		async (language: ChatLanguage = "en"): Promise<Chat> => {
 			const chat = await apiClient<Chat>(API_ROUTES.CHATS, {
 				method: "POST",
 				body: { title: "New Chat", language },
 			});
-			await mutateChats();
+
+			// Optimistically inject the new chat at the top of the list
+			// and activate it immediately — no waiting for a network refetch.
+			mutateChats(
+				(prev) => {
+					const optimistic: ChatWithLastMessage = {
+						...chat,
+						messages: [],
+					};
+					return [optimistic, ...(prev ?? [])];
+				},
+				{ revalidate: false },
+			);
 			setActiveChatId(chat.id);
+
 			return chat;
 		},
 		[mutateChats, setActiveChatId],
@@ -128,13 +141,17 @@ export function useChat() {
 	/* ---- Delete chat ---- */
 	const deleteChat = useCallback(
 		async (chatId: string) => {
-			await apiClient<{ message: string }>(API_ROUTES.CHAT(chatId), {
-				method: "DELETE",
-			});
+			// Optimistic removal from sidebar
 			if (activeChatId === chatId) {
 				setActiveChatId(null);
 			}
-			await mutateChats();
+			mutateChats((prev) => (prev ?? []).filter((c) => c.id !== chatId), { revalidate: false });
+
+			await apiClient<{ message: string }>(API_ROUTES.CHAT(chatId), {
+				method: "DELETE",
+			});
+			// Background revalidate for consistency
+			mutateChats();
 		},
 		[activeChatId, mutateChats, setActiveChatId],
 	);
@@ -142,16 +159,20 @@ export function useChat() {
 	/* ---- Rename chat ---- */
 	const renameChat = useCallback(
 		async (chatId: string, title: string) => {
+			// Optimistic rename in sidebar
+			mutateChats((prev) => (prev ?? []).map((c) => (c.id === chatId ? { ...c, title } : c)), {
+				revalidate: false,
+			});
 			await apiClient<Chat>(API_ROUTES.CHAT(chatId), {
 				method: "PUT",
 				body: { title },
 			});
-			await mutateChats();
+			mutateChats();
 		},
 		[mutateChats],
 	);
 
-	/* ---- Send message (text-only or with image) ---- */
+	/* ---- Send message (optimistic user bubble) ---- */
 	const sendMessage = useCallback(
 		async (content: string, image?: File, language?: string) => {
 			if (!content.trim() && !image) return;
@@ -164,13 +185,28 @@ export function useChat() {
 				chatId = chat.id;
 			}
 
+			// 1. Optimistically show the user's message IMMEDIATELY
+			const tempId = `optimistic-${Date.now()}`;
+			const optimisticUserMsg: Message = {
+				id: tempId,
+				chatId: chatId,
+				role: "user",
+				content: image ? `[Image Uploaded] ${content}` : content,
+				createdAt: new Date().toISOString(),
+			};
+
+			const cacheKey = API_ROUTES.CHAT(chatId);
+			globalMutate<Message[]>(cacheKey, (prev) => [...(prev ?? []), optimisticUserMsg], {
+				revalidate: false,
+			});
+
+			// 2. Show typing indicator
 			setIsSending(true);
 
 			try {
 				let response: SendMessageResponse;
 
 				if (image) {
-					// FormData for image upload
 					const formData = new FormData();
 					formData.append("content", content);
 					if (language) formData.append("language", language);
@@ -188,14 +224,16 @@ export function useChat() {
 					});
 				}
 
-				// Use globalMutate with explicit key to avoid stale closure issues.
-				// Merge by ID to prevent duplicates from concurrent SWR fetches
-				// (SWR may fetch mid-AI-generation and get only the userMessage).
-				const cacheKey = API_ROUTES.CHAT(chatId);
+				// 3. Replace optimistic message with real data + add AI response
 				await globalMutate<Message[]>(
 					cacheKey,
 					(prev) => {
-						const map = new Map((prev ?? []).map((m) => [m.id, m]));
+						const map = new Map<string, Message>();
+						for (const m of prev ?? []) {
+							// Skip the optimistic placeholder
+							if (m.id === tempId) continue;
+							map.set(m.id, m);
+						}
 						map.set(response.userMessage.id, response.userMessage);
 						map.set(response.aiMessage.id, response.aiMessage);
 						return Array.from(map.values());
@@ -203,10 +241,18 @@ export function useChat() {
 					{ revalidate: false },
 				);
 
-				// Refresh chat list (updatedAt / title may have changed)
-				await mutateChats();
+				// Background refresh sidebar (title / updatedAt may have changed)
+				mutateChats();
 
 				return response;
+			} catch (error) {
+				// Rollback: remove the optimistic message on failure
+				await globalMutate<Message[]>(
+					cacheKey,
+					(prev) => (prev ?? []).filter((m) => m.id !== tempId),
+					{ revalidate: false },
+				);
+				throw error;
 			} finally {
 				setIsSending(false);
 			}

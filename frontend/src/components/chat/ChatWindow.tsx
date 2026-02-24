@@ -6,7 +6,8 @@ import { ChatInput } from "./ChatInput";
 import { QuickSymptoms } from "./QuickSymptoms";
 import { Spinner } from "@/components/ui/Spinner";
 import type { Message } from "@/types/chat";
-import { Bot } from "lucide-react";
+import { Bot, Stethoscope, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                  */
@@ -66,6 +67,8 @@ interface ChatWindowProps {
 	isSending: boolean;
 	activeChatId: string | null;
 	onSend: (content: string, image?: File) => void;
+	onFindDoctors?: () => void;
+	isFindingDoctors?: boolean;
 }
 
 export function ChatWindow({
@@ -74,10 +77,10 @@ export function ChatWindow({
 	isSending,
 	activeChatId,
 	onSend,
+	onFindDoctors,
+	isFindingDoctors = false,
 }: ChatWindowProps) {
 	const bottomRef = useRef<HTMLDivElement>(null);
-	// We'll expose an imperative method on the ChatInput component using a ref or just lift state.
-	// Actually, the cleanest way without refactoring ChatInput's internal file handling is a ref.
 	const chatInputRef = useRef<{ setDraftMessage: (msg: string) => void }>(null);
 
 	// Auto-scroll to bottom when messages change
@@ -115,8 +118,33 @@ export function ChatWindow({
 				)}
 			</div>
 
-			{/* Input area */}
-			{activeChatId && !isLoading && <QuickSymptoms onSelect={handleQuickSymptom} />}
+			{/* Actions bar */}
+			<div className="flex flex-wrap items-center gap-2 border-t border-border/50 px-4 py-2">
+				{/* Quick symptoms */}
+				{activeChatId && !isLoading && <QuickSymptoms onSelect={handleQuickSymptom} />}
+
+				{/* Find Doctors button */}
+				{onFindDoctors && activeChatId && hasMessages && !isLoading && (
+					<button
+						onClick={onFindDoctors}
+						disabled={isFindingDoctors || isSending}
+						className={cn(
+							"ml-auto flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition-all",
+							"hover:bg-primary/10 hover:border-primary/50",
+							"disabled:cursor-not-allowed disabled:opacity-50",
+						)}
+					>
+						{isFindingDoctors ? (
+							<Loader2 className="size-3 animate-spin" />
+						) : (
+							<Stethoscope className="size-3" />
+						)}
+						{isFindingDoctors ? "Analyzing..." : "Find Doctors"}
+					</button>
+				)}
+			</div>
+
+			{/* Chat input */}
 			<ChatInput ref={chatInputRef} onSend={onSend} disabled={isSending || isLoading} />
 		</div>
 	);

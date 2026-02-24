@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, type FormEvent } from "react";
+import { useState, useCallback, useRef, useEffect, type FormEvent } from "react";
 import { useSymptomAnalysis, useChatSummary } from "@/hooks/useDoctors";
 import { Button } from "@/components/ui/Button";
 import Image from "next/image";
@@ -160,8 +160,30 @@ function AnalysisResult({
 /*  Chat summary section                                              */
 /* ------------------------------------------------------------------ */
 
-function ChatSummarySection({ chatId }: { chatId: string }) {
+function ChatSummarySection({
+	chatId,
+	onSummaryReady,
+}: {
+	chatId: string;
+	onSummaryReady: (summaryText: string) => void;
+}) {
 	const { summary, isSummarizing, error, summarize } = useChatSummary();
+	const hasTriggered = useRef(false);
+
+	// Auto-summarize on mount — no manual button needed
+	useEffect(() => {
+		if (!hasTriggered.current) {
+			hasTriggered.current = true;
+			summarize(chatId);
+		}
+	}, [chatId, summarize]);
+
+	// When summary arrives, propagate to parent for auto-fill
+	useEffect(() => {
+		if (summary?.status === "success" && summary.summary) {
+			onSummaryReady(summary.summary);
+		}
+	}, [summary, onSummaryReady]);
 
 	return (
 		<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-6">
@@ -170,33 +192,29 @@ function ChatSummarySection({ chatId }: { chatId: string }) {
 				<h3 className="font-heading text-base font-bold text-foreground">Chat Symptom Summary</h3>
 			</div>
 
-			{!summary ? (
-				<div className="space-y-3">
-					<p className="text-sm text-muted">
-						Generate a summary of symptoms discussed in your chat for doctor referral.
-					</p>
-					<Button
-						variant="outline"
-						size="md"
-						onClick={() => summarize(chatId)}
-						disabled={isSummarizing}
-						loading={isSummarizing}
-					>
-						Summarize for Doctor
-					</Button>
-					{error && <p className="text-sm text-destructive">{error}</p>}
+			{isSummarizing ? (
+				<div className="flex items-center gap-2 text-sm text-muted">
+					<div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+					Analyzing your conversation...
 				</div>
-			) : summary.status === "success" ? (
+			) : error ? (
+				<div className="space-y-2">
+					<p className="text-sm text-destructive">{error}</p>
+					<Button variant="outline" size="sm" onClick={() => summarize(chatId)}>
+						Retry
+					</Button>
+				</div>
+			) : summary?.status === "success" ? (
 				<div className="rounded-lg bg-info/5 p-3">
 					<p className="text-sm leading-relaxed text-foreground">{summary.summary}</p>
 				</div>
-			) : (
+			) : summary?.status === "non_medical" ? (
 				<div className="rounded-lg bg-yellow-50 p-3">
 					<p className="text-sm text-yellow-800">
 						This conversation has no medical content to summarize.
 					</p>
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 }
@@ -208,6 +226,8 @@ function ChatSummarySection({ chatId }: { chatId: string }) {
 interface SymptomAnalysisProps {
 	chatId?: string | null;
 	initialSymptoms?: string;
+	/** If true, auto-submit analysis on mount (e.g. coming from chat with pre-computed summary) */
+	autoAnalyze?: boolean;
 	/** Called with an array of matched specialists (usually 1, can be multiple) */
 	onSpecialistFound: (specialists: string[]) => void;
 	/** Called when analysis completes — passes the full result for parent use (e.g. matchTags) */
@@ -217,6 +237,7 @@ interface SymptomAnalysisProps {
 export function SymptomAnalysis({
 	chatId,
 	initialSymptoms,
+	autoAnalyze = false,
 	onSpecialistFound,
 	onAnalysisComplete,
 }: SymptomAnalysisProps) {
@@ -224,6 +245,7 @@ export function SymptomAnalysis({
 	const [image, setImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const autoSubmitted = useRef(false);
 	const { result, isAnalyzing, error, analyze, reset } = useSymptomAnalysis();
 
 	const handleSubmit = useCallback(
@@ -244,6 +266,20 @@ export function SymptomAnalysis({
 		},
 		[symptoms, image, analyze, onAnalysisComplete],
 	);
+
+	// When chatId summary fills the symptoms, auto-submit the analysis
+	const handleSummaryReady = useCallback((summaryText: string) => {
+		setSymptoms(summaryText);
+	}, []);
+
+	// Auto-submit when autoAnalyze is true (pre-computed summary from chat)
+	// or when chatId summary fills the symptoms
+	useEffect(() => {
+		if ((autoAnalyze || chatId) && symptoms && !autoSubmitted.current && !result && !isAnalyzing) {
+			autoSubmitted.current = true;
+			handleSubmit();
+		}
+	}, [autoAnalyze, chatId, symptoms, result, isAnalyzing, handleSubmit]);
 
 	const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -269,7 +305,7 @@ export function SymptomAnalysis({
 	return (
 		<div className="space-y-4">
 			{/* Chat summary (if navigated from a chat) */}
-			{chatId && <ChatSummarySection chatId={chatId} />}
+			{chatId && <ChatSummarySection chatId={chatId} onSummaryReady={handleSummaryReady} />}
 
 			{/* Symptom input */}
 			<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-6">

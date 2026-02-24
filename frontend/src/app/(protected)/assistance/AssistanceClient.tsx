@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useToast } from "@/contexts/ToastProvider";
+import { apiClient, ApiError } from "@/lib/api";
+import { API_ROUTES } from "@/lib/constants";
 import type { ChatLanguage } from "@/types/chat";
-import { ApiError } from "@/lib/api";
 import { PanelLeft } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -17,8 +19,10 @@ import { PanelLeft } from "lucide-react";
 export function AssistanceClient() {
 	const [language, setLanguage] = useState<ChatLanguage>("en");
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+
 	const isMobile = useMediaQuery("(max-width: 768px)");
 	const { addToast } = useToast();
+	const router = useRouter();
 
 	const {
 		chats,
@@ -85,6 +89,44 @@ export function AssistanceClient() {
 		},
 		[setActiveChatId, isMobile],
 	);
+
+	const [isFindingDoctors, setIsFindingDoctors] = useState(false);
+
+	const handleFindDoctors = useCallback(async () => {
+		if (!activeChatId || messages.length === 0) {
+			addToast("warning", "Please have a conversation about your symptoms first.");
+			return;
+		}
+
+		setIsFindingDoctors(true);
+		try {
+			const response = await apiClient<{ summary: string; status: "success" | "non_medical" }>(
+				API_ROUTES.SUMMARIZE_SYMPTOMS,
+				{
+					method: "POST",
+					body: { chatId: activeChatId },
+				},
+			);
+
+			if (response.status === "non_medical") {
+				addToast(
+					"warning",
+					"Your conversation doesn't contain medical symptoms. Please discuss health concerns first.",
+				);
+				return;
+			}
+
+			if (response.summary) {
+				// Store once — doctor-suggest page reads it, no second API call
+				sessionStorage.setItem("symptomSummary", response.summary);
+				router.push("/doctor-suggest");
+			}
+		} catch (err) {
+			addToast("error", err instanceof ApiError ? err.message : "Failed to analyze symptoms");
+		} finally {
+			setIsFindingDoctors(false);
+		}
+	}, [activeChatId, messages.length, addToast, router]);
 
 	return (
 		<div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -155,6 +197,8 @@ export function AssistanceClient() {
 					isSending={isSending}
 					activeChatId={activeChatId}
 					onSend={handleSendMessage}
+					onFindDoctors={handleFindDoctors}
+					isFindingDoctors={isFindingDoctors}
 				/>
 			</div>
 		</div>
