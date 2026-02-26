@@ -30,6 +30,7 @@ node_modules/
 # Distribution directories
 dist/
 build/
+skillsage/
 
 # Generated Prisma Client
 backend/src/generated/

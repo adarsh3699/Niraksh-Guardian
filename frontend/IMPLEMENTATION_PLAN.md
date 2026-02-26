@@ -403,31 +403,31 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 7.1 Shared Components
 
-- [ ] `FileUploadZone` — drag-and-drop area, file preview, size validation (5MB max)
-- [ ] `AnalysisResult` — renders markdown AI response with styled sections
-- [ ] Loading state with skeleton placeholder
+- [x] `FileUploadZone` — drag-and-drop area, file preview, size validation (5MB max)
+- [x] `AnalysisResult` — renders markdown AI response with styled sections
+- [x] Loading state with skeleton placeholder
 
 ### 7.2 Prescription Explainer (`/prescription`)
 
-- [ ] Upload prescription images (up to 5 via drag-and-drop)
-- [ ] Submit → `POST /api/ai/prescription` (FormData with files)
-- [ ] Display structured result: medicine list, dosage, instructions, warnings
-- [ ] Extracted medicines list with option to check interactions
-- [ ] "Check Drug Interactions" button → navigates to `/drug-interaction?medicines=...`
+- [x] Upload prescription images (up to 5 via drag-and-drop)
+- [x] Submit → `POST /api/ai/prescription` (FormData with files)
+- [x] Display structured result: medicine list, dosage, instructions, warnings
+- [x] Extracted medicines list with option to check interactions
+- [x] "Check Drug Interactions" button → navigates to `/drug-interaction?medicines=...`
 
 ### 7.3 Medicine Search (`/medicine`)
 
-- [ ] Text input for medicine name
-- [ ] — OR — Image upload of medicine packaging
-- [ ] Submit → `POST /api/ai/medicine` (FormData with `name` or `image`)
-- [ ] Display: markdown-formatted analysis (name, composition, uses, side effects, dosage, alternatives)
+- [x] Text input for medicine name
+- [x] — OR — Image upload of medicine packaging
+- [x] Submit → `POST /api/ai/medicine` (FormData with `name` or `image`)
+- [x] Display: markdown-formatted analysis (name, composition, uses, side effects, dosage, alternatives)
 
 ### 7.4 Drug-Drug Interaction (`/drug-interaction`)
 
-- [ ] Dynamic medicine input list (add/remove drugs, min 2)
-- [ ] "Check Interaction" button → `POST /api/ai/drug-interaction` with `{ medicines: [...] }`
-- [ ] Display: markdown-formatted interaction analysis (severity, mechanism, recommendations)
-- [ ] Pre-fill from URL search params if navigated from prescription page
+- [x] Dynamic medicine input list (add/remove drugs, min 2)
+- [x] "Check Interaction" button → `POST /api/ai/drug-interaction` with `{ medicines: [...] }`
+- [x] Display: markdown-formatted interaction analysis (severity, mechanism, recommendations)
+- [x] Pre-fill from URL search params if navigated from prescription page
 
 **Deliverable:** Three health tool pages with file upload and AI analysis.
 
