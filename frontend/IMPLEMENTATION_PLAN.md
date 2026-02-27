@@ -439,24 +439,24 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 7.5.1 Disease Info Page (`/disease`)
 
-- [ ] Text input for disease/condition name
-- [ ] Language selector dropdown (en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
-- [ ] "Get Info" button → `GET /api/disease/info?topic=<name>&language=<lang>`
-- [ ] Display structured AI response:
+- [x] Text input for disease/condition name
+- [x] Language selector dropdown (en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
+- [x] "Get Info" button → `GET /api/disease/info?topic=<name>&language=<lang>`
+- [x] Display structured AI response:
   - Disease name + description
   - Symptoms list
   - Causes list
   - Prevention steps
   - Treatment options
   - "When to See a Doctor" section
-- [ ] "Find Related Doctors" button → navigates to `/doctor-suggest?condition=<disease>`
-- [ ] Pre-fill from URL search params (`?topic=Cold&language=en`) when linked from HomePage disease cards
-- [ ] SWR caching with 1-hour stale time (same topic won't re-fetch)
+- [x] "Find Related Doctors" button → navigates to `/doctor-suggest?condition=<disease>`
+- [x] Pre-fill from URL search params (`?topic=Cold&language=en`) when linked from HomePage disease cards
+- [x] Session storage caching (result persists across navigations within the same tab session)
 
 ### 7.5.2 HomePage Integration
 
-- [ ] Disease cards on HomePage → link to `/disease?topic=<diseaseName>` instead of `/doctor-suggest`
-- [ ] Each disease card click opens info page first, user can then navigate to doctor suggest
+- [x] Disease cards on HomePage → link to `/disease?topic=<diseaseName>` instead of `/doctor-suggest`
+- [x] Each disease card click opens info page first, user can then navigate to doctor suggest
 
 **Deliverable:** Disease information page with AI-powered details and doctor navigation.
 
@@ -468,41 +468,41 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 8.1 Profile Page (`/profile`)
 
-- [ ] Fetch profile: `GET /api/profile` via SWR
-- [ ] Response shape: `{ user: { id, email, name, gender, languagePreference }, healthProfile: { ... } | null }`
-- [ ] Display user info section: name (editable), email (read-only), gender (editable dropdown)
-- [ ] Health profile form:
+- [x] Fetch profile: `GET /api/profile` via SWR
+- [x] Response shape: `{ user: { id, email, name, gender, languagePreference }, healthProfile: { ... } | null }`
+- [x] Display user info section: name (editable), email (read-only), gender (editable dropdown)
+- [x] Health profile form:
   - Blood group (dropdown: A+, A-, B+, B-, AB+, AB-, O+, O-)
   - Allergies (tag input, add/remove)
   - Chronic conditions (tag input, add/remove)
   - Emergency contact: name, phone, email
   - Language preference (dropdown: en, hi, bn, te, mr, ta, ur, gu, kn, ml, pa)
-- [ ] Display health risk score (auto-calculated by backend, read-only gauge/badge)
-- [ ] Save → `PUT /api/profile` (sends both user fields and health fields in single request)
-- [ ] Toast on success/error
-- [ ] Handle null `healthProfile` (new user, first time) — show empty form
+- [x] Display health risk score (auto-calculated by backend, read-only gauge/badge)
+- [x] Save → `PUT /api/profile` (sends both user fields and health fields in single request)
+- [x] Toast on success/error
+- [x] Handle null `healthProfile` (new user, first time) — show empty form
 
 ### 8.2 Health History (`/history`)
 
-- [ ] Fetch history from 4 separate endpoints via SWR:
+- [x] Fetch history from 4 separate endpoints via SWR:
   - `GET /api/history/medicine` → Medicine analyses
   - `GET /api/history/prescription` → Prescription analyses
   - `GET /api/history/interaction` → Drug interaction checks
   - `GET /api/history/symptom` → Symptom analyses
-- [ ] Tabbed or filtered view by history type
-- [ ] Each entry: date, type badge, key details (medicine name / symptoms / drugs)
-- [ ] Click to expand → full analysis result (markdown)
-- [ ] Delete button with confirmation → `DELETE /api/history/:type/:id`
-- [ ] SWR `mutate` after delete
+- [x] Tabbed or filtered view by history type
+- [x] Each entry: date, type badge, key details (medicine name / symptoms / drugs)
+- [x] Click to expand → full analysis result (markdown)
+- [x] Delete button with confirmation → `DELETE /api/history/:type/:id`
+- [x] SWR `mutate` after delete
 
 ### 8.3 Health Reports (`/reports`)
 
-- [ ] List past reports: `GET /api/reports` via SWR
-- [ ] Each report: creation date, download/view link (Cloudinary PDF URL)
-- [ ] Generate new report button → `GET /api/reports/health-summary`
-- [ ] Show loading state during generation (can take 5-10s)
-- [ ] SWR `mutate` after generation
-- [ ] Note: Backend stores max 10 reports per user (FIFO)
+- [x] List past reports: `GET /api/reports` via SWR
+- [x] Each report: creation date, download/view link (Cloudinary PDF URL)
+- [x] Generate new report button → `GET /api/reports/health-summary`
+- [x] Show loading state during generation (can take 5-10s)
+- [x] SWR `mutate` after generation
+- [x] Note: Backend stores max 10 reports per user (FIFO)
 
 **Deliverable:** User profile editing, health history with deletion, and report generation/listing.
 
@@ -514,8 +514,8 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 8.5.1 Dashboard Page (`/dashboard`)
 
-- [ ] Main landing page for authenticated users
-- [ ] Fetch data in parallel via `Promise.all` + SWR:
+- [x] Main landing page for authenticated users
+- [x] Fetch data in parallel via `Promise.all` + SWR:
   - `GET /api/profile` → Health risk score, profile data, emergency contacts
   - `GET /api/history/medicine` → Recent (take 5)
   - `GET /api/history/prescription` → Recent (take 5)
@@ -525,19 +525,19 @@ pnpm add -D @types/node @types/react @types/react-dom
 
 ### 8.5.2 Dashboard Components
 
-- [ ] `RiskScoreCard` — Circular gauge showing health risk score (0-100)
+- [x] `RiskScoreCard` — Circular gauge showing health risk score (0-100)
   - Color coding: 0-30 green, 31-60 yellow, 61-100 red
   - Based on `patientHealthProfile.healthRiskScore`
-- [ ] `HealthSummary` — Blood group, allergies badges, chronic conditions, emergency contact quick view
-- [ ] `QuickActions` — Grid of shortcut cards to health tools (Medicine, Prescription, Drug Interaction, AI Chat, Doctor Suggest, Generate Report)
-- [ ] `RecentActivity` — Unified timeline of last 10 activities across all history types, sorted by `createdAt` desc
+- [x] `HealthSummary` — Blood group, allergies badges, chronic conditions, emergency contact quick view
+- [x] `QuickActions` — Grid of shortcut cards to health tools (Medicine, Prescription, Drug Interaction, AI Chat, Doctor Suggest, Generate Report)
+- [x] `RecentActivity` — Unified timeline of last 10 activities across all history types, sorted by `createdAt` desc
   - Icon + type badge per entry (💊 Medicine, 📋 Prescription, ⚠️ Interaction, 🔬 Symptom)
   - Clickable → navigates to `/history` with type filter
 
 ### 8.5.3 Empty States
 
-- [ ] New user with no history → welcome message + "Get started" CTAs
-- [ ] No profile set up → "Complete your health profile" prompt → link to `/profile`
+- [x] New user with no history → welcome message + "Get started" CTAs
+- [x] No profile set up → "Complete your health profile" prompt → link to `/profile`
 
 **Deliverable:** Aggregated user dashboard with risk score, activity timeline, and quick actions.
 

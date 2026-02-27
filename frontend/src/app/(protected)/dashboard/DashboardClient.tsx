@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import {
 	MessageSquare,
 	Stethoscope,
@@ -8,15 +10,28 @@ import {
 	Pill,
 	AlertTriangle,
 	BookOpen,
-	Activity,
-	Shield,
 	Heart,
+	Activity,
 	TrendingUp,
 	Clock,
 	ArrowRight,
+	Shield,
+	FileBarChart,
+	UserCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { swrFetcher } from "@/lib/api";
+import { API_ROUTES } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthProvider";
+import { cn, formatDate } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
+import type {
+	ProfileResponse,
+	MedicineHistory,
+	PrescriptionHistory,
+	DrugInteractionHistory,
+	SymptomAnalysisHistory,
+} from "@/types/health";
+import type { HealthReport } from "@/types/report";
 
 /* ------------------------------------------------------------------ */
 /*  Quick action items                                                 */
@@ -74,43 +89,58 @@ const quickActions = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Stat cards (placeholder data)                                      */
+/*  Activity item definitions                                          */
 /* ------------------------------------------------------------------ */
 
-const statCards = [
-	{
-		label: "Health Score",
-		value: "—",
-		subtext: "Complete your profile",
-		icon: Heart,
-		color: "text-rose-500",
-		bg: "bg-rose-500/10",
-	},
-	{
-		label: "Consultations",
-		value: "0",
-		subtext: "No consultations yet",
-		icon: Activity,
-		color: "text-blue-500",
-		bg: "bg-blue-500/10",
-	},
-	{
-		label: "Analyses",
-		value: "0",
-		subtext: "Start using health tools",
-		icon: TrendingUp,
-		color: "text-emerald-500",
-		bg: "bg-emerald-500/10",
-	},
-	{
-		label: "Recent Activity",
-		value: "—",
-		subtext: "Nothing yet",
-		icon: Clock,
-		color: "text-amber-500",
-		bg: "bg-amber-500/10",
-	},
-];
+interface ActivityItem {
+	id: string;
+	type: "medicine" | "prescription" | "interaction" | "symptom";
+	title: string;
+	subtitle: string;
+	date: string;
+	icon: React.ElementType;
+	iconColor: string;
+	iconBg: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Health score gauge (inline)                                        */
+/* ------------------------------------------------------------------ */
+
+function ScoreGauge({ score }: { score: number }) {
+	const color =
+		score <= 20
+			? "text-green-500"
+			: score <= 50
+				? "text-yellow-500"
+				: score <= 80
+					? "text-orange-500"
+					: "text-red-500";
+	const barColor =
+		score <= 20
+			? "bg-green-500"
+			: score <= 50
+				? "bg-yellow-500"
+				: score <= 80
+					? "bg-orange-500"
+					: "bg-red-500";
+	const label = score <= 20 ? "Low" : score <= 50 ? "Moderate" : score <= 80 ? "High" : "Critical";
+
+	return (
+		<div className="space-y-1.5">
+			<div className="flex items-end justify-between">
+				<span className={cn("font-heading text-3xl font-bold", color)}>{score}</span>
+				<span className="text-xs font-medium text-muted">{label} Risk</span>
+			</div>
+			<div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+				<div
+					className={cn("h-full rounded-full transition-all duration-700", barColor)}
+					style={{ width: `${score}%` }}
+				/>
+			</div>
+		</div>
+	);
+}
 
 /* ------------------------------------------------------------------ */
 /*  DashboardClient                                                    */
@@ -118,6 +148,109 @@ const statCards = [
 
 export function DashboardClient() {
 	const { user } = useAuth();
+
+	// Fetch all dashboard data in parallel
+	const { data: profile, isLoading: profileLoading } = useSWR<ProfileResponse>(
+		API_ROUTES.PROFILE,
+		swrFetcher,
+		{
+			revalidateOnFocus: false,
+		},
+	);
+	const { data: medHistory } = useSWR<MedicineHistory[]>(API_ROUTES.HISTORY_MEDICINE, swrFetcher, {
+		revalidateOnFocus: false,
+	});
+	const { data: rxHistory } = useSWR<PrescriptionHistory[]>(
+		API_ROUTES.HISTORY_PRESCRIPTION,
+		swrFetcher,
+		{
+			revalidateOnFocus: false,
+		},
+	);
+	const { data: intHistory } = useSWR<DrugInteractionHistory[]>(
+		API_ROUTES.HISTORY_INTERACTION,
+		swrFetcher,
+		{
+			revalidateOnFocus: false,
+		},
+	);
+	const { data: symHistory } = useSWR<SymptomAnalysisHistory[]>(
+		API_ROUTES.HISTORY_SYMPTOM,
+		swrFetcher,
+		{
+			revalidateOnFocus: false,
+		},
+	);
+	const { data: reports } = useSWR<HealthReport[]>(API_ROUTES.REPORTS, swrFetcher, {
+		revalidateOnFocus: false,
+	});
+
+	// Compute stats
+	const healthScore = profile?.healthProfile?.healthRiskScore ?? 0;
+	const totalAnalyses =
+		(medHistory?.length ?? 0) +
+		(rxHistory?.length ?? 0) +
+		(intHistory?.length ?? 0) +
+		(symHistory?.length ?? 0);
+	const totalReports = reports?.length ?? 0;
+	const profileComplete = !!profile?.healthProfile;
+
+	// Merge + sort recent activity (last 8)
+	const recentActivity: ActivityItem[] = useMemo(() => {
+		const items: ActivityItem[] = [];
+
+		(medHistory ?? []).forEach((m) =>
+			items.push({
+				id: m.id,
+				type: "medicine",
+				title: m.medicineName ?? "Medicine Lookup",
+				subtitle: "Medicine analysis",
+				date: m.createdAt,
+				icon: Pill,
+				iconColor: "text-amber-500",
+				iconBg: "bg-amber-500/10",
+			}),
+		);
+		(rxHistory ?? []).forEach((p) =>
+			items.push({
+				id: p.id,
+				type: "prescription",
+				title: "Prescription Scan",
+				subtitle: `${(p.analysisResult as { medicines?: string[] })?.medicines?.length ?? 0} medicines extracted`,
+				date: p.createdAt,
+				icon: FileText,
+				iconColor: "text-purple-500",
+				iconBg: "bg-purple-500/10",
+			}),
+		);
+		(intHistory ?? []).forEach((d) =>
+			items.push({
+				id: d.id,
+				type: "interaction",
+				title: d.drugs.slice(0, 2).join(" + "),
+				subtitle: `${d.drugs.length} drugs checked`,
+				date: d.createdAt,
+				icon: AlertTriangle,
+				iconColor: "text-rose-500",
+				iconBg: "bg-rose-500/10",
+			}),
+		);
+		(symHistory ?? []).forEach((s) =>
+			items.push({
+				id: s.id,
+				type: "symptom",
+				title: s.symptoms.slice(0, 2).join(", "),
+				subtitle: `Urgency: ${s.urgencyLevel}`,
+				date: s.createdAt,
+				icon: Stethoscope,
+				iconColor: "text-blue-500",
+				iconBg: "bg-blue-500/10",
+			}),
+		);
+
+		items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+		return items.slice(0, 8);
+	}, [medHistory, rxHistory, intHistory, symHistory]);
 
 	const greeting = (() => {
 		const hour = new Date().getHours();
@@ -138,23 +271,91 @@ export function DashboardClient() {
 				</p>
 			</div>
 
+			{/* Profile incomplete banner */}
+			{!profileLoading && !profileComplete && (
+				<Link
+					href="/profile"
+					className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+				>
+					<UserCircle className="size-5 text-amber-600" />
+					<div className="flex-1">
+						<p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+							Complete your health profile
+						</p>
+						<p className="text-xs text-amber-600 dark:text-amber-400">
+							Add your blood group, allergies, and chronic conditions for better doctor
+							recommendations.
+						</p>
+					</div>
+					<ArrowRight className="size-4 text-amber-500" />
+				</Link>
+			)}
+
 			{/* Stat cards */}
 			<div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-				{statCards.map((stat) => (
-					<div
-						key={stat.label}
-						className="rounded-xl border border-border bg-surface p-4 shadow-card"
-					>
-						<div className="mb-3 flex items-center justify-between">
-							<span className="text-xs font-medium text-muted">{stat.label}</span>
-							<div className={cn("rounded-lg p-2", stat.bg)}>
-								<stat.icon className={cn("size-4", stat.color)} />
-							</div>
+				{/* Health Score */}
+				<div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+					<div className="mb-3 flex items-center justify-between">
+						<span className="text-xs font-medium text-muted">Health Score</span>
+						<div className="rounded-lg bg-rose-500/10 p-2">
+							<Heart className="size-4 text-rose-500" />
 						</div>
-						<p className="font-heading text-2xl font-bold text-foreground">{stat.value}</p>
-						<p className="mt-0.5 text-xs text-muted">{stat.subtext}</p>
 					</div>
-				))}
+					{profileLoading ? (
+						<Spinner size="sm" className="text-muted" />
+					) : profileComplete ? (
+						<ScoreGauge score={healthScore} />
+					) : (
+						<>
+							<p className="font-heading text-2xl font-bold text-foreground">—</p>
+							<p className="mt-0.5 text-xs text-muted">Complete your profile</p>
+						</>
+					)}
+				</div>
+
+				{/* Analyses */}
+				<div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+					<div className="mb-3 flex items-center justify-between">
+						<span className="text-xs font-medium text-muted">Total Analyses</span>
+						<div className="rounded-lg bg-emerald-500/10 p-2">
+							<TrendingUp className="size-4 text-emerald-500" />
+						</div>
+					</div>
+					<p className="font-heading text-2xl font-bold text-foreground">{totalAnalyses}</p>
+					<p className="mt-0.5 text-xs text-muted">
+						{totalAnalyses > 0 ? "Across all health tools" : "Start using health tools"}
+					</p>
+				</div>
+
+				{/* Reports */}
+				<div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+					<div className="mb-3 flex items-center justify-between">
+						<span className="text-xs font-medium text-muted">Reports</span>
+						<div className="rounded-lg bg-blue-500/10 p-2">
+							<FileBarChart className="size-4 text-blue-500" />
+						</div>
+					</div>
+					<p className="font-heading text-2xl font-bold text-foreground">{totalReports}</p>
+					<p className="mt-0.5 text-xs text-muted">
+						{totalReports > 0 ? "Health summaries generated" : "No reports generated"}
+					</p>
+				</div>
+
+				{/* Recent */}
+				<div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+					<div className="mb-3 flex items-center justify-between">
+						<span className="text-xs font-medium text-muted">Recent Activity</span>
+						<div className="rounded-lg bg-amber-500/10 p-2">
+							<Clock className="size-4 text-amber-500" />
+						</div>
+					</div>
+					<p className="font-heading text-2xl font-bold text-foreground">
+						{recentActivity.length > 0 ? formatDate(recentActivity[0].date) : "—"}
+					</p>
+					<p className="mt-0.5 text-xs text-muted">
+						{recentActivity.length > 0 ? "Last health tool usage" : "Nothing yet"}
+					</p>
+				</div>
 			</div>
 
 			{/* Quick actions */}
@@ -190,13 +391,48 @@ export function DashboardClient() {
 				</div>
 			</div>
 
-			{/* Placeholder — future sections */}
-			<div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
-				<Activity className="mx-auto mb-3 size-8 text-muted" />
-				<h3 className="font-heading text-sm font-bold text-foreground">More coming soon</h3>
-				<p className="mt-1 text-xs text-muted">
-					Health analytics, activity feed, and personalized recommendations will appear here.
-				</p>
+			{/* Recent activity */}
+			<div>
+				<div className="mb-4 flex items-center justify-between">
+					<h2 className="font-heading text-lg font-bold text-foreground">Recent Activity</h2>
+					{recentActivity.length > 0 && (
+						<Link
+							href="/history"
+							className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+						>
+							View all <ArrowRight className="size-3" />
+						</Link>
+					)}
+				</div>
+
+				{recentActivity.length === 0 ? (
+					<div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
+						<Activity className="mx-auto mb-3 size-8 text-muted" />
+						<h3 className="font-heading text-sm font-bold text-foreground">No activity yet</h3>
+						<p className="mt-1 text-xs text-muted">
+							Start using health tools to see your activity feed here.
+						</p>
+					</div>
+				) : (
+					<div className="space-y-2">
+						{recentActivity.map((item) => (
+							<Link
+								key={`${item.type}-${item.id}`}
+								href="/history"
+								className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 shadow-card transition-colors hover:bg-border/30"
+							>
+								<div className={cn("rounded-lg p-2", item.iconBg)}>
+									<item.icon className={cn("size-4", item.iconColor)} />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+									<p className="truncate text-xs text-muted">{item.subtitle}</p>
+								</div>
+								<span className="shrink-0 text-xs text-muted">{formatDate(item.date)}</span>
+							</Link>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
