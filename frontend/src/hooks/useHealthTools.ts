@@ -7,6 +7,7 @@ import type {
 	MedicineAnalysisResponse,
 	PrescriptionAnalysisResponse,
 	DrugInteractionResponse,
+	DiseaseInfo,
 } from "@/types/health";
 
 /* ------------------------------------------------------------------ */
@@ -136,4 +137,44 @@ export function useDrugInteraction() {
 	}, []);
 
 	return { result, isLoading, error, checkInteraction, reset };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Disease Info                                                        */
+/* ------------------------------------------------------------------ */
+
+export function useDiseaseInfo() {
+	const [result, setResult] = useState<DiseaseInfo | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const fetchInfo = useCallback(async (topic: string, language: string = "en") => {
+		if (!topic.trim()) return null;
+
+		setIsLoading(true);
+		setError(null);
+
+		try {
+			const params = new URLSearchParams({ topic: topic.trim(), language });
+			const response = await apiClient<DiseaseInfo>(
+				`${API_ROUTES.DISEASE_INFO}?${params.toString()}`,
+			);
+
+			setResult(response);
+			return response;
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Failed to fetch disease information";
+			setError(message);
+			return null;
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
+
+	const reset = useCallback(() => {
+		setResult(null);
+		setError(null);
+	}, []);
+
+	return { result, isLoading, error, fetchInfo, reset };
 }
