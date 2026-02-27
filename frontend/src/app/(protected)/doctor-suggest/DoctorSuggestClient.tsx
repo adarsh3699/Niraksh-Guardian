@@ -56,7 +56,8 @@ export function DoctorSuggestClient() {
 
 	const [params, setParams] = useState<DoctorSearchParams>(() => ({
 		...DEFAULT_PARAMS,
-		specialization: urlCondition || undefined,
+		// Auto-fill search when arriving from disease page (?condition=Diabetes)
+		search: urlCondition || undefined,
 	}));
 
 	const { doctors, meta, isLoading, isError } = useDoctorSearch(params);
@@ -98,9 +99,12 @@ export function DoctorSuggestClient() {
 		setParams((prev) => ({ ...prev, page }));
 	}, []);
 
+	const [searchResetKey, setSearchResetKey] = useState(0);
+
 	const handleResetFilters = useCallback(() => {
 		setParams({ ...DEFAULT_PARAMS });
 		setLastAnalysis(null);
+		setSearchResetKey((k) => k + 1);
 	}, []);
 
 	return (
@@ -129,7 +133,12 @@ export function DoctorSuggestClient() {
 
 			{/* Filters */}
 			<div id="doctor-results">
-				<DoctorFilters params={params} onChange={handleFilterChange} onReset={handleResetFilters} />
+				<DoctorFilters
+					params={params}
+					onChange={handleFilterChange}
+					onReset={handleResetFilters}
+					searchResetKey={searchResetKey}
+				/>
 			</div>
 
 			{/* Results */}

@@ -145,21 +145,49 @@ export const getDoctors = async (req: Request, res: Response) => {
 		}
 
 		if (search) {
-			const searchConditions: Prisma.DoctorWhereInput[] = [
-				{ name: { contains: search, mode: "insensitive" } },
-				{ specialization: { contains: search, mode: "insensitive" } },
-				{ city: { contains: search, mode: "insensitive" } },
-				{ state: { contains: search, mode: "insensitive" } },
-				{ bio: { contains: search, mode: "insensitive" } },
-				{ tags: { has: search } },
-			];
+			// Split into meaningful words — strip parentheses, punctuation, and noise words
+			const NOISE_WORDS = new Set([
+				"a",
+				"an",
+				"the",
+				"of",
+				"in",
+				"on",
+				"and",
+				"or",
+				"for",
+				"to",
+				"with",
+				"by",
+				"is",
+				"it",
+			]);
+			const words = search
+				.replace(/[()[\]{},;:'"]/g, " ") // strip brackets & punctuation
+				.split(/\s+/)
+				.map((w) => w.trim())
+				.filter((w) => w.length >= 2 && !NOISE_WORDS.has(w.toLowerCase()));
 
-			// Merge with existing OR (multi-specialization) if present
-			if (where.OR) {
-				where.AND = [{ OR: where.OR as Prisma.DoctorWhereInput[] }, { OR: searchConditions }];
-				delete where.OR;
-			} else {
-				where.OR = searchConditions;
+			if (words.length > 0) {
+				// For each word, create OR conditions across all searchable fields
+				const searchConditions: Prisma.DoctorWhereInput[] = words.flatMap((word) => [
+					{ name: { contains: word, mode: "insensitive" as const } },
+					{ specialization: { contains: word, mode: "insensitive" as const } },
+					{ city: { contains: word, mode: "insensitive" as const } },
+					{ state: { contains: word, mode: "insensitive" as const } },
+					{ bio: { contains: word, mode: "insensitive" as const } },
+					{ tags: { has: word } },
+					// Also try lowercase tag match
+					{ tags: { has: word.toLowerCase() } },
+				]);
+
+				// Merge with existing OR (multi-specialization) if present
+				if (where.OR) {
+					where.AND = [{ OR: where.OR as Prisma.DoctorWhereInput[] }, { OR: searchConditions }];
+					delete where.OR;
+				} else {
+					where.OR = searchConditions;
+				}
 			}
 		}
 

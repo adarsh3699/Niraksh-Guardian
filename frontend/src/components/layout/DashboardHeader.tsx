@@ -51,7 +51,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
 
 				{/* Breadcrumb */}
 				<nav className="flex items-center gap-1.5 text-sm" aria-label="Breadcrumb">
-					<Link href="/" className="text-muted transition-colors hover:text-foreground">
+					<Link href="/dashboard" className="text-muted transition-colors hover:text-foreground">
 						<Home className="size-4" />
 					</Link>
 					<span className="text-muted/50">/</span>

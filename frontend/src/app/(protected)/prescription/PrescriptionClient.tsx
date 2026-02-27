@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSessionState } from "@/hooks/useSessionState";
 import { usePrescriptionAnalysis } from "@/hooks/useHealthTools";
 import { FileUploadZone } from "@/components/health-tools/FileUploadZone";
 import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tools/AnalysisResult";
@@ -15,7 +16,10 @@ import { cn } from "@/lib/utils";
 
 export function PrescriptionClient() {
 	const [files, setFiles] = useState<File[]>([]);
-	const [selectedMedicines, setSelectedMedicines] = useState<string[]>([]);
+	const [selectedMedicines, setSelectedMedicines] = useSessionState<string[]>(
+		"ng:prescription:selected",
+		[],
+	);
 	const { result, isLoading, error, analyze, reset } = usePrescriptionAnalysis();
 	const router = useRouter();
 
@@ -23,20 +27,23 @@ export function PrescriptionClient() {
 		if (files.length === 0) return;
 		setSelectedMedicines([]);
 		await analyze(files);
-	}, [files, analyze]);
+	}, [files, analyze, setSelectedMedicines]);
 
 	const handleReset = useCallback(() => {
 		reset();
 		setFiles([]);
 		setSelectedMedicines([]);
-	}, [reset]);
+	}, [reset, setSelectedMedicines]);
 
 	/** Toggle a medicine chip on/off */
-	const toggleMedicine = useCallback((medicine: string) => {
-		setSelectedMedicines((prev) =>
-			prev.includes(medicine) ? prev.filter((m) => m !== medicine) : [...prev, medicine],
-		);
-	}, []);
+	const toggleMedicine = useCallback(
+		(medicine: string) => {
+			setSelectedMedicines((prev) =>
+				prev.includes(medicine) ? prev.filter((m) => m !== medicine) : [...prev, medicine],
+			);
+		},
+		[setSelectedMedicines],
+	);
 
 	/** Navigate based on selection count */
 	const handleMedicineAction = useCallback(() => {

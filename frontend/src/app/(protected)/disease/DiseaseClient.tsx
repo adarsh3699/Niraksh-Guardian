@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect, type FormEvent } from "react";
+import { useCallback, useEffect, type FormEvent } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSessionState } from "@/hooks/useSessionState";
 import { useDiseaseInfo } from "@/hooks/useHealthTools";
 import { CHAT_LANGUAGES } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +21,8 @@ import {
 	Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 /* ------------------------------------------------------------------ */
 /*  Section card helper                                                */
@@ -53,17 +56,19 @@ function InfoSection({ icon: Icon, iconColor, title, children }: InfoSectionProp
 export function DiseaseClient() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
-	const initialTopic = searchParams.get("topic") ?? "";
-	const initialLanguage = searchParams.get("language") ?? "en";
+	const urlTopic = searchParams.get("topic");
+	const urlLanguage = searchParams.get("language");
 
-	const [topic, setTopic] = useState(initialTopic);
-	const [language, setLanguage] = useState(initialLanguage);
+	const [topic, setTopic] = useSessionState("ng:disease:topic", urlTopic ?? "");
+	const [language, setLanguage] = useSessionState("ng:disease:language", urlLanguage ?? "en");
 	const { result, isLoading, error, fetchInfo, reset } = useDiseaseInfo();
 
-	// Auto-fetch if ?topic= is provided
+	// Auto-fetch if arriving with ?topic= and no cached result
 	useEffect(() => {
-		if (initialTopic) {
-			fetchInfo(initialTopic, initialLanguage);
+		if (urlTopic && !result) {
+			setTopic(urlTopic);
+			if (urlLanguage) setLanguage(urlLanguage);
+			fetchInfo(urlTopic, urlLanguage ?? "en");
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -209,9 +214,9 @@ export function DiseaseClient() {
 							<h2 className="font-heading text-xl font-bold text-foreground sm:text-2xl">
 								{result.name}
 							</h2>
-							<p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-								{result.description}
-							</p>
+							<div className="prose prose-sm mt-2 max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:text-muted-foreground">
+								<ReactMarkdown remarkPlugins={[remarkGfm]}>{result.description}</ReactMarkdown>
+							</div>
 						</div>
 
 						{/* Symptoms */}
@@ -221,7 +226,9 @@ export function DiseaseClient() {
 									{result.symptoms.map((s, i) => (
 										<li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
 											<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-rose-500/60" />
-											{s}
+											<span className="prose prose-sm max-w-none prose-p:my-0 prose-strong:text-foreground">
+												<ReactMarkdown remarkPlugins={[remarkGfm]}>{s}</ReactMarkdown>
+											</span>
 										</li>
 									))}
 								</ul>
@@ -235,7 +242,9 @@ export function DiseaseClient() {
 									{result.causes.map((c, i) => (
 										<li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
 											<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500/60" />
-											{c}
+											<span className="prose prose-sm max-w-none prose-p:my-0 prose-strong:text-foreground">
+												<ReactMarkdown remarkPlugins={[remarkGfm]}>{c}</ReactMarkdown>
+											</span>
 										</li>
 									))}
 								</ul>
@@ -249,7 +258,9 @@ export function DiseaseClient() {
 									{result.prevention.map((p, i) => (
 										<li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
 											<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-emerald-500/60" />
-											{p}
+											<span className="prose prose-sm max-w-none prose-p:my-0 prose-strong:text-foreground">
+												<ReactMarkdown remarkPlugins={[remarkGfm]}>{p}</ReactMarkdown>
+											</span>
 										</li>
 									))}
 								</ul>
@@ -263,7 +274,9 @@ export function DiseaseClient() {
 									{result.treatment.map((t, i) => (
 										<li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
 											<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-purple-500/60" />
-											{t}
+											<span className="prose prose-sm max-w-none prose-p:my-0 prose-strong:text-foreground">
+												<ReactMarkdown remarkPlugins={[remarkGfm]}>{t}</ReactMarkdown>
+											</span>
 										</li>
 									))}
 								</ul>
@@ -273,9 +286,11 @@ export function DiseaseClient() {
 						{/* When to See a Doctor */}
 						{result.whenToSeeDoctor && (
 							<InfoSection icon={ListChecks} iconColor="text-blue-500" title="When to See a Doctor">
-								<p className="text-sm leading-relaxed text-muted-foreground">
-									{result.whenToSeeDoctor}
-								</p>
+								<div className="prose prose-sm max-w-none text-muted-foreground prose-p:my-0 prose-strong:text-foreground">
+									<ReactMarkdown remarkPlugins={[remarkGfm]}>
+										{result.whenToSeeDoctor}
+									</ReactMarkdown>
+								</div>
 							</InfoSection>
 						)}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type ChangeEvent } from "react";
+import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import { Search, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DoctorSearchParams } from "@/types/doctor";
@@ -39,26 +39,95 @@ const SORT_OPTIONS = [
 	{ value: "name", label: "Name" },
 ] as const;
 
+/** Debounce delay for the search input (ms) */
+const SEARCH_DEBOUNCE_MS = 400;
+
 /* ------------------------------------------------------------------ */
-/*  Component                                                         */
+/*  DebouncedSearchInput — uncontrolled with debounced emit           */
+/* ------------------------------------------------------------------ */
+
+interface DebouncedSearchInputProps {
+	/** Starting value — only read on mount (use `key` to reinitialise) */
+	initialValue: string;
+	/** Called after SEARCH_DEBOUNCE_MS of inactivity */
+	onDebouncedChange: (value: string) => void;
+	placeholder?: string;
+	className?: string;
+}
+
+function DebouncedSearchInput({
+	initialValue,
+	onDebouncedChange,
+	placeholder,
+	className,
+}: DebouncedSearchInputProps) {
+	const [text, setText] = useState(initialValue);
+	const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+	const handleChange = useCallback(
+		(e: ChangeEvent<HTMLInputElement>) => {
+			const v = e.target.value;
+			setText(v);
+
+			if (timerRef.current) clearTimeout(timerRef.current);
+			timerRef.current = setTimeout(() => {
+				onDebouncedChange(v);
+			}, SEARCH_DEBOUNCE_MS);
+		},
+		[onDebouncedChange],
+	);
+
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			if (timerRef.current) clearTimeout(timerRef.current);
+		};
+	}, []);
+
+	return (
+		<input
+			type="text"
+			value={text}
+			onChange={handleChange}
+			placeholder={placeholder}
+			className={className}
+		/>
+	);
+}
+
+/* ------------------------------------------------------------------ */
+/*  DoctorFilters                                                     */
 /* ------------------------------------------------------------------ */
 
 interface DoctorFiltersProps {
 	params: DoctorSearchParams;
 	onChange: (params: Partial<DoctorSearchParams>) => void;
 	onReset?: () => void;
+	/** Incrementing key to force-reset the debounced search input */
+	searchResetKey?: number;
 }
 
-export function DoctorFilters({ params, onChange, onReset }: DoctorFiltersProps) {
+export function DoctorFilters({
+	params,
+	onChange,
+	onReset,
+	searchResetKey = 0,
+}: DoctorFiltersProps) {
 	const handleInput = useCallback(
 		(field: keyof DoctorSearchParams) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
 			const raw = e.target.value;
-			// Convert number fields
 			if (field === "minFee" || field === "maxFee") {
 				onChange({ [field]: raw === "" ? undefined : Number(raw), page: 1 });
 			} else {
 				onChange({ [field]: raw || undefined, page: 1 });
 			}
+		},
+		[onChange],
+	);
+
+	const handleSearchDebounced = useCallback(
+		(value: string) => {
+			onChange({ search: value || undefined, page: 1 });
 		},
 		[onChange],
 	);
@@ -88,13 +157,13 @@ export function DoctorFilters({ params, onChange, onReset }: DoctorFiltersProps)
 			</div>
 
 			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-				{/* Free-text search */}
+				{/* Free-text search — debounced */}
 				<div className="relative sm:col-span-2 lg:col-span-4">
 					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-					<input
-						type="text"
-						value={params.search ?? ""}
-						onChange={handleInput("search")}
+					<DebouncedSearchInput
+						key={`search-${searchResetKey}`}
+						initialValue={params.search ?? ""}
+						onDebouncedChange={handleSearchDebounced}
 						placeholder="Search by name, qualification…"
 						className={cn(inputClass, "pl-9")}
 					/>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, type FormEvent } from "react";
+import { useState, useCallback, useEffect, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSessionState } from "@/hooks/useSessionState";
 import { useDrugInteraction } from "@/hooks/useHealthTools";
 import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tools/AnalysisResult";
 import { Button } from "@/components/ui/Button";
@@ -14,24 +15,26 @@ import { cn } from "@/lib/utils";
 
 export function DrugInteractionClient() {
 	const searchParams = useSearchParams();
+	const urlMedicines = searchParams.get("medicines");
 
-	// Pre-fill from URL (?medicines=Paracetamol,Amoxicillin)
-	const initialMedicines = (() => {
-		const param = searchParams.get("medicines");
-		if (param) {
-			const list = param
+	const [medicines, setMedicines] = useSessionState<string[]>("ng:drug-interaction:medicines", [
+		"",
+		"",
+	]);
+	const { result, isLoading, error, checkInteraction, reset } = useDrugInteraction();
+
+	// Pre-fill from URL (?medicines=Paracetamol,Amoxicillin) only on fresh navigation
+	useEffect(() => {
+		if (urlMedicines && !result) {
+			const list = urlMedicines
 				.split(",")
 				.map((m) => decodeURIComponent(m).trim())
 				.filter(Boolean);
-			// Ensure at least 2 slots
 			while (list.length < 2) list.push("");
-			return list;
+			setMedicines(list);
 		}
-		return ["", ""];
-	})();
-
-	const [medicines, setMedicines] = useState<string[]>(initialMedicines);
-	const { result, isLoading, error, checkInteraction, reset } = useDrugInteraction();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const handleChange = useCallback((index: number, value: string) => {
 		setMedicines((prev) => {

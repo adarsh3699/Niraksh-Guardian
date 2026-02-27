@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSessionState } from "@/hooks/useSessionState";
 import { useMedicineAnalysis } from "@/hooks/useHealthTools";
 import { FileUploadZone } from "@/components/health-tools/FileUploadZone";
 import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tools/AnalysisResult";
@@ -15,15 +16,16 @@ import { cn } from "@/lib/utils";
 
 export function MedicineClient() {
 	const searchParams = useSearchParams();
-	const initialName = searchParams.get("name") ?? "";
-	const [name, setName] = useState(initialName);
+	const urlName = searchParams.get("name");
+	const [name, setName] = useSessionState("ng:medicine:name", urlName ?? "");
 	const [files, setFiles] = useState<File[]>([]);
 	const { result, isLoading, error, analyze, reset } = useMedicineAnalysis();
 
-	// Auto-search if ?name= is provided
+	// Auto-search if ?name= is provided and no cached result
 	useEffect(() => {
-		if (initialName) {
-			analyze(initialName);
+		if (urlName && !result) {
+			setName(urlName);
+			analyze(urlName);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
