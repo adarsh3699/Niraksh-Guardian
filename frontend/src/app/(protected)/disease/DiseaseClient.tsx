@@ -86,7 +86,7 @@ export function DiseaseClient() {
 		reset();
 		setTopic("");
 		setLanguage("en");
-	}, [reset]);
+	}, [reset, setTopic, setLanguage]);
 
 	const handleFindDoctors = useCallback(() => {
 		if (!result?.name) return;

@@ -419,16 +419,56 @@ Priority: High
 
 ---
 
+## Phase 12 – Disease Info DB Caching (New)
+
+### Task 12.1 – Prisma Schema & Migration
+
+Priority: High
+
+- [x] Add `DiseaseInfoCache` model to `schema.prisma`:
+    - `id` (UUID, PK), `topic` (String, normalized lowercase), `language` (String, default "en")
+    - `response` (Json — full Gemini response), `createdAt`, `expiresAt`
+    - `@@unique([topic, language])` composite index
+    - `@@index([expiresAt])` for cleanup
+    - `@@map("disease_info_cache")`
+- [x] Run `prisma migrate dev --name add-disease-info-cache`
+- [x] Run `prisma generate`
+
+### Task 12.2 – Update Education Controller
+
+Priority: High
+
+- [x] Add `refresh` param to `educationSchema` (optional boolean)
+- [x] Modify `getEducationController` to implement cache-aside pattern:
+    1. Normalize topic: `topic.trim().toLowerCase()`
+    2. Check DB: `DiseaseInfoCache.findUnique({ where: { topic_language: { topic, language } } })`
+    3. If cache hit AND `expiresAt > now` AND `!refresh` → return cached `response`
+    4. If cache miss OR expired OR `refresh=true` → call Gemini `getDiseaseInfo()`
+    5. Upsert cache: `DiseaseInfoCache.upsert({ create: ..., update: { response, expiresAt: now + 30 days } }`
+    6. Return response
+- [x] Add logging for cache hit/miss (`logger.info({ cacheHit: true/false, topic })`)
+
+### Task 12.3 – Validation Schema Update
+
+Priority: Medium
+
+- [x] Update `educationSchema` to accept optional `refresh` query param (boolean)
+
+Milestone: Disease info served from DB cache, Gemini called only on miss/expiry/refresh
+
+---
+
 ## Final Deliverables
 
-- [ ] Fully working backend
-- [ ] Secure authentication & Rate Limiting
-- [ ] **Smart Symptom Intelligence (Text + Image)**
-- [ ] **Enhanced Doctor Recommendation**
-- [ ] **Personal Health Dashboard with Risk Score**
-- [ ] **Emergency Mode**
-- [ ] **AI Health Report Generator (PDF)**
-- [ ] **Multi-Language Support**
-- [ ] Chat System
-- [ ] Health Tools History
-- [ ] Production-ready configuration
+- [x] Fully working backend
+- [x] Secure authentication & Rate Limiting
+- [x] **Smart Symptom Intelligence (Text + Image)**
+- [x] **Enhanced Doctor Recommendation**
+- [x] **Personal Health Dashboard with Risk Score**
+- [x] **Emergency Mode**
+- [x] **AI Health Report Generator (PDF)**
+- [x] **Multi-Language Support**
+- [x] Chat System
+- [x] Health Tools History
+- [x] Production-ready configuration
+- [x] **Disease Info DB Caching (30-day TTL)**

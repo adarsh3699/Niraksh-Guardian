@@ -385,3 +385,16 @@ Dynamically recommends doctors based on **Smart Symptom Intelligence**.
 
 - **Disease Education Mode**: Detailed info on predicted diseases (Causes, Prevention, Diet).
 - **Home Remedies**: AI-suggested safe home care advice for mild issues.
+
+### 12.6 Disease Info Caching (New)
+
+- **Problem**: Disease info is identical for all users. Calling Gemini per-request is wasteful (cost + latency).
+- **Solution**: DB-level cache with 30-day TTL. First request generates via Gemini → stored in `disease_info_cache` table. All subsequent requests for the same topic+language serve from DB (<100ms vs 2-5s).
+- **Cache Key**: Normalized `topic` (lowercase, trimmed) + `language` code.
+- **TTL**: 30 days. After expiry, next request triggers Gemini regeneration.
+- **On-Demand Refresh**: `?refresh=true` param forces regeneration (useful after prompt updates).
+- **Shared Cache**: One entry per topic+language, served to all users (no user-specific data).
+
+Main Tables (updated):
+
+- disease_info_cache (new)

@@ -210,3 +210,16 @@ model PatientHealthProfile {
 
   @@map("patient_health_profiles")
 }
+
+model DiseaseInfoCache {
+  id        String   @id @default(uuid())
+  topic     String
+  language  String   @default("en")
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@unique([topic, language])
+  @@index([expiresAt])
+  @@map("disease_info_cache")
+}

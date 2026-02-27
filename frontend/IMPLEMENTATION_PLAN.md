@@ -451,7 +451,7 @@ pnpm add -D @types/node @types/react @types/react-dom
   - "When to See a Doctor" section
 - [x] "Find Related Doctors" button → navigates to `/doctor-suggest?condition=<disease>`
 - [x] Pre-fill from URL search params (`?topic=Cold&language=en`) when linked from HomePage disease cards
-- [x] Session storage caching (result persists across navigations within the same tab session)
+- [x] Server-side DB caching (30-day TTL, shared across all users — backend handles cache-aside pattern, no frontend change needed)
 
 ### 7.5.2 HomePage Integration
 

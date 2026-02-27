@@ -273,3 +273,34 @@ Fields:
 - report_url (VARCHAR) // Cloudinary/S3 URL
 - summary (JSON)
 - created_at (TIMESTAMP)
+
+---
+
+# 13. Disease Info Cache (New)
+
+Purpose:
+Caches AI-generated disease information to avoid redundant Gemini API calls. Shared across all users — same disease returns identical data. Auto-expires after 30 days, after which the next request regenerates from Gemini.
+
+Fields:
+
+- id (UUID, Primary Key)
+- topic (VARCHAR) // Normalized: lowercase, trimmed (e.g. "diabetes")
+- language (VARCHAR, default 'en') // Language code: en, hi, bn, te, mr, etc.
+- response (JSON) // Full Gemini response (name, description, symptoms, causes, prevention, treatment, whenToSeeDoctor)
+- created_at (TIMESTAMP)
+- expires_at (TIMESTAMP) // created_at + 30 days
+
+Indexes:
+
+- Unique composite index on (topic, language) — one cache per topic+language combo
+- Index on expires_at — for cleanup queries
+
+Flow:
+
+1. Request arrives: `GET /api/disease/info?topic=Diabetes&language=en`
+2. Normalize key: `topic = "diabetes"`, `language = "en"`
+3. Check DB: `DiseaseInfoCache.findUnique({ topic, language })`
+4. IF found AND `expiresAt > now()` → return cached `response` (instant, no Gemini cost)
+5. IF found AND expired → call Gemini → `update` cache with new response + new `expiresAt`
+6. IF not found → call Gemini → `create` new cache entry with `expiresAt = now + 30 days`
+7. Optional `?refresh=true` query param → force regeneration regardless of cache status

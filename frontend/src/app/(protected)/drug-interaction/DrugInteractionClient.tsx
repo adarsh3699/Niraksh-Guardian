@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, type FormEvent } from "react";
+import { useCallback, useEffect, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useDrugInteraction } from "@/hooks/useHealthTools";
@@ -36,24 +36,30 @@ export function DrugInteractionClient() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const handleChange = useCallback((index: number, value: string) => {
-		setMedicines((prev) => {
-			const next = [...prev];
-			next[index] = value;
-			return next;
-		});
-	}, []);
+	const handleChange = useCallback(
+		(index: number, value: string) => {
+			setMedicines((prev) => {
+				const next = [...prev];
+				next[index] = value;
+				return next;
+			});
+		},
+		[setMedicines],
+	);
 
 	const handleAdd = useCallback(() => {
 		setMedicines((prev) => [...prev, ""]);
-	}, []);
+	}, [setMedicines]);
 
-	const handleRemove = useCallback((index: number) => {
-		setMedicines((prev) => {
-			if (prev.length <= 2) return prev; // Min 2
-			return prev.filter((_, i) => i !== index);
-		});
-	}, []);
+	const handleRemove = useCallback(
+		(index: number) => {
+			setMedicines((prev) => {
+				if (prev.length <= 2) return prev; // Min 2
+				return prev.filter((_, i) => i !== index);
+			});
+		},
+		[setMedicines],
+	);
 
 	const filledCount = medicines.filter((m) => m.trim()).length;
 
@@ -70,7 +76,7 @@ export function DrugInteractionClient() {
 	const handleReset = useCallback(() => {
 		reset();
 		setMedicines(["", ""]);
-	}, [reset]);
+	}, [reset, setMedicines]);
 
 	return (
 		<div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
