@@ -1,96 +1,306 @@
-# Niraksh-Guardian
+# 🛡️ Niraksh-Guardian
 
-<div align="center">
-  <h3>AI-powered healthcare guidance for better health decisions</h3>
-</div>
+**AI-Assisted Healthcare Understanding & Guidance Platform**
 
-## 🌟 About the Project
+Niraksh-Guardian is an intelligent digital health companion designed to help individuals understand symptoms early, interpret medical information clearly, and navigate toward appropriate healthcare decisions with confidence.
 
-Niraksh-Guardian is a pioneering, open-source healthcare platform designed to democratize access to instant medical insights. Bridging the gap between initial health uncertainty and professional medical care, it provides users with a safe, intelligent, and highly interactive environment to understand their health better.
+It bridges the gap between personal health concern and professional medical care through guided understanding, explainable AI insights, and contextual doctor recommendations.
 
-Niraksh-Guardian acts as your personal health advocate—analyzing symptoms, decoding complex medical jargon, checking for dangerous drug interactions, and ultimately routing you to the most relevant healthcare professionals in your vicinity so you can easily take the right next steps.
+---
 
-## 🎯 Our Goal
+# 🌍 Problem Statement
 
-The healthcare journey is often overwhelming, filled with medical jargon, generalized internet search results, and uncertainty about who to consult. Our goal is to solve the anxiety of the "unknown" by providing immediate, personalized, and actionable health clarity. We want to empower users to make informed decisions confidently, reduce the risk of accidental medication interactions, and ensure they reach the precise specialist they need without delay.
+Millions of people experience symptoms daily but struggle to interpret them correctly.
+Before reaching a healthcare professional, individuals often face:
 
-## 🚀 Innovative Features
+- Uncertainty about symptom meaning
+- Confusion about which specialist to consult
+- Misinterpretation of prescriptions
+- Anxiety driven by internet self-diagnosis
+- Lack of accessible health literacy
 
-- **🧠 Smart Symptom Intelligence:** Instead of matching broad keywords, our platform acts like a triage nurse. Tell it what you're experiencing, and it will analyze the combination of your symptoms to help identify possible conditions, assess how urgently you need care (Home Care vs. ER), and suggest the right specialist to see.
-- **📸 Vision-Based Medical Analysis:** Medical documents are notoriously hard to read. You can seamlessly snap a photo of a confusing prescription, a medicine box, or even a visible skin concern, and the platform will instantly break down the contents into clear, easy-to-understand explanations.
-- **⚠️ Drug-Drug Safety Checker:** Mixing medications can be dangerous. Our lifesaver tool allows you to input multiple medications and instantly receives easy-to-understand warnings about potential side effects or dangerous interactions before you take them.
-- **🗺️ Intelligent Doctor Routing:** We don't just show you a list of doctors. Our system intelligently understands your unique medical symptoms, looks at your location, and finds the highest-rated specialists best equipped to handle your specific condition, ensuring you get the right care, faster.
-- **📊 Comprehensive Health Dashboard:** Keeping track of health history is tedious. Your dashboard acts as a central hub that calculates a real-time Health Risk Score based on your ongoing conditions, maintains a visual timeline of your interactions, and can generate clean, summarized PDF reports to hand directly to your real-world doctor.
+Current behavior typically follows:
 
-## 🏗️ Project Structure
+**Symptoms → Internet Search → Fear/Misinformation → Delayed or Wrong Care**
 
-This repository is organized as a monorepo containing both the frontend and backend applications.
+This gap between symptom awareness and professional consultation contributes to:
+
+- Late diagnosis
+- Incorrect self-treatment
+- Healthcare system overload
+- Patient anxiety
+- Poor health literacy
+
+---
+
+# 🔎 Existing Solutions & Limitations
+
+## Search Engines & Health Articles
+
+Provide information but not personalized interpretation.
+Users must self-translate symptoms into medical meaning.
+
+## Symptom Checker Apps
+
+Often rigid, questionnaire-based, and clinical.
+They lack conversational flexibility and explainability.
+
+## Telemedicine Platforms
+
+Require prior decision about which doctor to consult.
+They do not help users decide _which_ specialist is appropriate.
+
+## AI Chatbots
+
+Offer generic responses without structured health reasoning or safety framing.
+
+**Gap:**
+There is no guided system that converts natural symptom expression into understandable health direction and specialist guidance.
+
+---
+
+# 🎯 Target Users & Gap Analysis
+
+## Target Users
+
+- Individuals experiencing new or unclear symptoms
+- People unsure which doctor to consult
+- Patients trying to understand prescriptions
+- Health-aware users seeking early insight
+- Students and young professionals with limited health literacy
+
+## Core Gap
+
+Users need a system that:
+
+- Accepts natural symptom description
+- Interprets health context safely
+- Explains possible meaning clearly
+- Suggests appropriate specialists
+- Encourages timely professional care
+
+Niraksh-Guardian addresses this missing layer between concern and consultation.
+
+---
+
+# 💡 Proposed Solution
+
+Niraksh-Guardian is an AI-assisted health understanding platform that transforms personal health signals into guided medical direction.
+
+It allows users to:
+
+- Describe symptoms naturally
+- Receive structured health insights
+- Understand possible conditions
+- Learn urgency context
+- Discover relevant specialists
+- Interpret prescriptions and medicines
+
+The system acts as an **early health interpreter**, not a diagnosis tool.
+
+---
+
+# ✨ Unique Value Proposition
+
+## 🧠 Guided Symptom Interpretation
+
+Users describe symptoms in everyday language and receive structured, understandable insights about possible meaning and urgency.
+
+## 👨‍⚕️ Contextual Doctor Guidance
+
+Instead of searching by specialty, users receive specialist suggestions linked directly to their symptoms with clear reasoning.
+
+## 💬 Conversational Health Understanding
+
+Health concerns are explored through natural interaction, making medical interpretation accessible without jargon.
+
+## 💊 Medical Clarity Layer
+
+Prescriptions and drug information are translated into understandable explanations, improving medication awareness.
+
+## 🔎 Multi-Entry Health Exploration
+
+Users can begin from symptoms, chat, medicine, or condition exploration — reflecting real-world health journeys.
+
+---
+
+# 🧭 Expected Outcomes
+
+If widely adopted, Niraksh-Guardian can:
+
+- Improve early symptom awareness
+- Reduce health misinformation
+- Increase appropriate specialist consultation
+- Reduce anxiety from self-diagnosis
+- Improve medication understanding
+- Support preventive healthcare behavior
+
+It encourages earlier and more informed healthcare decisions.
+
+---
+
+# 🏗️ Technical Architecture (High Level)
 
 ```
-Niraksh-Guardian/
-├── frontend/               # Next.js 15 App Router application
-├── backend/                # Node.js + Express API server
-└── README.md               # Project overview (this file)
+User Interface (Web App)
+        ↓
+AI-Assisted Health Interpretation Layer
+        ↓
+Medical Knowledge & Specialist Mapping
+        ↓
+Secure Backend Services
+        ↓
+Health Data & User Context
 ```
 
-## 💻 Technology Stack
+The architecture separates:
 
-### Frontend
+- User interaction
+- Health reasoning
+- Specialist mapping
+- Secure services
 
-- Next.js 15 (App Router with RSC support)
-- TypeScript
-- Tailwind CSS v4 (CSS-first Design System)
-- SWR (Client-side Data Fetching & Caching)
-- React Hook Form + Zod (Rigorous Validation)
+to ensure scalability and safety.
 
-### Backend
+---
 
-- Node.js + Express
-- TypeScript
-- PostgreSQL (via Prisma ORM) + Redis
-- Google Gemini API (AI Analysis & Vision)
-- AWS SES/SNS (Bounced Email Handling) & Cloudinary (Assets)
+# 💻 Technology Stack (Overview)
 
-## 🏁 Getting Started
+**Frontend**
+Modern web interface with responsive, guided health flows.
 
-To run the complete platform locally, you will need to start both the backend and frontend servers. Ensure you have `pnpm` installed.
+**Backend**
+Secure service architecture with authentication and data management.
 
-### 1. Backend Setup
+**AI Layer**
+Large language models for symptom interpretation and conversational guidance.
 
-Follow the detailed instructions in the [Backend README](./backend/README.md) to install dependencies, configure environment variables, run migrations, and start the API server.
+**Data Layer**
+Structured medical and user context storage.
 
-```bash
-cd backend
-pnpm install
-pnpm prisma generate
-pnpm prisma migrate dev
-pnpm dev
-```
+**Cloud Services**
+Secure hosting, storage, and communication services.
 
-### 2. Frontend Setup
+---
 
-Follow the instructions in the [Frontend README](./frontend/README.md) to configure the API URL and start the web application.
+# 🚀 Implementation Strategy
 
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
+The project follows an iterative build approach:
 
-## 📚 Documentation & Architecture
+**Phase 1 — Core Health Understanding**
+Symptom input and interpretation flows.
 
-For a deeper dive into the architecture, design decisions, and data flows, please refer to our detailed core system documents:
+**Phase 2 — Specialist Guidance**
+Doctor mapping and recommendation.
 
-- [Frontend System Design](./frontend/SYSTEM_DESIGN.md)
-- [Frontend Web Flow](./frontend/WEB_FLOW.md)
-- [Frontend Data Flow](./frontend/DATA_FLOW.md)
-- [Backend System Design](./backend/SYSTEM_DESIGN.md)
-- [Backend Database Schema](./backend/DATABASE_SCHEMA.md)
+**Phase 3 — Conversational Assistance**
+Interactive health dialogue.
 
-## 🤝 Contributing
+**Phase 4 — Medication & Prescription Clarity**
+Drug and prescription understanding.
 
-Contributions are welcome! Please make sure to follow the established code conventions, include tests for new features, and update relevant documentation. We aim to keep the codebase innovative and highly performant.
+**Phase 5 — Personal Health Context**
+User history and reports.
 
-## 📄 License
+This staged approach ensures progressive validation and usability testing.
 
-This project is licensed under the MIT License.
+---
+
+# ⚠️ Risk Assessment
+
+## Medical Misinterpretation Risk
+
+Mitigation: Structured outputs and safety framing.
+
+## User Over-Reliance
+
+Mitigation: Clear medical disclaimers and professional consultation prompts.
+
+## AI Hallucination Risk
+
+Mitigation: Controlled health prompts and bounded responses.
+
+## Privacy Concerns
+
+Mitigation: Secure authentication and protected data handling.
+
+## Adoption Barrier
+
+Mitigation: Conversational, accessible UX.
+
+---
+
+# 📈 Problem Relevance
+
+Early symptom interpretation is a universal need across demographics and geographies.
+
+Healthcare access often begins with personal interpretation before professional care.
+
+Improving this stage can influence:
+
+- Preventive care behavior
+- Timely diagnosis
+- Health literacy
+- System efficiency
+
+The problem is globally relevant and persistent.
+
+---
+
+# 🌟 Innovation
+
+Niraksh-Guardian introduces a new layer in digital health:
+
+**Symptom → Understanding → Specialist Direction**
+
+instead of:
+
+**Symptom → Information Search → Confusion**
+
+Key innovation aspects:
+
+- Natural language symptom interpretation
+- Explainable specialist mapping
+- Guided health reasoning
+- Multi-context health entry
+- Human-centric health UX
+
+It reframes health exploration from search to guidance.
+
+---
+
+# 🧪 Feasibility
+
+The system is feasible because:
+
+- AI models can interpret natural language symptoms
+- Specialist mapping is structured and scalable
+- Web platforms enable accessible deployment
+- Modular architecture supports growth
+- Privacy-safe health context storage is achievable
+
+The project is technically implementable and incrementally expandable.
+
+---
+
+# 🩺 Ethical Position
+
+Niraksh-Guardian does not diagnose or replace medical professionals.
+
+It supports informed healthcare navigation and encourages professional consultation.
+
+---
+
+# 🛡️ Medical Disclaimer
+
+Niraksh-Guardian provides informational health guidance only and does not replace professional medical diagnosis or treatment.
+
+Users should always consult qualified healthcare professionals for medical decisions.
+
+---
+
+# 🌱 Vision
+
+Niraksh-Guardian aims to become a trusted digital health companion that helps individuals understand symptoms early and move confidently toward appropriate medical care.
+
+It represents a shift from reactive healthcare search to proactive health understanding.
