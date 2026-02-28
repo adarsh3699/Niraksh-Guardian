@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Instagram, Github, Linkedin, Phone, Mail, MapPin } from "lucide-react";
 
@@ -41,8 +42,17 @@ export function Footer() {
 				<div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.8fr_1fr_1fr_1.2fr]">
 					{/* ---- Brand ---- */}
 					<div>
-						<Link href="/" className="font-heading text-xl font-bold text-primary">
-							Niraksh Guardian
+						<Link href="/" className="flex items-center gap-3">
+							<Image
+								src="/brandLogo.png"
+								alt="Niraksh Guardian Logo"
+								width={40}
+								height={40}
+								className="size-14"
+							/>
+							<span className="font-heading text-xl font-bold tracking-tight text-primary">
+								Niraksh Guardian
+							</span>
 						</Link>
 						<p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
 							Your trusted AI-powered health assistant — symptom analysis, medicine info, and

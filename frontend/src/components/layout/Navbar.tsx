@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, LogOut, LogIn } from "lucide-react";
@@ -45,12 +46,21 @@ export function Navbar() {
 						>
 							<Menu className="size-5" />
 						</button>
-
 						<Link
 							href="/"
-							className="font-heading text-xl font-bold tracking-tight text-primary transition-transform hover:-translate-y-0.5"
+							className="flex items-center gap-2 transition-transform hover:-translate-y-0.5"
 						>
-							Niraksh Guardian
+							<Image
+								src="/brandLogo.png"
+								alt="Niraksh Guardian Logo"
+								width={32}
+								height={32}
+								className="size-8"
+								priority
+							/>
+							<span className="font-heading text-xl font-bold tracking-tight text-primary">
+								Niraksh
+							</span>
 						</Link>
 					</div>
 

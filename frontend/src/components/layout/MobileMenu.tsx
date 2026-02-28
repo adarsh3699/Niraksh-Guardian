@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -87,7 +88,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 			{/* Backdrop */}
 			<div
 				className={cn(
-					"fixed inset-0 z-[998] bg-black/50 backdrop-blur-[3px] transition-opacity duration-300",
+					"fixed inset-0 z-[1001] bg-black/50 backdrop-blur-[3px] transition-opacity duration-300",
 					open ? "opacity-100" : "pointer-events-none opacity-0",
 				)}
 				onClick={onClose}
@@ -101,15 +102,22 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 				aria-modal="true"
 				aria-label="Navigation menu"
 				className={cn(
-					"fixed top-0 left-0 z-[999] flex h-full min-w-[300px] flex-col bg-surface shadow-xl",
+					"fixed top-0 left-0 z-[1002] flex h-full min-w-[300px] flex-col bg-surface shadow-xl",
 					"transition-transform duration-400 ease-[cubic-bezier(0.19,1,0.22,1)]",
 					open ? "translate-x-0" : "-translate-x-full",
 				)}
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between border-b border-border px-5 py-4">
-					<Link href="/" onClick={onClose} className="font-heading text-lg font-bold text-primary">
-						Niraksh Guardian
+					<Link href="/" onClick={onClose} className="flex items-center gap-2">
+						<Image
+							src="/brandLogo.png"
+							alt="Niraksh Guardian Logo"
+							width={32}
+							height={32}
+							className="size-8"
+						/>
+						<span className="font-heading text-lg font-bold text-primary">Niraksh</span>
 					</Link>
 					<button
 						ref={closeRef}
@@ -120,7 +128,6 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 						<X className="size-5" />
 					</button>
 				</div>
-
 				{/* User banner (when logged in) */}
 				{isAuthenticated && user && (
 					<div className="border-b border-border px-5 py-3">
@@ -128,7 +135,6 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 						<p className="text-xs text-muted">{user.email}</p>
 					</div>
 				)}
-
 				{/* Nav links */}
 				<nav className="flex-1 overflow-y-auto px-3 py-4">
 					<ul className="flex flex-col gap-1">
@@ -155,7 +161,6 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 						})}
 					</ul>
 				</nav>
-
 				{/* Bottom action */}
 				<div className="border-t border-border px-5 py-4">
 					{isAuthenticated ? (

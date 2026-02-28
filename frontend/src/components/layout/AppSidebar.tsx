@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,7 +17,6 @@ import {
 	FileBarChart,
 	LogOut,
 	X,
-	Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthProvider";
@@ -57,10 +57,18 @@ export function AppSidebar() {
 		<aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
 			{/* Logo */}
 			<div className="flex items-center gap-3 p-6">
-				<div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light shadow-lg shadow-primary/20">
-					<Shield className="size-5 text-white" />
-				</div>
-				<Link href="/" className="font-heading text-xl font-bold tracking-tight text-foreground">
+				<Image
+					src="/brandLogo.png"
+					alt="Niraksh Guardian Logo"
+					width={40}
+					height={40}
+					priority
+					className="size-10"
+				/>
+				<Link
+					href="/dashboard"
+					className="font-heading text-xl font-bold tracking-tight text-foreground"
+				>
 					Niraksh
 				</Link>
 			</div>
@@ -187,9 +195,13 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
 				{/* Header */}
 				<div className="flex items-center justify-between p-5">
 					<div className="flex items-center gap-3">
-						<div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light shadow-lg shadow-primary/20">
-							<Shield className="size-5 text-white" />
-						</div>
+						<Image
+							src="/brandLogo.png"
+							alt="Niraksh Guardian Logo"
+							width={32}
+							height={32}
+							className="size-10"
+						/>
 						<span className="font-heading text-lg font-bold text-foreground">Niraksh</span>
 					</div>
 					<button

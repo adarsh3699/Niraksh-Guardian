@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Shield } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { loginSchema, type LoginFormData } from "@/lib/validations";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
@@ -75,11 +76,15 @@ export function LoginForm() {
 
 				<div className="relative z-10 w-full max-w-md">
 					{/* Mobile branding */}
-					<div className="mb-6 flex items-center gap-2 lg:hidden">
-						<div className="flex size-8 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20">
-							<Shield className="size-5 text-white" />
-						</div>
-						<span className="font-heading text-xl font-bold text-primary">Niraksh Guardian</span>
+					<div className="mb-6 flex items-center justify-center gap-3 lg:hidden">
+						<Image
+							src="/brandLogo.png"
+							alt="Niraksh Guardian Logo"
+							width={40}
+							height={40}
+							className="size-10"
+						/>
+						<span className="font-heading text-2xl font-bold text-foreground">Niraksh</span>
 					</div>
 
 					{/* Form card */}

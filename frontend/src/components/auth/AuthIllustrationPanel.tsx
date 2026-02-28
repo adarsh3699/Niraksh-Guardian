@@ -1,4 +1,4 @@
-import { Shield } from "lucide-react";
+import Image from "next/image";
 
 interface AuthIllustrationPanelProps {
 	/** Heading text — supports JSX for line breaks / gradient spans */
@@ -30,8 +30,14 @@ export function AuthIllustrationPanel({
 			<div className="relative z-10 flex max-w-md flex-col items-center text-center">
 				{/* Branding */}
 				<div className="mb-8 flex items-center gap-3">
-					<div className="flex size-12 items-center justify-center rounded-xl bg-white/20 shadow-lg shadow-black/10 backdrop-blur-md">
-						<Shield className="size-7 text-white" />
+					<div className="flex size-12 items-center justify-center rounded-xl bg-white p-1.5 shadow-lg shadow-black/10">
+						<Image
+							src="/brandLogo.png"
+							alt="Niraksh Guardian Logo"
+							width={48}
+							height={48}
+							className="size-full object-contain"
+						/>
 					</div>
 					<span className="font-heading text-3xl font-bold tracking-tight text-white">
 						Niraksh Guardian
