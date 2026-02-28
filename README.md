@@ -1,173 +1,96 @@
-# Niraksh 2.0 - Smart Healthcare Platform
+# Niraksh-Guardian
 
 <div align="center">
-  <img src="frontend/src/assets/brandLogo.png" alt="Niraksh Logo" width="150">
-  <br>
   <h3>AI-powered healthcare guidance for better health decisions</h3>
 </div>
 
-## Overview
+## 🌟 About the Project
 
-Niraksh 2.0 is a comprehensive healthcare platform designed to help users navigate health concerns through AI-powered analysis and doctor recommendations. The platform combines intuitive user interfaces with advanced natural language processing to understand symptoms and provide relevant healthcare guidance.
+Niraksh-Guardian is a pioneering, open-source healthcare platform designed to democratize access to instant medical insights. Bridging the gap between initial health uncertainty and professional medical care, it provides users with a safe, intelligent, and highly interactive environment to understand their health better.
 
-### Key Features
+Niraksh-Guardian acts as your personal health advocate—analyzing symptoms, decoding complex medical jargon, checking for dangerous drug interactions, and ultimately routing you to the most relevant healthcare professionals in your vicinity so you can easily take the right next steps.
 
--   **AI Symptom Analysis**: Analyze user symptoms using advanced LLM models to identify potential health conditions
--   **Doctor Recommendation Engine**: Match symptoms with the right medical specialists using both keyword matching and semantic analysis
--   **Interactive Health Assistant**: Converse naturally about health concerns and receive intelligent guidance
--   **Homepage Symptom Search**: Quick entry point for users to start their healthcare journey with a simple search
--   **Responsive Design**: Optimized user experience across all devices
+## 🎯 Our Goal
 
-## Technology Stack
+The healthcare journey is often overwhelming, filled with medical jargon, generalized internet search results, and uncertainty about who to consult. Our goal is to solve the anxiety of the "unknown" by providing immediate, personalized, and actionable health clarity. We want to empower users to make informed decisions confidently, reduce the risk of accidental medication interactions, and ensure they reach the precise specialist they need without delay.
+
+## 🚀 Innovative Features
+
+- **🧠 Smart Symptom Intelligence:** Instead of matching broad keywords, our platform acts like a triage nurse. Tell it what you're experiencing, and it will analyze the combination of your symptoms to help identify possible conditions, assess how urgently you need care (Home Care vs. ER), and suggest the right specialist to see.
+- **📸 Vision-Based Medical Analysis:** Medical documents are notoriously hard to read. You can seamlessly snap a photo of a confusing prescription, a medicine box, or even a visible skin concern, and the platform will instantly break down the contents into clear, easy-to-understand explanations.
+- **⚠️ Drug-Drug Safety Checker:** Mixing medications can be dangerous. Our lifesaver tool allows you to input multiple medications and instantly receives easy-to-understand warnings about potential side effects or dangerous interactions before you take them.
+- **🗺️ Intelligent Doctor Routing:** We don't just show you a list of doctors. Our system intelligently understands your unique medical symptoms, looks at your location, and finds the highest-rated specialists best equipped to handle your specific condition, ensuring you get the right care, faster.
+- **📊 Comprehensive Health Dashboard:** Keeping track of health history is tedious. Your dashboard acts as a central hub that calculates a real-time Health Risk Score based on your ongoing conditions, maintains a visual timeline of your interactions, and can generate clean, summarized PDF reports to hand directly to your real-world doctor.
+
+## 🏗️ Project Structure
+
+This repository is organized as a monorepo containing both the frontend and backend applications.
+
+```
+Niraksh-Guardian/
+├── frontend/               # Next.js 15 App Router application
+├── backend/                # Node.js + Express API server
+└── README.md               # Project overview (this file)
+```
+
+## 💻 Technology Stack
 
 ### Frontend
 
--   **Framework**: React with hooks and memo for optimized performance
--   **Routing**: React Router for seamless navigation
--   **UI Components**: Custom components with modern styling
--   **Styling**: CSS with responsive design patterns
--   **Type Checking**: PropTypes for component validation
+- Next.js 15 (App Router with RSC support)
+- TypeScript
+- Tailwind CSS v4 (CSS-first Design System)
+- SWR (Client-side Data Fetching & Caching)
+- React Hook Form + Zod (Rigorous Validation)
 
 ### Backend
 
--   **Server**: Node.js with Express
--   **APIs**: RESTful endpoints for AI analysis and data processing
--   **AI Integration**: Google Gemini 2.0 API for advanced symptom analysis
--   **Database**: MongoDB for storing doctor and medical data
--   **Authentication**: JWT-based user authentication
+- Node.js + Express
+- TypeScript
+- PostgreSQL (via Prisma ORM) + Redis
+- Google Gemini API (AI Analysis & Vision)
+- AWS SES/SNS (Bounced Email Handling) & Cloudinary (Assets)
 
-## Project Structure
+## 🏁 Getting Started
 
-```
-niraksh_2.0/
-├── frontend/               # React application
-│   ├── src/                # Source code
-│   │   ├── assets/         # Images, icons, and static assets
-│   │   ├── components/     # Reusable React components
-│   │   ├── pages/          # Page components
-│   │   ├── styles/         # CSS files
-│   │   ├── utils/          # Utility functions
-│   │   └── App.jsx         # Main application component
-│   ├── jsonData/           # Doctor and symptom data
-│   └── public/             # Public assets
-│
-├── backend/                # Node.js server
-│   ├── controllers/        # API route controllers
-│   ├── models/             # Database models
-│   ├── routes/             # API routes
-│   ├── utils/              # Helper functions
-│   └── index.js            # Server entry point
-│
-└── README.md               # This documentation
+To run the complete platform locally, you will need to start both the backend and frontend servers. Ensure you have `pnpm` installed.
+
+### 1. Backend Setup
+
+Follow the detailed instructions in the [Backend README](./backend/README.md) to install dependencies, configure environment variables, run migrations, and start the API server.
+
+```bash
+cd backend
+pnpm install
+pnpm prisma generate
+pnpm prisma migrate dev
+pnpm dev
 ```
 
-## Getting Started
+### 2. Frontend Setup
 
-### Prerequisites
+Follow the instructions in the [Frontend README](./frontend/README.md) to configure the API URL and start the web application.
 
--   Node.js (v16+)
--   npm or yarn
--   MongoDB (local or Atlas)
--   Google Gemini API key (for AI features)
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
 
-### Installation
+## 📚 Documentation & Architecture
 
-1. Clone the repository
+For a deeper dive into the architecture, design decisions, and data flows, please refer to our detailed core system documents:
 
-    ```bash
-    git clone https://github.com/yourusername/niraksh_2.0.git
-    cd niraksh_2.0
-    ```
+- [Frontend System Design](./frontend/SYSTEM_DESIGN.md)
+- [Frontend Web Flow](./frontend/WEB_FLOW.md)
+- [Frontend Data Flow](./frontend/DATA_FLOW.md)
+- [Backend System Design](./backend/SYSTEM_DESIGN.md)
+- [Backend Database Schema](./backend/DATABASE_SCHEMA.md)
 
-2. Install frontend dependencies
+## 🤝 Contributing
 
-    ```bash
-    cd frontend
-    npm install
-    ```
+Contributions are welcome! Please make sure to follow the established code conventions, include tests for new features, and update relevant documentation. We aim to keep the codebase innovative and highly performant.
 
-3. Install backend dependencies
+## 📄 License
 
-    ```bash
-    cd ../backend
-    npm install
-    ```
-
-4. Configure environment variables
-
-    - Create a `.env` file in the backend directory based on `.env.example`
-    - Add your Google Gemini API key and MongoDB connection string
-
-5. Start the development servers
-
-    Backend:
-
-    ```bash
-    cd backend
-    npm start
-    ```
-
-    Frontend:
-
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-
-6. Access the application at `http://localhost:5173`
-
-## Key Features Explained
-
-### Doctor Suggestion System
-
-The platform uses a sophisticated system to match patients with appropriate healthcare providers:
-
-1. **Symptom Analysis**: User symptoms are analyzed using two approaches:
-
-    - Semantic analysis using Gemini 2.0 models for nuanced understanding
-    - Keyword matching as a reliable fallback
-
-2. **Doctor Ranking**: Doctors are prioritized based on:
-
-    - Specialty relevance to symptoms
-    - Years of experience
-    - Consultation fees
-
-3. **Interactive UI**: Clear presentation of recommendations with:
-    - Visual indicators for top recommendations
-    - Reasoning explanations for transparency
-    - Filtering options for user preference
-
-### Responsive Design
-
-The interface adapts seamlessly to different screen sizes, ensuring a consistent experience across:
-
--   Desktop computers
--   Tablets
--   Mobile devices
-
-## Contributing
-
-We welcome contributions to Niraksh 2.0! To contribute:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
--   Medical data sourced from verified healthcare databases
--   UI inspiration from leading healthcare platforms
--   Special thanks to all contributors who have helped shape this project
-
----
-
-<div align="center">
-  <p>Made with ❤️ for better healthcare access</p>
-</div>
+This project is licensed under the MIT License.
