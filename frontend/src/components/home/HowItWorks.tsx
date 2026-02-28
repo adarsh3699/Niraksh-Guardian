@@ -35,7 +35,7 @@ const STEPS = [
 
 export function HowItWorks() {
 	return (
-		<section className="mb-[80px] mt-4 py-12">
+		<section id="how-it-works" className="mb-[80px] mt-4 py-12 scroll-mt-24">
 			{/* Header */}
 			<div className="mb-12 text-center">
 				<span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-primary">

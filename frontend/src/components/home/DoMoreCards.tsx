@@ -172,7 +172,7 @@ function ToolCard({ tool, colSpan }: { tool: (typeof TOOLS)[0]; colSpan: "2" | "
 
 export function DoMoreCards() {
 	return (
-		<section className="mb-[80px] mt-16">
+		<section id="tools" className="mb-[80px] mt-16 scroll-mt-24">
 			{/* Section heading */}
 			<div className="mb-10 flex items-end justify-between max-sm:flex-col max-sm:items-start max-sm:gap-3">
 				<div>

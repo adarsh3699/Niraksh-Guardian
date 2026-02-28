@@ -7,10 +7,8 @@ import {
 	Pill,
 	FileText,
 	AlertTriangle,
-	Stethoscope,
 	LayoutDashboard,
 	User,
-	History,
 	Info,
 	type LucideIcon,
 } from "lucide-react";
@@ -75,11 +73,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
 	{ label: "Home", path: "/", icon: Info, requiresAuth: false },
-	{ label: "AI Assistant", path: "/assistance", icon: MessageSquare, requiresAuth: true },
-	{ label: "Doctor Suggest", path: "/doctor-suggest", icon: Stethoscope, requiresAuth: true },
-	{ label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, requiresAuth: true },
-	{ label: "Profile", path: "/profile", icon: User, requiresAuth: true },
-	{ label: "History", path: "/history", icon: History, requiresAuth: true },
+	{ label: "Works", path: "/#how-it-works", icon: FileText, requiresAuth: false },
+	{ label: "Tools", path: "/#tools", icon: LayoutDashboard, requiresAuth: false },
+	{ label: "About", path: "/about", icon: Info, requiresAuth: false },
+	{ label: "Dashboard", path: "/dashboard", icon: User, requiresAuth: true },
 ];
 
 /* ------------------------------------------------------------------ */
