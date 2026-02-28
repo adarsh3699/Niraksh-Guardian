@@ -52,7 +52,7 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="en" suppressHydrationWarning className="scroll-smooth">
 			<head>
 				<link rel="dns-prefetch" href="https://niraksh-guardian-api.vercel.app" />
 				<link

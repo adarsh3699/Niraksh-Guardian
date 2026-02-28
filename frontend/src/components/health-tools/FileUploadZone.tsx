@@ -59,6 +59,8 @@ export function FileUploadZone({
 			onFilesChange(combined);
 
 			// Generate previews for new files
+			// Note: Create object URLs for all files so we can display/download them,
+			// but Next/Image will only work with actual images.
 			const newPreviews = combined.map((file) => URL.createObjectURL(file));
 			// Revoke old blob URLs
 			previews.forEach((p) => URL.revokeObjectURL(p));
@@ -80,7 +82,7 @@ export function FileUploadZone({
 					`File too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`,
 				);
 			} else if (firstError?.code === "file-invalid-type") {
-				setRejectionError("Invalid file type. Please upload an image (JPEG, PNG, or WebP).");
+				setRejectionError("Invalid file type. Please upload a supported file format.");
 			} else if (firstError?.code === "too-many-files") {
 				setRejectionError(`Maximum ${maxFiles} file${maxFiles > 1 ? "s" : ""} allowed.`);
 			} else {
@@ -139,44 +141,55 @@ export function FileUploadZone({
 			{/* Previews */}
 			{previews.length > 0 && (
 				<div className="flex flex-wrap gap-3">
-					{previews.map((preview, i) => (
-						<div
-							key={preview}
-							className="group relative overflow-hidden rounded-lg border border-border shadow-sm"
-						>
-							<div className="relative size-24 sm:size-28">
-								<Image
-									src={preview}
-									alt={`Upload ${i + 1}`}
-									fill
-									className="object-cover"
-									sizes="112px"
-								/>
-							</div>
-
-							{/* File name overlay */}
-							<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 pb-1 pt-4">
-								<div className="flex items-center gap-1">
-									<FileImage className="size-3 text-white/80" />
-									<span className="truncate text-[10px] font-medium text-white/90">
-										{files[i]?.name}
-									</span>
+					{previews.map((preview, i) => {
+						const isPdf = files[i]?.type === "application/pdf";
+						return (
+							<div
+								key={preview}
+								className="group relative overflow-hidden rounded-lg border border-border bg-surface shadow-sm"
+							>
+								<div className="relative flex size-24 items-center justify-center sm:size-28">
+									{isPdf ? (
+										<div className="flex flex-col items-center gap-2 text-muted-foreground p-4">
+											<div className="rounded-full bg-accent/10 p-2">
+												<span className="font-bold text-accent">PDF</span>
+											</div>
+										</div>
+									) : (
+										<Image
+											src={preview}
+											alt={`Upload ${i + 1}`}
+											fill
+											className="object-cover"
+											sizes="112px"
+										/>
+									)}
 								</div>
-							</div>
 
-							{/* Remove button */}
-							{!disabled && (
-								<button
-									type="button"
-									onClick={() => removeFile(i)}
-									className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-									aria-label={`Remove ${files[i]?.name}`}
-								>
-									<X className="size-3" />
-								</button>
-							)}
-						</div>
-					))}
+								{/* File name overlay */}
+								<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 pb-1 pt-4">
+									<div className="flex items-center gap-1">
+										<FileImage className="size-3 text-white/80" />
+										<span className="truncate text-[10px] font-medium text-white/90">
+											{files[i]?.name}
+										</span>
+									</div>
+								</div>
+
+								{/* Remove button */}
+								{!disabled && (
+									<button
+										type="button"
+										onClick={() => removeFile(i)}
+										className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+										aria-label={`Remove ${files[i]?.name}`}
+									>
+										<X className="size-3" />
+									</button>
+								)}
+							</div>
+						);
+					})}
 				</div>
 			)}
 		</div>

@@ -84,9 +84,13 @@ export function PrescriptionClient() {
 
 					<FileUploadZone
 						maxFiles={5}
+						accept={{
+							"image/*": [".png", ".jpg", ".jpeg", ".webp"],
+							"application/pdf": [".pdf"],
+						}}
 						onFilesChange={setFiles}
 						disabled={isLoading}
-						label="Drop prescription images here or click to browse"
+						label="Drop prescription images or PDFs here, or click to browse"
 					/>
 
 					<div className="mt-4 flex items-center gap-3">

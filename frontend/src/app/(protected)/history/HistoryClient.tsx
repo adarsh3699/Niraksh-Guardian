@@ -15,11 +15,14 @@ import {
 	ChevronUp,
 	Clock,
 	SearchX,
+	FileText as FileTextIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
 import { useToast } from "@/contexts/ToastProvider";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn, formatDate } from "@/lib/utils";
 import type {
@@ -84,8 +87,11 @@ interface HistoryEntryProps {
 	icon: React.ElementType;
 	iconColor: string;
 	expandedContent: string;
+	imageUrl?: string;
 	onDelete: (type: HistoryType, id: string) => void;
 	isDeleting: boolean;
+	onAction?: () => void;
+	actionLabel?: string;
 }
 
 function HistoryEntry({
@@ -97,8 +103,11 @@ function HistoryEntry({
 	icon: Icon,
 	iconColor,
 	expandedContent,
+	imageUrl,
 	onDelete,
 	isDeleting,
+	onAction,
+	actionLabel,
 }: HistoryEntryProps) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -143,24 +152,58 @@ function HistoryEntry({
 			{/* Expanded content */}
 			{expanded && (
 				<div className="border-t border-border p-4">
+					{imageUrl && (
+						<div className="mb-4">
+							<a
+								href={imageUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-block transition-opacity hover:opacity-80"
+								title="Click to view full size or document"
+							>
+								{imageUrl.toLowerCase().includes(".pdf") ? (
+									<div className="flex h-32 w-28 flex-col items-center justify-center rounded-lg border border-border bg-accent/5 text-accent">
+										<FileTextIcon className="mb-2 size-8" />
+										<span className="text-xs font-semibold">View PDF</span>
+									</div>
+								) : (
+									<>
+										{/* eslint-disable-next-line @next/next/no-img-element */}
+										<img
+											src={imageUrl}
+											alt={title}
+											className="max-h-32 rounded-lg border border-border object-contain"
+										/>
+									</>
+								)}
+							</a>
+						</div>
+					)}
 					<div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:text-muted-foreground">
 						<ReactMarkdown remarkPlugins={[remarkGfm]}>{expandedContent}</ReactMarkdown>
 					</div>
-					<div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+					<div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
 						<span className="text-xs text-muted sm:hidden">
 							<Clock className="mr-1 inline size-3" />
 							{formatDate(date)}
 						</span>
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={() => onDelete(type, id)}
-							loading={isDeleting}
-							disabled={isDeleting}
-						>
-							<Trash2 className="mr-1.5 size-3.5" />
-							Delete
-						</Button>
+						<div className="flex w-full items-center justify-between sm:w-auto sm:justify-end sm:gap-3">
+							{onAction && actionLabel && (
+								<Button variant="outline" size="sm" type="button" onClick={onAction}>
+									{actionLabel}
+								</Button>
+							)}
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => onDelete(type, id)}
+								loading={isDeleting}
+								disabled={isDeleting}
+							>
+								<Trash2 className="mr-1.5 size-3.5" />
+								Delete
+							</Button>
+						</div>
 					</div>
 				</div>
 			)}
@@ -172,99 +215,211 @@ function HistoryEntry({
 /*  HistoryClient                                                      */
 /* ------------------------------------------------------------------ */
 
+function formatMedicineContent(content: string) {
+	const match = content.match(
+		/\n(#+|\*\*)\s*(Uses|Side Effects|Dosage|Precautions|Safety|How to use|Interactions|Warnings)/i,
+	);
+	if (match) {
+		return content.substring(0, match.index).trim();
+	}
+	return content;
+}
+
+function formatPrescriptionContent(content: string) {
+	// Cut off at the first heading (like "# 1. Comprehensive Explanation..." or "**1. List of Medicines...**")
+	const match = content.match(
+		/\n(#+|\*\*)\s*(1\.|Detailed|Comprehensive|List of|Medication Details|Dosage Instructions|Side Effects)/i,
+	);
+	if (match) {
+		return content.substring(0, match.index).trim();
+	}
+	return content;
+}
+
+function formatInteractionContent(content: string) {
+	// Cut off before enumerative sections start
+	const match = content.match(
+		/\n(#+|\*\*)\s*(1\.|Detailed Analysis|Mechanism|Severity|Recommendations|Alternative Medications|Medical Disclaimer)/i,
+	);
+	if (match) {
+		return content.substring(0, match.index).trim();
+	}
+	return content;
+}
+
+// Helper to transform raw API data into unified HistoryEntryProps
+function transformHistoryData(
+	activeTab: HistoryType,
+	item: unknown,
+	router: ReturnType<typeof useRouter>,
+): Partial<HistoryEntryProps> & {
+	id: string;
+	title: string;
+	subtitle: string;
+	date: string;
+	content: string;
+	imageUrl?: string;
+} {
+	switch (activeTab) {
+		case "medicine": {
+			const m = item as MedicineHistory;
+			const fullContent =
+				typeof m.analysisResult === "string"
+					? m.analysisResult
+					: ((m.analysisResult as { description?: string })?.description ??
+						"No analysis available");
+			return {
+				id: m.id,
+				title: m.medicineName ?? "Unknown Medicine",
+				subtitle: "Medicine analysis",
+				date: m.createdAt,
+				content: formatMedicineContent(fullContent),
+				imageUrl: m.imageUrl,
+				onAction: m.medicineName
+					? () => {
+							sessionStorage.setItem("ng:medicine:name", JSON.stringify(m.medicineName));
+							sessionStorage.setItem(
+								"ng:medicine:result",
+								JSON.stringify({
+									status: "success",
+									description: fullContent,
+								}),
+							);
+							router.push("/medicine");
+						}
+					: undefined,
+				actionLabel: "Open Details",
+			};
+		}
+		case "prescription": {
+			const p = item as PrescriptionHistory;
+			const medicines = (p.analysisResult as { medicines?: string[] })?.medicines ?? [];
+			const fullContent =
+				typeof p.analysisResult === "string"
+					? p.analysisResult
+					: ((p.analysisResult as { description?: string })?.description ??
+						"No analysis available");
+			return {
+				id: p.id,
+				title: medicines.length > 0 ? medicines.slice(0, 3).join(", ") : "Prescription Analysis",
+				subtitle: `${medicines.length} medicine${medicines.length !== 1 ? "s" : ""} extracted`,
+				date: p.createdAt,
+				content: formatPrescriptionContent(fullContent) || "No analysis available",
+				imageUrl: p.imageUrl,
+				onAction: p.imageUrl
+					? () => {
+							sessionStorage.setItem(
+								"ng:prescription:result",
+								JSON.stringify({
+									status: "success",
+									medicines,
+									description: fullContent,
+								}),
+							);
+							router.push("/prescription");
+						}
+					: undefined,
+				actionLabel: "Open Details",
+			};
+		}
+		case "interaction": {
+			const d = item as DrugInteractionHistory;
+			const fullContent =
+				typeof d.interactionResult === "string"
+					? d.interactionResult
+					: ((d.interactionResult as { description?: string })?.description ??
+						"No interaction data available");
+			return {
+				id: d.id,
+				title: d.drugs.join(" + "),
+				subtitle: `${d.drugs.length} drugs checked`,
+				date: d.createdAt,
+				content: formatInteractionContent(fullContent) || "No interaction data available",
+				onAction:
+					d.drugs.length > 0
+						? () => {
+								sessionStorage.setItem("ng:drug-interaction:medicines", JSON.stringify(d.drugs));
+								sessionStorage.setItem(
+									"ng:drug-interaction:result",
+									JSON.stringify({
+										status: "success",
+										description: fullContent,
+									}),
+								);
+								router.push("/drug-interaction");
+							}
+						: undefined,
+				actionLabel: "Open Details",
+			};
+		}
+		case "symptom": {
+			const s = item as SymptomAnalysisHistory;
+			return {
+				id: s.id,
+				title: s.symptoms.slice(0, 3).join(", "),
+				subtitle: `Urgency: ${s.urgencyLevel} • Specialist: ${s.recommendedSpecialist}`,
+				date: s.createdAt,
+				content:
+					typeof s.predictedConditions === "string"
+						? s.predictedConditions
+						: JSON.stringify(s.predictedConditions, null, 2),
+			};
+		}
+		default:
+			throw new Error(`Unsupported tab: ${activeTab}`);
+	}
+}
+
 export function HistoryClient() {
+	const router = useRouter();
 	const { addToast } = useToast();
 	const [activeTab, setActiveTab] = useState<HistoryType>("medicine");
 	const [deletingId, setDeletingId] = useState<string | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<{ type: HistoryType; id: string } | null>(null);
 
 	const activeConfig = TABS.find((t) => t.key === activeTab)!;
 
 	// Fetch history for the active tab
-	const { data, isLoading, error } = useSWR<
+	const { data, isLoading, error, mutate } = useSWR<
+		// Destructure mutate from useSWR
 		MedicineHistory[] | PrescriptionHistory[] | DrugInteractionHistory[] | SymptomAnalysisHistory[]
 	>(activeConfig.endpoint, swrFetcher, {
 		revalidateOnFocus: false,
 	});
 
-	const handleDelete = useCallback(
-		async (type: HistoryType, id: string) => {
-			if (!confirm("Are you sure you want to delete this record? This cannot be undone.")) return;
+	const handleDelete = useCallback((type: HistoryType, id: string) => {
+		// Instead of window.confirm, open the custom dialog
+		setDeleteTarget({ type, id });
+	}, []);
 
-			setDeletingId(id);
-			try {
-				await apiClient(API_ROUTES.DELETE_HISTORY(type, id), { method: "DELETE" });
-				await globalMutate(activeConfig.endpoint);
-				addToast("success", "Record deleted successfully");
-			} catch (err) {
-				addToast("error", err instanceof Error ? err.message : "Failed to delete record");
-			} finally {
-				setDeletingId(null);
-			}
-		},
-		[activeConfig.endpoint, addToast],
-	);
+	const confirmDelete = useCallback(async () => {
+		if (!deleteTarget) return;
+		const { type, id } = deleteTarget;
+
+		setDeletingId(id);
+		try {
+			// Find the active tab config for endpoint lookup
+			const config = TABS.find((t) => t.key === type);
+			if (!config) throw new Error("Invalid history type");
+
+			await apiClient(API_ROUTES.DELETE_HISTORY(type, id), { method: "DELETE" });
+
+			// Refresh data
+			mutate();
+			// Revalidate global metrics/history limits if needed
+			globalMutate(activeConfig.endpoint);
+
+			addToast("success", "Record deleted successfully.");
+			setDeleteTarget(null);
+		} catch (err) {
+			addToast("error", err instanceof Error ? err.message : "Failed to delete record.");
+		} finally {
+			setDeletingId(null);
+		}
+	}, [deleteTarget, mutate, addToast, activeConfig.endpoint]);
 
 	// Transform data into HistoryEntry props
-	const entries = (data ?? []).map((item) => {
-		switch (activeTab) {
-			case "medicine": {
-				const m = item as MedicineHistory;
-				return {
-					id: m.id,
-					title: m.medicineName ?? "Unknown Medicine",
-					subtitle: "Medicine analysis",
-					date: m.createdAt,
-					content:
-						typeof m.analysisResult === "string"
-							? m.analysisResult
-							: ((m.analysisResult as { description?: string })?.description ??
-								"No analysis available"),
-				};
-			}
-			case "prescription": {
-				const p = item as PrescriptionHistory;
-				const medicines = (p.analysisResult as { medicines?: string[] })?.medicines ?? [];
-				return {
-					id: p.id,
-					title: medicines.length > 0 ? medicines.slice(0, 3).join(", ") : "Prescription Analysis",
-					subtitle: `${medicines.length} medicine${medicines.length !== 1 ? "s" : ""} extracted`,
-					date: p.createdAt,
-					content:
-						typeof p.analysisResult === "string"
-							? p.analysisResult
-							: ((p.analysisResult as { description?: string })?.description ??
-								"No analysis available"),
-				};
-			}
-			case "interaction": {
-				const d = item as DrugInteractionHistory;
-				return {
-					id: d.id,
-					title: d.drugs.join(" + "),
-					subtitle: `${d.drugs.length} drugs checked`,
-					date: d.createdAt,
-					content:
-						typeof d.interactionResult === "string"
-							? d.interactionResult
-							: ((d.interactionResult as { description?: string })?.description ??
-								"No interaction data available"),
-				};
-			}
-			case "symptom": {
-				const s = item as SymptomAnalysisHistory;
-				return {
-					id: s.id,
-					title: s.symptoms.slice(0, 3).join(", "),
-					subtitle: `Urgency: ${s.urgencyLevel} • Specialist: ${s.recommendedSpecialist}`,
-					date: s.createdAt,
-					content:
-						typeof s.predictedConditions === "string"
-							? s.predictedConditions
-							: JSON.stringify(s.predictedConditions, null, 2),
-				};
-			}
-		}
-	});
+	const entries = (data ?? []).map((item) => transformHistoryData(activeTab, item, router));
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -338,12 +493,28 @@ export function HistoryClient() {
 							icon={activeConfig.icon}
 							iconColor={activeConfig.color}
 							expandedContent={entry.content}
+							imageUrl={entry.imageUrl}
 							onDelete={handleDelete}
 							isDeleting={deletingId === entry.id}
+							onAction={entry.onAction}
+							actionLabel={entry.actionLabel}
 						/>
 					))}
 				</div>
 			)}
+
+			{/* Deletion confirmation dialog */}
+			<ConfirmDialog
+				isOpen={!!deleteTarget}
+				title="Confirm Deletion"
+				description="Are you sure you want to delete this history record? This action cannot be undone."
+				confirmLabel="Delete"
+				cancelLabel="Cancel"
+				isDestructive
+				isLoading={!!deletingId}
+				onCancel={() => setDeleteTarget(null)}
+				onConfirm={confirmDelete}
+			/>
 		</div>
 	);
 }
