@@ -6,12 +6,14 @@ import {
 	useCallback,
 	forwardRef,
 	useImperativeHandle,
+	useEffect,
 	type FormEvent,
 	type KeyboardEvent,
 } from "react";
-import { Send, ImagePlus, X } from "lucide-react";
+import { Send, ImagePlus, X, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import type { ChatLanguage } from "@/types/chat";
 
 /* ------------------------------------------------------------------ */
 /*  ChatInput                                                         */
@@ -21,6 +23,7 @@ interface ChatInputProps {
 	onSend: (content: string, image?: File) => void;
 	disabled?: boolean;
 	placeholder?: string;
+	inputLanguage?: ChatLanguage;
 }
 
 export interface ChatInputRef {
@@ -28,7 +31,12 @@ export interface ChatInputRef {
 }
 
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
-	{ onSend, disabled = false, placeholder = "Describe your symptoms or ask a health question..." },
+	{
+		onSend,
+		disabled = false,
+		placeholder = "Describe your symptoms or ask a health question...",
+		inputLanguage,
+	},
 	ref,
 ) {
 	const [message, setMessage] = useState("");
@@ -36,16 +44,88 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const [isListening, setIsListening] = useState(false);
+	const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+	const recognitionRef = useRef<any>(null);
+
+	const resizeTextarea = useCallback(() => {
+		const el = textareaRef.current;
+		if (!el) return;
+		el.style.height = "auto";
+		el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const SpeechRecognition =
+			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+		if (!SpeechRecognition) {
+			setIsSpeechSupported(false);
+			return;
+		}
+
+		const recognition = new SpeechRecognition();
+		recognition.continuous = false;
+		recognition.interimResults = false;
+		// Match speech recognition language to current chat language
+		const lang =
+			inputLanguage === "hi"
+				? "hi-IN"
+				: inputLanguage === "en" || !inputLanguage
+					? "en-US"
+					: "en-US";
+		recognition.lang = lang;
+
+		recognition.onresult = (event: any) => {
+			const transcript = Array.from(event.results)
+				.map((result: any) => result[0]?.transcript ?? "")
+				.join(" ")
+				.trim();
+
+			if (!transcript) return;
+
+			setMessage((prev) => {
+				const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+				return next;
+			});
+
+			// Resize after React has applied the new value
+			setTimeout(() => {
+				resizeTextarea();
+			}, 0);
+		};
+
+		recognition.onend = () => {
+			setIsListening(false);
+		};
+
+		recognition.onerror = () => {
+			setIsListening(false);
+		};
+
+		recognitionRef.current = recognition;
+		setIsSpeechSupported(true);
+
+		return () => {
+			if (recognitionRef.current) {
+				try {
+					recognitionRef.current.abort();
+				} catch {
+					// Ignore cleanup errors
+				}
+			}
+			recognitionRef.current = null;
+		};
+	}, [resizeTextarea, inputLanguage]);
 
 	useImperativeHandle(ref, () => ({
 		setDraftMessage: (msg: string) => {
 			setMessage(msg);
 			// Auto-resize for the new text
 			setTimeout(() => {
-				if (textareaRef.current) {
-					textareaRef.current.style.height = "auto";
-					textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
-				}
+				resizeTextarea();
 			}, 0);
 		},
 	}));
@@ -55,6 +135,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 			e?.preventDefault();
 			const content = message.trim();
 			if (!content && !image) return;
+
+			if (isListening && recognitionRef.current) {
+				try {
+					recognitionRef.current.stop();
+				} catch {
+					// Ignore stop errors
+				}
+				setIsListening(false);
+			}
+
 			onSend(content, image ?? undefined);
 			setMessage("");
 			setImage(null);
@@ -64,7 +154,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 				textareaRef.current.style.height = "auto";
 			}
 		},
-		[message, image, onSend],
+		[message, image, onSend, isListening],
 	);
 
 	const handleKeyDown = useCallback(
@@ -114,10 +204,31 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 	// Auto-resize textarea
 	const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		setMessage(e.target.value);
-		const el = e.target;
-		el.style.height = "auto";
-		el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
-	}, []);
+		resizeTextarea();
+	}, [resizeTextarea]);
+
+	const handleToggleListening = useCallback(() => {
+		if (!isSpeechSupported || disabled) return;
+
+		const recognition = recognitionRef.current;
+		if (!recognition) return;
+
+		if (isListening) {
+			try {
+				recognition.stop();
+			} catch {
+				// Ignore stop errors
+			}
+			setIsListening(false);
+		} else {
+			try {
+				recognition.start();
+				setIsListening(true);
+			} catch {
+				setIsListening(false);
+			}
+		}
+	}, [disabled, isListening, isSpeechSupported]);
 
 	return (
 		<div className="border-t border-border bg-surface px-4 py-3">
@@ -181,6 +292,29 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 					aria-label="Type your message"
 				/>
 
+				{/* Voice input button */}
+				<button
+					type="button"
+					onClick={handleToggleListening}
+					disabled={disabled || !isSpeechSupported}
+					className={cn(
+						"flex shrink-0 items-center justify-center rounded-xl border border-border bg-background p-2.5 text-muted transition-colors",
+						"hover:bg-border hover:text-foreground",
+						isListening && "border-primary text-primary bg-primary/5",
+						"disabled:cursor-not-allowed disabled:opacity-50",
+					)}
+					aria-label={
+						!isSpeechSupported
+							? "Voice input is not supported in this browser"
+							: isListening
+								? "Stop voice input"
+								: "Start voice input"
+					}
+					aria-pressed={isListening}
+				>
+					<Mic className="size-5" />
+				</button>
+
 				{/* Send button */}
 				<button
 					type="submit"
@@ -195,6 +329,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 					<Send className="size-5" />
 				</button>
 			</form>
+			{isListening && (
+				<p className="mt-1 text-xs text-primary" aria-live="polite">
+					Listening...
+				</p>
+			)}
 		</div>
 	);
 });
