@@ -226,6 +226,8 @@ function ChatSummarySection({
 interface SymptomAnalysisProps {
 	chatId?: string | null;
 	initialSymptoms?: string;
+	/** Pre-loaded analysis result (e.g. from history "Open Details") — skips re-fetching */
+	initialResult?: SymptomAnalysisType | null;
 	/** If true, auto-submit analysis on mount (e.g. coming from chat with pre-computed summary) */
 	autoAnalyze?: boolean;
 	/** Called with an array of matched specialists (usually 1, can be multiple) */
@@ -237,6 +239,7 @@ interface SymptomAnalysisProps {
 export function SymptomAnalysis({
 	chatId,
 	initialSymptoms,
+	initialResult,
 	autoAnalyze = false,
 	onSpecialistFound,
 	onAnalysisComplete,
@@ -246,7 +249,7 @@ export function SymptomAnalysis({
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const autoSubmitted = useRef(false);
-	const { result, isAnalyzing, error, analyze, reset } = useSymptomAnalysis();
+	const { result, isAnalyzing, error, analyze, reset } = useSymptomAnalysis(initialResult);
 
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {

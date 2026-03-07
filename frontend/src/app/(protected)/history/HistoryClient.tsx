@@ -247,6 +247,42 @@ function formatInteractionContent(content: string) {
 	return content;
 }
 
+function formatSymptomContent(s: SymptomAnalysisHistory): string {
+	const parts: string[] = [];
+
+	// Severity & urgency
+	if (s.severity) {
+		parts.push(`**Severity:** ${s.severity} · **Urgency:** ${s.urgencyLevel}`);
+	}
+
+	// Possible conditions
+	const conditions = Array.isArray(s.predictedConditions)
+		? (s.predictedConditions as string[])
+		: [];
+	if (conditions.length > 0) {
+		parts.push(`**Possible Conditions:** ${conditions.join(", ")}`);
+	}
+
+	// Specialist
+	if (s.recommendedSpecialist) {
+		parts.push(`**Recommended Specialist:** ${s.recommendedSpecialist}`);
+	}
+
+	// Reasoning (truncated for history)
+	if (s.reasoning) {
+		const truncated = s.reasoning.length > 200 ? s.reasoning.slice(0, 200) + "…" : s.reasoning;
+		parts.push(`\n${truncated}`);
+	}
+
+	// Home remedies (show first 3)
+	if (s.homeRemedies && s.homeRemedies.length > 0) {
+		const shown = s.homeRemedies.slice(0, 3);
+		parts.push(`\n**Home Remedies:**\n${shown.map((r) => `- ${r}`).join("\n")}`);
+	}
+
+	return parts.join("\n\n") || "No analysis available";
+}
+
 // Helper to transform raw API data into unified HistoryEntryProps
 function transformHistoryData(
 	activeTab: HistoryType,
@@ -357,12 +393,27 @@ function transformHistoryData(
 			return {
 				id: s.id,
 				title: s.symptoms.slice(0, 3).join(", "),
-				subtitle: `Urgency: ${s.urgencyLevel} • Specialist: ${s.recommendedSpecialist}`,
+				subtitle: `${s.severity ? s.severity + " · " : ""}${s.urgencyLevel} · Specialist: ${s.recommendedSpecialist}`,
 				date: s.createdAt,
-				content:
-					typeof s.predictedConditions === "string"
-						? s.predictedConditions
-						: JSON.stringify(s.predictedConditions, null, 2),
+				content: formatSymptomContent(s),
+				imageUrl: s.imageUrl ?? undefined,
+				onAction:
+					s.symptoms.length > 0
+						? () => {
+									const analysisResult = {
+										possibleConditions: Array.isArray(s.predictedConditions) ? s.predictedConditions : [],
+										severity: s.severity || "Unknown",
+										urgency: s.urgencyLevel || "Unknown",
+										reasoning: s.reasoning || "",
+										recommendedSpecialists: s.recommendedSpecialist ? s.recommendedSpecialist.split(", ") : [],
+										homeRemedies: s.homeRemedies || [],
+									};
+									sessionStorage.setItem("ng:symptom:result", JSON.stringify(analysisResult));
+									sessionStorage.setItem("ng:symptom:symptoms", JSON.stringify(s.symptoms.join(", ")));
+									router.push("/doctor-suggest");
+							}
+						: undefined,
+				actionLabel: "Open Details",
 			};
 		}
 		default:

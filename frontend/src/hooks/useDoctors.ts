@@ -59,8 +59,8 @@ export function useDoctorSearch(params: DoctorSearchParams) {
 /*  useSymptomAnalysis — POST /api/ai/analyze                         */
 /* ------------------------------------------------------------------ */
 
-export function useSymptomAnalysis() {
-	const [result, setResult] = useState<SymptomAnalysis | null>(null);
+export function useSymptomAnalysis(initialResult?: SymptomAnalysis | null) {
+	const [result, setResult] = useState<SymptomAnalysis | null>(initialResult ?? null);
 	const [isAnalyzing, setIsAnalyzing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 

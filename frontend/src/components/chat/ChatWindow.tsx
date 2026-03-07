@@ -85,7 +85,6 @@ export function ChatWindow({
 	const bottomRef = useRef<HTMLDivElement>(null);
 	const chatInputRef = useRef<{ setDraftMessage: (msg: string) => void }>(null);
 	const [voiceEnabled, setVoiceEnabled] = useState(false);
-	const [isSpeechSupported, setIsSpeechSupported] = useState(false);
 	const lastSpokenIdRef = useRef<string | null>(null);
 
 	// Auto-scroll to bottom when messages change
@@ -93,15 +92,10 @@ export function ChatWindow({
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length, isSending]);
 
-	// Detect browser speech synthesis support
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		if ("speechSynthesis" in window) {
-			setIsSpeechSupported(true);
-		} else {
-			setIsSpeechSupported(false);
-		}
-	}, []);
+	const [isSpeechSupported] = useState(() => {
+		if (typeof window === "undefined") return false;
+		return "speechSynthesis" in window;
+	});
 
 	// Speak the latest AI message when voice assistant is enabled
 	useEffect(() => {
@@ -169,7 +163,15 @@ export function ChatWindow({
 				{isSpeechSupported && (
 					<button
 						type="button"
-						onClick={() => setVoiceEnabled((prev) => !prev)}
+						onClick={() => {
+							setVoiceEnabled((prev) => {
+								if (prev) {
+									lastSpokenIdRef.current = null;
+									window.speechSynthesis?.cancel();
+								}
+								return !prev;
+							});
+						}}
 						className={cn(
 							"flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
 							voiceEnabled

@@ -45,14 +45,43 @@ export function DoctorSuggestClient() {
 		return undefined;
 	});
 
-	// Priority: storedSummary (from chat) > urlSymptoms (from URL)
-	const effectiveSymptoms = storedSummary || urlSymptoms;
+	// Read pre-stored analysis from history "Open Details" flow
+	const [storedResult] = useState<SymptomAnalysisType | null>(() => {
+		if (typeof window === "undefined") return null;
+		const raw = sessionStorage.getItem("ng:symptom:result");
+		if (raw) {
+			sessionStorage.removeItem("ng:symptom:result");
+			try {
+				return JSON.parse(raw) as SymptomAnalysisType;
+			} catch {
+				return null;
+			}
+		}
+		return null;
+	});
+
+	const [storedSymptoms] = useState<string | undefined>(() => {
+		if (typeof window === "undefined") return undefined;
+		const raw = sessionStorage.getItem("ng:symptom:symptoms");
+		if (raw) {
+			sessionStorage.removeItem("ng:symptom:symptoms");
+			try {
+				return JSON.parse(raw) as string;
+			} catch {
+				return undefined;
+			}
+		}
+		return undefined;
+	});
+
+	// Priority: storedSummary (from chat) > storedSymptoms (from history) > urlSymptoms (from URL)
+	const effectiveSymptoms = storedSummary || storedSymptoms || urlSymptoms;
 
 	// User's location for doctor proximity sorting
 	const { city: userCity, state: userState } = useUserProfile();
 
 	// Latest full analysis result (for possibleConditions → matchTags)
-	const [lastAnalysis, setLastAnalysis] = useState<SymptomAnalysisType | null>(null);
+	const [lastAnalysis, setLastAnalysis] = useState<SymptomAnalysisType | null>(storedResult);
 
 	const [params, setParams] = useState<DoctorSearchParams>(() => ({
 		...DEFAULT_PARAMS,
@@ -126,6 +155,7 @@ export function DoctorSuggestClient() {
 			<SymptomAnalysis
 				chatId={chatId}
 				initialSymptoms={effectiveSymptoms}
+				initialResult={storedResult}
 				autoAnalyze={!!storedSummary}
 				onSpecialistFound={handleSpecialistFound}
 				onAnalysisComplete={handleAnalysisComplete}

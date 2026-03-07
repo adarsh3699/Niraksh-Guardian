@@ -184,6 +184,9 @@ model SymptomAnalysisHistory {
   predictedConditions   Json     @map("predicted_conditions")
   urgencyLevel          String   @map("urgency_level")
   recommendedSpecialist String   @map("recommended_specialist")
+  severity              String?
+  reasoning             String?
+  homeRemedies          String[] @default([]) @map("home_remedies")
   createdAt             DateTime @default(now()) @map("created_at")
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
