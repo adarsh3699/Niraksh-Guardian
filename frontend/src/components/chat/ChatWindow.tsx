@@ -1,12 +1,12 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { QuickSymptoms } from "./QuickSymptoms";
 import { Spinner } from "@/components/ui/Spinner";
-import type { Message } from "@/types/chat";
-import { Bot, Stethoscope, Loader2 } from "lucide-react";
+import type { Message, ChatLanguage } from "@/types/chat";
+import { Bot, Stethoscope, Loader2, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -69,6 +69,7 @@ interface ChatWindowProps {
 	onSend: (content: string, image?: File) => void;
 	onFindDoctors?: () => void;
 	isFindingDoctors?: boolean;
+	language?: ChatLanguage;
 }
 
 export function ChatWindow({
@@ -79,14 +80,55 @@ export function ChatWindow({
 	onSend,
 	onFindDoctors,
 	isFindingDoctors = false,
+	language,
 }: ChatWindowProps) {
 	const bottomRef = useRef<HTMLDivElement>(null);
 	const chatInputRef = useRef<{ setDraftMessage: (msg: string) => void }>(null);
+	const [voiceEnabled, setVoiceEnabled] = useState(false);
+	const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+	const lastSpokenIdRef = useRef<string | null>(null);
 
 	// Auto-scroll to bottom when messages change
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length, isSending]);
+
+	// Detect browser speech synthesis support
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		if ("speechSynthesis" in window) {
+			setIsSpeechSupported(true);
+		} else {
+			setIsSpeechSupported(false);
+		}
+	}, []);
+
+	// Speak the latest AI message when voice assistant is enabled
+	useEffect(() => {
+		if (!voiceEnabled || !isSpeechSupported) return;
+		if (typeof window === "undefined") return;
+
+		const synth = window.speechSynthesis;
+		if (!synth) return;
+
+		const lastAiMessage = [...messages].reverse().find((msg) => msg.role === "model");
+		if (!lastAiMessage) return;
+
+		if (lastSpokenIdRef.current === lastAiMessage.id) return;
+
+		// Cancel any ongoing speech before speaking the new one
+		synth.cancel();
+
+		const utterance = new SpeechSynthesisUtterance(lastAiMessage.content);
+		utterance.lang = language === "hi" ? "hi-IN" : "en-US";
+
+		synth.speak(utterance);
+		lastSpokenIdRef.current = lastAiMessage.id;
+
+		return () => {
+			synth.cancel();
+		};
+	}, [messages, voiceEnabled, isSpeechSupported, language]);
 
 	const handleQuickSymptom = (symptom: string) => {
 		const text = `I'm experiencing ${symptom.toLowerCase()}. What could be the cause and what should I do?`;
@@ -123,6 +165,25 @@ export function ChatWindow({
 				{/* Quick symptoms */}
 				{activeChatId && !isLoading && <QuickSymptoms onSelect={handleQuickSymptom} />}
 
+				{/* Voice assistant toggle */}
+				{isSpeechSupported && (
+					<button
+						type="button"
+						onClick={() => setVoiceEnabled((prev) => !prev)}
+						className={cn(
+							"flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
+							voiceEnabled
+								? "border-primary bg-primary/10 text-primary"
+								: "border-border bg-surface text-muted hover:bg-border/60 hover:text-foreground",
+						)}
+						aria-pressed={voiceEnabled}
+						aria-label={voiceEnabled ? "Disable voice assistant" : "Enable voice assistant"}
+					>
+						<Volume2 className="size-3" />
+						{voiceEnabled ? "Voice On" : "Voice Off"}
+					</button>
+				)}
+
 				{/* Find Doctors button */}
 				{onFindDoctors && activeChatId && hasMessages && !isLoading && (
 					<button
@@ -145,7 +206,12 @@ export function ChatWindow({
 			</div>
 
 			{/* Chat input */}
-			<ChatInput ref={chatInputRef} onSend={onSend} disabled={isSending || isLoading} />
+			<ChatInput
+				ref={chatInputRef}
+				onSend={onSend}
+				disabled={isSending || isLoading}
+				inputLanguage={language}
+			/>
 		</div>
 	);
 }

@@ -199,6 +199,7 @@ export function AssistanceClient() {
 					onSend={handleSendMessage}
 					onFindDoctors={handleFindDoctors}
 					isFindingDoctors={isFindingDoctors}
+					language={language}
 				/>
 			</div>
 		</div>
