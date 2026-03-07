@@ -86,6 +86,9 @@ export interface SymptomAnalysisHistory {
 	predictedConditions: unknown; // JSON — array of conditions from AI
 	urgencyLevel: string;
 	recommendedSpecialist: string;
+	severity: string | null;
+	reasoning: string | null;
+	homeRemedies: string[];
 	createdAt: string;
 }
 

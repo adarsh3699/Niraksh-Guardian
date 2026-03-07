@@ -15,6 +15,39 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import type { ChatLanguage } from "@/types/chat";
 
+// Web Speech API types (not in default lib.dom)
+interface SpeechRecognitionResult {
+	[index: number]: { transcript: string };
+	length: number;
+	isFinal: boolean;
+}
+interface SpeechRecognitionEvent extends Event {
+	results: SpeechRecognitionResult[];
+}
+interface SpeechRecognitionInstance extends EventTarget {
+	continuous: boolean;
+	interimResults: boolean;
+	lang: string;
+	onresult: ((event: SpeechRecognitionEvent) => void) | null;
+	onend: (() => void) | null;
+	onerror: (() => void) | null;
+	start(): void;
+	stop(): void;
+	abort(): void;
+}
+interface SpeechRecognitionConstructor {
+	new (): SpeechRecognitionInstance;
+}
+
+function getSpeechRecognition(): SpeechRecognitionConstructor | undefined {
+	if (typeof window === "undefined") return undefined;
+	return (
+		(window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
+		(window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor })
+			.webkitSpeechRecognition
+	);
+}
+
 /* ------------------------------------------------------------------ */
 /*  ChatInput                                                         */
 /* ------------------------------------------------------------------ */
@@ -45,8 +78,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const [isListening, setIsListening] = useState(false);
-	const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-	const recognitionRef = useRef<any>(null);
+	const [isSpeechSupported] = useState(() => !!getSpeechRecognition());
+	const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
 	const resizeTextarea = useCallback(() => {
 		const el = textareaRef.current;
@@ -58,15 +91,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const SpeechRecognition =
-			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+		const SpeechRecognitionCtor = getSpeechRecognition();
 
-		if (!SpeechRecognition) {
-			setIsSpeechSupported(false);
+		if (!SpeechRecognitionCtor) {
 			return;
 		}
 
-		const recognition = new SpeechRecognition();
+		const recognition = new SpeechRecognitionCtor();
 		recognition.continuous = false;
 		recognition.interimResults = false;
 		// Match speech recognition language to current chat language
@@ -78,9 +109,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 					: "en-US";
 		recognition.lang = lang;
 
-		recognition.onresult = (event: any) => {
+		recognition.onresult = (event: SpeechRecognitionEvent) => {
 			const transcript = Array.from(event.results)
-				.map((result: any) => result[0]?.transcript ?? "")
+				.map((result: SpeechRecognitionResult) => result[0]?.transcript ?? "")
 				.join(" ")
 				.trim();
 
@@ -106,7 +137,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 		};
 
 		recognitionRef.current = recognition;
-		setIsSpeechSupported(true);
 
 		return () => {
 			if (recognitionRef.current) {
@@ -202,25 +232,63 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 	}, []);
 
 	// Auto-resize textarea
-	const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		setMessage(e.target.value);
-		resizeTextarea();
-	}, [resizeTextarea]);
+	const handleTextareaInput = useCallback(
+		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+			setMessage(e.target.value);
+			resizeTextarea();
+		},
+		[resizeTextarea],
+	);
 
 	const handleToggleListening = useCallback(() => {
 		if (!isSpeechSupported || disabled) return;
 
-		const recognition = recognitionRef.current;
-		if (!recognition) return;
-
 		if (isListening) {
+			// Stop current session
 			try {
-				recognition.stop();
+				recognitionRef.current?.stop();
 			} catch {
 				// Ignore stop errors
 			}
 			setIsListening(false);
 		} else {
+			// Create a fresh recognition instance each time to avoid InvalidStateError
+			const SpeechRecognitionCtor = getSpeechRecognition();
+			if (!SpeechRecognitionCtor) return;
+
+			const recognition = new SpeechRecognitionCtor();
+			recognition.continuous = false;
+			recognition.interimResults = false;
+			recognition.lang = inputLanguage === "hi" ? "hi-IN" : "en-US";
+
+			recognition.onresult = (event: SpeechRecognitionEvent) => {
+				const transcript = Array.from(event.results)
+					.map((result: SpeechRecognitionResult) => result[0]?.transcript ?? "")
+					.join(" ")
+					.trim();
+
+				if (!transcript) return;
+
+				setMessage((prev) => {
+					const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+					return next;
+				});
+
+				setTimeout(() => {
+					resizeTextarea();
+				}, 0);
+			};
+
+			recognition.onend = () => {
+				setIsListening(false);
+			};
+
+			recognition.onerror = () => {
+				setIsListening(false);
+			};
+
+			recognitionRef.current = recognition;
+
 			try {
 				recognition.start();
 				setIsListening(true);
@@ -228,7 +296,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 				setIsListening(false);
 			}
 		}
-	}, [disabled, isListening, isSpeechSupported]);
+	}, [disabled, isListening, isSpeechSupported, inputLanguage, resizeTextarea]);
 
 	return (
 		<div className="border-t border-border bg-surface px-4 py-3">
