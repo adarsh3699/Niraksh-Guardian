@@ -14,6 +14,7 @@ import {
 	Pill,
 	FlaskConical,
 	ClipboardList,
+	MessageSquare,
 } from "lucide-react";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
@@ -37,6 +38,7 @@ const DATA_SOURCES = [
 		icon: FlaskConical,
 		color: "text-amber-500",
 	},
+	{ key: "chatHistory", label: "Chat History", icon: MessageSquare, color: "text-violet-500" },
 ] as const;
 
 type SourceKey = (typeof DATA_SOURCES)[number]["key"];

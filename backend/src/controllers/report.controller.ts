@@ -111,9 +111,11 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
 		// Parse selected data sources (default: all enabled)
-		const validSources = ["symptoms", "prescriptions", "medicines", "drugInteractions"] as const;
+		const validSources = ["symptoms", "prescriptions", "medicines", "drugInteractions", "chatHistory"] as const;
 		const rawSources: string[] = Array.isArray(req.body?.sources) ? req.body.sources : [...validSources];
 		const sources = new Set(rawSources.filter((s) => (validSources as readonly string[]).includes(s)));
+
+		const DATA_LIMIT = 20;
 
 		// 1. Fetch User Data — conditionally include relations
 		const user = await prisma.user.findUnique({
@@ -121,16 +123,29 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			include: {
 				patientHealthProfile: true,
 				...(sources.has("symptoms") && {
-					symptomAnalysisHistories: { orderBy: { createdAt: "desc" as const }, take: 5 },
+					symptomAnalysisHistories: { orderBy: { createdAt: "desc" as const }, take: DATA_LIMIT },
 				}),
 				...(sources.has("medicines") && {
-					medicineHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+					medicineHistory: { orderBy: { createdAt: "desc" as const }, take: DATA_LIMIT },
 				}),
 				...(sources.has("prescriptions") && {
-					prescriptionHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+					prescriptionHistory: { orderBy: { createdAt: "desc" as const }, take: DATA_LIMIT },
 				}),
 				...(sources.has("drugInteractions") && {
-					drugInteractionHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+					drugInteractionHistory: { orderBy: { createdAt: "desc" as const }, take: DATA_LIMIT },
+				}),
+				...(sources.has("chatHistory") && {
+					chats: {
+						orderBy: { updatedAt: "desc" as const },
+						take: 10,
+						include: {
+							messages: {
+								orderBy: { createdAt: "desc" as const },
+								take: 3,
+								select: { role: true, content: true },
+							},
+						},
+					},
 				}),
 			},
 		});
@@ -149,40 +164,31 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 				.map(
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(h: any) =>
-						`- ${h.symptoms.join(", ")} (Urgency: ${h.urgencyLevel}, Severity: ${h.severity || "N/A"})`
+						`- [${new Date(h.createdAt).toLocaleDateString()}] ${h.symptoms.join(", ")} (Urgency: ${h.urgencyLevel}, Severity: ${h.severity || "N/A"})`
 				)
 				.join("\n");
-			dataContext += `\n\nRecent Symptom Analysis:\n${symptomLines}`;
+			dataContext += `\n\nRecent Symptom Analysis (${userData.symptomAnalysisHistories.length} records):\n${symptomLines}`;
 		}
 
 		if (sources.has("prescriptions") && userData.prescriptionHistory?.length) {
 			const rxLines = userData.prescriptionHistory
 				.map(
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) => {
-						// analysisResult is a Prisma Json field (object), extract meaningful text
-						let summary = h.extractedText?.slice(0, 300) || "";
-						if (!summary && h.analysisResult) {
-							summary =
-								typeof h.analysisResult === "string"
-									? h.analysisResult.slice(0, 300)
-									: JSON.stringify(h.analysisResult).slice(0, 300);
-						}
-						return `- Prescription on ${new Date(h.createdAt).toLocaleDateString()}: ${summary || "No details"}`;
-					}
+					(h: any) =>
+						`- [${new Date(h.createdAt).toLocaleDateString()}] ${h.extractedText?.slice(0, 400) || "No text extracted"}`
 				)
 				.join("\n");
-			dataContext += `\n\nRecent Prescriptions:\n${rxLines}`;
+			dataContext += `\n\nRecent Prescriptions (${userData.prescriptionHistory.length} records):\n${rxLines}`;
 		}
 
 		if (sources.has("medicines") && userData.medicineHistory?.length) {
 			const medLines = userData.medicineHistory
 				.map(
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) => `- ${h.medicineName}`
+					(h: any) => `- [${new Date(h.createdAt).toLocaleDateString()}] ${h.medicineName}`
 				)
 				.join("\n");
-			dataContext += `\n\nRecent Medicine Searches:\n${medLines}`;
+			dataContext += `\n\nRecent Medicine Searches (${userData.medicineHistory.length} records):\n${medLines}`;
 		}
 
 		if (sources.has("drugInteractions") && userData.drugInteractionHistory?.length) {
@@ -191,18 +197,32 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(h: any) => {
 						const drugs = Array.isArray(h.drugs) ? h.drugs.join(" + ") : String(h.drugs);
-						return `- ${drugs}`;
+						return `- [${new Date(h.createdAt).toLocaleDateString()}] ${drugs}`;
 					}
 				)
 				.join("\n");
-			dataContext += `\n\nRecent Drug Interaction Checks:\n${diLines}`;
+			dataContext += `\n\nRecent Drug Interaction Checks (${userData.drugInteractionHistory.length} records):\n${diLines}`;
+		}
+
+		if (sources.has("chatHistory") && userData.chats?.length) {
+			const chatLines = userData.chats
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				.map((c: any) => {
+					const preview = c.messages?.[0]?.content?.slice(0, 100) || "";
+					return `- "${c.title}" — ${preview}`;
+				})
+				.join("\n");
+			dataContext += `\n\nRecent Chat Conversations (${userData.chats.length} chats):\n${chatLines}`;
 		}
 
 		const selectedSourcesList = ["Health Profile", ...Array.from(sources)].join(", ");
 
 		const prompt = `
-            Act as an expert medical consultant. Analyze the following patient health data and provide a comprehensive health report.
-            Data sources included in this report: ${selectedSourcesList}
+            Act as an expert medical consultant. Create a UNIFIED HEALTH REPORT for this patient.
+            This report should be comprehensive enough that any doctor can understand the patient's 
+            complete health picture without needing any other documents.
+            
+            Data sources included: ${selectedSourcesList}
             
             Patient Profile:
             - Age/Gender: ${user.gender || "Not specified"}
@@ -213,8 +233,10 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
             Provide the output in the following JSON format:
             {
-                "detailedAnalysis": "A deep dive into the patient's current health status, potential risks based on chronic conditions and recent symptoms, and possible correlations.",
-                "executiveSummary": "A concise 3-4 sentence summary of the key findings.",
+                "detailedAnalysis": "A thorough analysis of the patient's current health status, connecting dots between prescriptions, symptoms, medicines, and any patterns you observe.",
+                "executiveSummary": "A concise 3-4 sentence summary a doctor can read in 30 seconds to understand the key findings.",
+                "healthTrends": "Identify health trends and timeline patterns. Note recurring issues, medication patterns, worsening or improving conditions, and any correlations (e.g., repeated prescriptions for same condition, escalating symptoms). If no clear trends, note that.",
+                "chatSummary": "Brief summary of health topics the patient has been discussing with the AI assistant. If no chat data, say 'No chat history available.'",
                 "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2", "Actionable recommendation 3"]
             }
         `;
@@ -222,6 +244,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		let aiInsight = {
 			detailedAnalysis: "Analysis unavailable.",
 			executiveSummary: "Summary unavailable.",
+			healthTrends: "No trends data available.",
+			chatSummary: "No chat history available.",
 			recommendations: [] as string[],
 		};
 
@@ -423,7 +447,29 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 				doc.moveDown(0.5);
 			});
 		}
-		doc.moveDown(2);
+		doc.moveDown(1.5);
+
+		// Health Trends & Timeline
+		if (aiInsight.healthTrends && aiInsight.healthTrends !== "No trends data available.") {
+			doc.font("Helvetica-Bold").fontSize(12).text("Health Trends & Timeline", 50, doc.y);
+			doc.moveDown(0.3);
+			renderMarkdownText(doc, aiInsight.healthTrends, { width: 495, lineGap: 3 });
+			doc.moveDown(1.5);
+		}
+
+		// Chat History Summary
+		if (
+			sources.has("chatHistory") &&
+			aiInsight.chatSummary &&
+			aiInsight.chatSummary !== "No chat history available."
+		) {
+			doc.font("Helvetica-Bold").fontSize(12).text("AI Chat History Summary", 50, doc.y);
+			doc.moveDown(0.3);
+			renderMarkdownText(doc, aiInsight.chatSummary, { width: 495, lineGap: 3 });
+			doc.moveDown(1.5);
+		}
+
+		doc.moveDown(1);
 
 		// === HELPER: Draw a section heading with underline ===
 		const drawSectionHeading = (title: string) => {
@@ -482,15 +528,14 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 						doc.addPage();
 						rY = 50;
 					}
-					const summary =
-						rx.extractedText?.slice(0, 200) ||
-						(rx.analysisResult ? JSON.stringify(rx.analysisResult).slice(0, 200) : "No details");
+					const summary = rx.extractedText?.slice(0, 300) || "No text extracted";
 					const rh = drawTableRow(rY, [
 						{ text: new Date(rx.createdAt).toLocaleDateString(), x: 55, width: 80 },
 						{ text: summary, x: 150, width: 390 },
 					]);
 					rY += rh;
 				});
+				doc.y = rY; // sync PDFKit cursor with manual row position
 			}
 			doc.moveDown(2);
 		}
@@ -533,6 +578,7 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 					]);
 					rY += rh;
 				});
+				doc.y = rY; // sync PDFKit cursor with manual row position
 			}
 			doc.moveDown(2);
 		}
