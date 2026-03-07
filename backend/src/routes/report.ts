@@ -8,6 +8,6 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get("/", listHealthReports);
-router.get("/health-summary", generateHealthReport);
+router.post("/health-summary", generateHealthReport);
 
 export default router;

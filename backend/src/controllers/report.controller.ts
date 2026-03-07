@@ -10,44 +10,206 @@ interface AuthenticatedRequest extends Request {
 	};
 }
 
+/**
+ * Render markdown-formatted text into a PDFKit document with proper formatting.
+ * Handles: **bold**, *italic*, # headings, bullet lists, and inline code.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderMarkdownText(doc: any, text: string, opts: { width?: number; lineGap?: number } = {}) {
+	const LEFT = 50;
+	const width = opts.width ?? 495;
+	const lineGap = opts.lineGap ?? 3;
+
+	const lines = text.split("\n");
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed) {
+			doc.moveDown(0.3);
+			continue;
+		}
+
+		// Heading lines (## Heading Text)
+		const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+		if (headingMatch) {
+			const level = headingMatch[1].length;
+			const headingText = headingMatch[2].replace(/\*\*/g, "");
+			doc.font("Helvetica-Bold")
+				.fontSize(level === 1 ? 13 : level === 2 ? 11 : 10)
+				.text(headingText, LEFT, doc.y, { width, lineGap });
+			doc.moveDown(0.3);
+			doc.font("Helvetica").fontSize(10);
+			continue;
+		}
+
+		// Bullet lines (- item, * item, + item, or 1. item)
+		const bulletMatch = trimmed.match(/^[-*+]\s+(.+)$/);
+		const numberedMatch = trimmed.match(/^\d+[.)]\s+(.+)$/);
+		const content = bulletMatch?.[1] || numberedMatch?.[1];
+
+		if (content) {
+			doc.circle(LEFT + 10, doc.y + 4, 2).fill("black");
+			renderInlineMarkdown(doc, content, LEFT + 20, width - 25, lineGap);
+			doc.moveDown(0.2);
+			continue;
+		}
+
+		// Regular paragraph with inline formatting
+		renderInlineMarkdown(doc, trimmed, LEFT, width, lineGap);
+	}
+	doc.font("Helvetica").fontSize(10);
+}
+
+/**
+ * Render a single line of text, handling inline **bold** and *italic* segments.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderInlineMarkdown(doc: any, text: string, x: number, width: number, lineGap: number) {
+	// Split by **bold** and *italic* markers
+	const parts: { text: string; bold: boolean; italic: boolean }[] = [];
+	const regex = /\*\*(.+?)\*\*|\*(.+?)\*|([^*]+)/g;
+	let match;
+	while ((match = regex.exec(text)) !== null) {
+		if (match[1] !== undefined) {
+			parts.push({ text: match[1], bold: true, italic: false });
+		} else if (match[2] !== undefined) {
+			parts.push({ text: match[2], bold: false, italic: true });
+		} else if (match[3] !== undefined) {
+			parts.push({ text: match[3].replace(/`/g, ""), bold: false, italic: false });
+		}
+	}
+
+	if (parts.length === 0) return;
+
+	// Single segment — simple render
+	if (parts.length === 1) {
+		const p = parts[0];
+		doc.font(p.bold ? "Helvetica-Bold" : p.italic ? "Helvetica-Oblique" : "Helvetica")
+			.fontSize(10)
+			.text(p.text, x, doc.y, { width, lineGap });
+		doc.font("Helvetica").fontSize(10);
+		return;
+	}
+
+	// Multiple segments — use continued:true for inline font switching
+	for (let i = 0; i < parts.length; i++) {
+		const p = parts[i];
+		const isLast = i === parts.length - 1;
+		doc.font(p.bold ? "Helvetica-Bold" : p.italic ? "Helvetica-Oblique" : "Helvetica").fontSize(10);
+
+		if (i === 0) {
+			doc.text(p.text, x, doc.y, { width, lineGap, continued: !isLast });
+		} else {
+			doc.text(p.text, { width, lineGap, continued: !isLast });
+		}
+	}
+	doc.font("Helvetica").fontSize(10);
+}
+
 export const generateHealthReport = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as AuthenticatedRequest).user?.userId;
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-		// 1. Fetch User Data
+		// Parse selected data sources (default: all enabled)
+		const validSources = ["symptoms", "prescriptions", "medicines", "drugInteractions"] as const;
+		const rawSources: string[] = Array.isArray(req.body?.sources) ? req.body.sources : [...validSources];
+		const sources = new Set(rawSources.filter((s) => (validSources as readonly string[]).includes(s)));
+
+		// 1. Fetch User Data — conditionally include relations
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
 			include: {
 				patientHealthProfile: true,
-				symptomAnalysisHistories: {
-					// Corrected plural name
-					orderBy: { createdAt: "desc" },
-					take: 5,
-				},
-				medicineHistory: {
-					orderBy: { createdAt: "desc" },
-					take: 5,
-				},
+				...(sources.has("symptoms") && {
+					symptomAnalysisHistories: { orderBy: { createdAt: "desc" as const }, take: 5 },
+				}),
+				...(sources.has("medicines") && {
+					medicineHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+				}),
+				...(sources.has("prescriptions") && {
+					prescriptionHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+				}),
+				...(sources.has("drugInteractions") && {
+					drugInteractionHistory: { orderBy: { createdAt: "desc" as const }, take: 5 },
+				}),
 			},
 		});
 
 		if (!user) return res.status(404).json({ error: "User not found" });
 
-		// 2. Generate AI Summary using Gemini
+		// 2. Build data sections for the AI prompt
 		const profile = user.patientHealthProfile;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const recentSymptoms = user.symptomAnalysisHistories.map((h: any) => h.symptoms.join(", ")).join("; ");
+		const userData = user as any;
+
+		let dataContext = "";
+
+		if (sources.has("symptoms") && userData.symptomAnalysisHistories?.length) {
+			const symptomLines = userData.symptomAnalysisHistories
+				.map(
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(h: any) =>
+						`- ${h.symptoms.join(", ")} (Urgency: ${h.urgencyLevel}, Severity: ${h.severity || "N/A"})`
+				)
+				.join("\n");
+			dataContext += `\n\nRecent Symptom Analysis:\n${symptomLines}`;
+		}
+
+		if (sources.has("prescriptions") && userData.prescriptionHistory?.length) {
+			const rxLines = userData.prescriptionHistory
+				.map(
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(h: any) => {
+						// analysisResult is a Prisma Json field (object), extract meaningful text
+						let summary = h.extractedText?.slice(0, 300) || "";
+						if (!summary && h.analysisResult) {
+							summary =
+								typeof h.analysisResult === "string"
+									? h.analysisResult.slice(0, 300)
+									: JSON.stringify(h.analysisResult).slice(0, 300);
+						}
+						return `- Prescription on ${new Date(h.createdAt).toLocaleDateString()}: ${summary || "No details"}`;
+					}
+				)
+				.join("\n");
+			dataContext += `\n\nRecent Prescriptions:\n${rxLines}`;
+		}
+
+		if (sources.has("medicines") && userData.medicineHistory?.length) {
+			const medLines = userData.medicineHistory
+				.map(
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(h: any) => `- ${h.medicineName}`
+				)
+				.join("\n");
+			dataContext += `\n\nRecent Medicine Searches:\n${medLines}`;
+		}
+
+		if (sources.has("drugInteractions") && userData.drugInteractionHistory?.length) {
+			const diLines = userData.drugInteractionHistory
+				.map(
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(h: any) => {
+						const drugs = Array.isArray(h.drugs) ? h.drugs.join(" + ") : String(h.drugs);
+						return `- ${drugs}`;
+					}
+				)
+				.join("\n");
+			dataContext += `\n\nRecent Drug Interaction Checks:\n${diLines}`;
+		}
+
+		const selectedSourcesList = ["Health Profile", ...Array.from(sources)].join(", ");
 
 		const prompt = `
             Act as an expert medical consultant. Analyze the following patient health data and provide a comprehensive health report.
+            Data sources included in this report: ${selectedSourcesList}
             
             Patient Profile:
             - Age/Gender: ${user.gender || "Not specified"}
             - Blood Group: ${profile?.bloodGroup || "Unknown"}
             - Chronic Conditions: ${profile?.chronicConditions.join(", ") || "None"}
             - Allergies: ${profile?.allergies.join(", ") || "None"}
-            - Recent Symptoms history: ${recentSymptoms || "No recent symptoms recorded."}
+            ${dataContext}
 
             Provide the output in the following JSON format:
             {
@@ -163,7 +325,7 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			.text("Niraksh Guardian", { align: "center" })
 			.fontSize(10)
 			.font("Helvetica")
-			.text("Advanced AI Health Monitoring System", { align: "center" });
+			.text("Unified Health Report", { align: "center" });
 
 		doc.moveDown();
 		doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#cccccc").lineWidth(1).stroke();
@@ -239,20 +401,15 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		// detailed Analysis
 		doc.font("Helvetica-Bold").fontSize(12).text("Detailed Analysis");
-		doc.font("Helvetica").fontSize(10).text(aiInsight.detailedAnalysis, {
-			align: "justify",
-			width: 495,
-			lineGap: 3,
-		});
+		doc.moveDown(0.3);
+		renderMarkdownText(doc, aiInsight.detailedAnalysis, { width: 495, lineGap: 3 });
 		doc.moveDown(1.5);
 
 		// Executive Summary
 		doc.font("Helvetica-Bold").fontSize(12).text("Executive Summary");
-		doc.font("Helvetica-Oblique").fontSize(10).fillColor("#444444").text(aiInsight.executiveSummary, {
-			align: "justify",
-			width: 495,
-			lineGap: 3,
-		});
+		doc.moveDown(0.3);
+		doc.fillColor("#444444");
+		renderMarkdownText(doc, aiInsight.executiveSummary, { width: 495, lineGap: 3 });
 		doc.fillColor("black");
 		doc.moveDown(1.5);
 
@@ -260,73 +417,153 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		if (aiInsight.recommendations && aiInsight.recommendations.length > 0) {
 			doc.font("Helvetica-Bold").fontSize(12).text("Clinical Recommendations");
 			doc.moveDown(0.5);
-			doc.font("Helvetica").fontSize(10);
 			aiInsight.recommendations.forEach((rec) => {
-				// Bullet point
-				doc.circle(60, doc.y + 3, 2).fill("black"); // Manual bullet
-				doc.text(rec, 75, doc.y - 2, { width: 450, align: "left", lineGap: 3 });
+				doc.circle(60, doc.y + 4, 2).fill("black");
+				renderInlineMarkdown(doc, rec, 75, 450, 3);
 				doc.moveDown(0.5);
 			});
 		}
 		doc.moveDown(2);
 
-		// --- Recent Symptom History (Table Layout) ---
-		doc.font("Helvetica-Bold").fontSize(14).text("Recent Symptom History", 50, doc.y);
-		doc.moveTo(50, doc.y + 5)
-			.lineTo(545, doc.y + 5)
-			.stroke();
-		doc.moveDown(1);
+		// === HELPER: Draw a section heading with underline ===
+		const drawSectionHeading = (title: string) => {
+			if (doc.y > 700) doc.addPage();
+			doc.font("Helvetica-Bold").fontSize(14).text(title, 50, doc.y);
+			doc.moveTo(50, doc.y + 5)
+				.lineTo(545, doc.y + 5)
+				.strokeColor("#cccccc")
+				.lineWidth(0.5)
+				.stroke();
+			doc.moveDown(1);
+		};
 
-		// Table Header
-		const tableTop = doc.y;
-		const colDate = 50;
-		const colSym = 150;
-		const colUrg = 450;
+		// === HELPER: Draw a simple table row ===
+		const drawTableRow = (rowYPos: number, cols: { text: string; x: number; width?: number; color?: string }[]) => {
+			let maxH = 15;
+			for (const col of cols) {
+				if (col.color) doc.fillColor(col.color);
+				else doc.fillColor("black");
+				doc.font("Helvetica")
+					.fontSize(9)
+					.text(col.text, col.x, rowYPos, { width: col.width || 150, lineGap: 2 });
+				const h = doc.heightOfString(col.text, { width: col.width || 150 });
+				if (h > maxH) maxH = h;
+			}
+			doc.fillColor("black");
+			const rh = Math.max(18, maxH + 8);
+			doc.moveTo(50, rowYPos + rh)
+				.lineTo(545, rowYPos + rh)
+				.strokeColor("#eeeeee")
+				.lineWidth(0.5)
+				.stroke();
+			return rh;
+		};
 
-		doc.rect(50, tableTop, 495, 20).fill("#eeeeee").stroke();
-		doc.fillColor("black").font("Helvetica-Bold").fontSize(10);
-		doc.text("Date", colDate + 5, tableTop + 5);
-		doc.text("Reported Symptoms", colSym, tableTop + 5);
-		doc.text("Urgency", colUrg, tableTop + 5);
+		// ─── 1. RECENT PRESCRIPTION HISTORY (PRIMARY) ───────────────
+		if (sources.has("prescriptions")) {
+			drawSectionHeading("Recent Prescription History");
 
-		doc.font("Helvetica").fontSize(10);
-		let rowY = tableTop + 25;
+			if (!userData.prescriptionHistory?.length) {
+				doc.font("Helvetica")
+					.fontSize(10)
+					.text("No recent prescriptions recorded.", 50, doc.y, { align: "center", width: 495 });
+			} else {
+				// Table header
+				const thY = doc.y;
+				doc.rect(50, thY, 495, 20).fill("#eeeeee").stroke();
+				doc.fillColor("black").font("Helvetica-Bold").fontSize(9);
+				doc.text("Date", 55, thY + 5);
+				doc.text("Prescription Summary", 150, thY + 5);
 
-		if (user.symptomAnalysisHistories.length === 0) {
-			doc.text("No recent symptoms recorded.", 50, rowY, { align: "center", width: 495 });
-		} else {
+				let rY = thY + 25;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				userData.prescriptionHistory.forEach((rx: any) => {
+					if (rY > 740) {
+						doc.addPage();
+						rY = 50;
+					}
+					const summary =
+						rx.extractedText?.slice(0, 200) ||
+						(rx.analysisResult ? JSON.stringify(rx.analysisResult).slice(0, 200) : "No details");
+					const rh = drawTableRow(rY, [
+						{ text: new Date(rx.createdAt).toLocaleDateString(), x: 55, width: 80 },
+						{ text: summary, x: 150, width: 390 },
+					]);
+					rY += rh;
+				});
+			}
+			doc.moveDown(2);
+		}
+
+		// ─── 2. RECENT SYMPTOM HISTORY ──────────────────────────────
+		if (sources.has("symptoms")) {
+			drawSectionHeading("Recent Symptom Analysis");
+
+			if (!userData.symptomAnalysisHistories?.length) {
+				doc.font("Helvetica")
+					.fontSize(10)
+					.text("No recent symptoms recorded.", 50, doc.y, { align: "center", width: 495 });
+			} else {
+				const thY = doc.y;
+				doc.rect(50, thY, 495, 20).fill("#eeeeee").stroke();
+				doc.fillColor("black").font("Helvetica-Bold").fontSize(9);
+				doc.text("Date", 55, thY + 5);
+				doc.text("Reported Symptoms", 150, thY + 5);
+				doc.text("Severity", 400, thY + 5);
+				doc.text("Urgency", 470, thY + 5);
+
+				let rY = thY + 25;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				userData.symptomAnalysisHistories.forEach((record: any) => {
+					if (rY > 740) {
+						doc.addPage();
+						rY = 50;
+					}
+					const urgColor =
+						record.urgencyLevel === "Emergency Room"
+							? "red"
+							: record.urgencyLevel === "Doctor Visit"
+								? "orange"
+								: "green";
+					const rh = drawTableRow(rY, [
+						{ text: record.createdAt.toLocaleDateString(), x: 55, width: 80 },
+						{ text: record.symptoms.join(", "), x: 150, width: 240 },
+						{ text: record.severity || "N/A", x: 400, width: 60 },
+						{ text: record.urgencyLevel, x: 470, width: 70, color: urgColor },
+					]);
+					rY += rh;
+				});
+			}
+			doc.moveDown(2);
+		}
+
+		// ─── 3. RECENT MEDICINE SEARCHES ───────────────────────────
+		if (sources.has("medicines") && userData.medicineHistory?.length) {
+			drawSectionHeading("Recent Medicine Searches");
+			doc.font("Helvetica").fontSize(10);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			user.symptomAnalysisHistories.forEach((record: any) => {
-				// Check page break
-				if (rowY > 750) {
-					doc.addPage();
-					rowY = 50;
-					// Re-draw header? Or just continue. Continue is simpler for now.
-				}
-
-				doc.text(record.createdAt.toLocaleDateString(), colDate + 5, rowY);
-				doc.text(record.symptoms.join(", "), colSym, rowY, { width: 280, lineGap: 2 });
-
-				// Calculate height of symptoms text to know where next row starts
-				const symHeight = doc.heightOfString(record.symptoms.join(", "), { width: 280 });
-
-				// Color code urgency
-				if (record.urgencyLevel === "High" || record.urgencyLevel === "Emergency") doc.fillColor("red");
-				else if (record.urgencyLevel === "Moderate") doc.fillColor("orange");
-				else doc.fillColor("green");
-
-				doc.text(record.urgencyLevel, colUrg, rowY);
-				doc.fillColor("black");
-
-				// Draw row line
-				const rowHeight = Math.max(20, symHeight + 10);
-				doc.moveTo(50, rowY + rowHeight - 5)
-					.lineTo(545, rowY + rowHeight - 5)
-					.strokeColor("#eeeeee")
-					.stroke(); // Light separator
-
-				rowY += rowHeight;
+			userData.medicineHistory.forEach((med: any) => {
+				doc.circle(60, doc.y + 3, 2).fill("black");
+				doc.text(`${med.medicineName} — ${new Date(med.createdAt).toLocaleDateString()}`, 75, doc.y - 2, {
+					width: 450,
+				});
+				doc.moveDown(0.3);
 			});
+			doc.moveDown(2);
+		}
+
+		// ─── 4. RECENT DRUG INTERACTION CHECKS ─────────────────────
+		if (sources.has("drugInteractions") && userData.drugInteractionHistory?.length) {
+			drawSectionHeading("Recent Drug Interaction Checks");
+			doc.font("Helvetica").fontSize(10);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			userData.drugInteractionHistory.forEach((di: any) => {
+				const drugs = Array.isArray(di.drugs) ? di.drugs.join(" + ") : String(di.drugs);
+				doc.circle(60, doc.y + 3, 2).fill("black");
+				doc.text(`${drugs} — ${new Date(di.createdAt).toLocaleDateString()}`, 75, doc.y - 2, { width: 450 });
+				doc.moveDown(0.3);
+			});
+			doc.moveDown(2);
 		}
 
 		// Footer

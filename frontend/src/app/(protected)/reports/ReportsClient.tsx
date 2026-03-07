@@ -10,14 +10,36 @@ import {
 	FileText,
 	AlertCircle,
 	ExternalLink,
+	Stethoscope,
+	Pill,
+	FlaskConical,
+	ClipboardList,
 } from "lucide-react";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
 import { useToast } from "@/contexts/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { HealthReport } from "@/types/report";
+
+/* ------------------------------------------------------------------ */
+/*  Data Source Options                                                */
+/* ------------------------------------------------------------------ */
+
+const DATA_SOURCES = [
+	{ key: "symptoms", label: "Symptom Analysis", icon: Stethoscope, color: "text-rose-500" },
+	{ key: "prescriptions", label: "Prescriptions", icon: ClipboardList, color: "text-blue-500" },
+	{ key: "medicines", label: "Medicine Search", icon: Pill, color: "text-emerald-500" },
+	{
+		key: "drugInteractions",
+		label: "Drug Interactions",
+		icon: FlaskConical,
+		color: "text-amber-500",
+	},
+] as const;
+
+type SourceKey = (typeof DATA_SOURCES)[number]["key"];
 
 /* ------------------------------------------------------------------ */
 /*  ReportsClient                                                      */
@@ -26,6 +48,20 @@ import type { HealthReport } from "@/types/report";
 export function ReportsClient() {
 	const { addToast } = useToast();
 	const [isGenerating, setIsGenerating] = useState(false);
+
+	// All sources enabled by default
+	const [selectedSources, setSelectedSources] = useState<Set<SourceKey>>(
+		() => new Set(DATA_SOURCES.map((s) => s.key)),
+	);
+
+	const toggleSource = useCallback((key: SourceKey) => {
+		setSelectedSources((prev) => {
+			const next = new Set(prev);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
+	}, []);
 
 	const {
 		data: reports,
@@ -36,9 +72,17 @@ export function ReportsClient() {
 	});
 
 	const handleGenerate = useCallback(async () => {
+		if (selectedSources.size === 0) {
+			addToast("error", "Please select at least one data source.");
+			return;
+		}
+
 		setIsGenerating(true);
 		try {
-			await apiClient(API_ROUTES.GENERATE_REPORT);
+			await apiClient(API_ROUTES.GENERATE_REPORT, {
+				method: "POST",
+				body: { sources: Array.from(selectedSources) },
+			});
 			await globalMutate(API_ROUTES.REPORTS);
 			addToast("success", "Health report generated successfully!");
 		} catch (err) {
@@ -46,7 +90,7 @@ export function ReportsClient() {
 		} finally {
 			setIsGenerating(false);
 		}
-	}, [addToast]);
+	}, [addToast, selectedSources]);
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -58,9 +102,11 @@ export function ReportsClient() {
 					</div>
 					<div>
 						<h1 className="font-heading text-xl font-bold text-foreground sm:text-2xl">
-							Health Reports
+							Unified Health Report
 						</h1>
-						<p className="text-sm text-muted">AI-generated health summary reports</p>
+						<p className="text-sm text-muted">
+							AI-generated report combining prescriptions, symptoms & insights
+						</p>
 					</div>
 				</div>
 
@@ -75,13 +121,46 @@ export function ReportsClient() {
 				</Button>
 			</div>
 
+			{/* Data source selector */}
+			<div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+				<p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
+					Include data from
+				</p>
+				<div className="flex flex-wrap gap-2">
+					{DATA_SOURCES.map(({ key, label, icon: Icon, color }) => {
+						const active = selectedSources.has(key);
+						return (
+							<button
+								key={key}
+								type="button"
+								onClick={() => toggleSource(key)}
+								disabled={isGenerating}
+								className={cn(
+									"flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+									active
+										? "border-primary/40 bg-primary/10 text-primary"
+										: "border-border bg-background text-muted hover:bg-border/50",
+									isGenerating && "cursor-not-allowed opacity-50",
+								)}
+								aria-pressed={active}
+							>
+								<Icon className={cn("size-3.5", active ? color : "text-muted")} />
+								{label}
+							</button>
+						);
+					})}
+				</div>
+				<p className="mt-2 text-[11px] text-muted">
+					Health Profile is always included. Toggle additional data sources above.
+				</p>
+			</div>
+
 			{/* Info banner */}
 			<div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
 				<AlertCircle className="mt-0.5 size-4 shrink-0 text-blue-500" />
 				<p className="text-xs text-blue-700 dark:text-blue-300">
-					Reports are generated using your health profile, chronic conditions, and recent health
-					tool usage. It may take 5–10 seconds to generate. Maximum 10 reports are stored (oldest is
-					removed automatically).
+					Reports are generated using your health profile and selected data sources. It may take
+					5–10 seconds to generate. Maximum 10 reports are stored (oldest is removed automatically).
 				</p>
 			</div>
 
@@ -93,7 +172,7 @@ export function ReportsClient() {
 						Generating your health report…
 					</p>
 					<p className="mt-1 text-xs text-muted">
-						Analyzing your profile, conditions, and history to create a comprehensive PDF report.
+						Analyzing your profile and selected health data to create a comprehensive PDF report.
 					</p>
 				</div>
 			)}
