@@ -329,6 +329,12 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 						userId: userId,
 						reportUrl: reportUrl,
 						publicId: publicId,
+						sources: Array.from(sources),
+						detailedAnalysis: aiInsight.detailedAnalysis,
+						executiveSummary: aiInsight.executiveSummary,
+						healthTrends: aiInsight.healthTrends,
+						chatSummary: aiInsight.chatSummary,
+						recommendations: aiInsight.recommendations || [],
 					},
 				});
 

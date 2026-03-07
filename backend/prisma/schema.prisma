@@ -35,12 +35,18 @@ model User {
 }
 
 model HealthReport {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  reportUrl String   @map("report_url")
-  publicId  String?  @map("public_id") // Optional for backward compatibility, but we'll populate it
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  reportUrl        String   @map("report_url")
+  publicId         String?  @map("public_id")
+  sources          String[] @default([])
+  detailedAnalysis String?  @map("detailed_analysis") @db.Text
+  executiveSummary String?  @map("executive_summary") @db.Text
+  healthTrends     String?  @map("health_trends") @db.Text
+  chatSummary      String?  @map("chat_summary") @db.Text
+  recommendations  String[] @default([])
+  createdAt        DateTime @default(now()) @map("created_at")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
