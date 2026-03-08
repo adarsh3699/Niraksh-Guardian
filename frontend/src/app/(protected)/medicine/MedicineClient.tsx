@@ -21,14 +21,20 @@ export function MedicineClient() {
 	const [files, setFiles] = useState<File[]>([]);
 	const { result, isLoading, error, analyze, reset } = useMedicineAnalysis();
 
-	// Auto-search if ?name= is provided and no cached result
+	// Keep URL-driven navigation authoritative over session state.
 	useEffect(() => {
-		if (urlName && !result) {
-			setName(urlName);
-			analyze(urlName);
+		if (!urlName) return;
+
+		const incomingName = urlName.trim();
+		if (!incomingName) return;
+
+		const currentName = name.trim();
+		if (incomingName.toLowerCase() !== currentName.toLowerCase()) {
+			reset();
+			setName(incomingName);
+			void analyze(incomingName);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [urlName, name, setName, analyze, reset]);
 
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {

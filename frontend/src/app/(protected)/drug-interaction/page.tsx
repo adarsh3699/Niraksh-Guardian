@@ -17,7 +17,7 @@ const DrugInteractionClient = dynamic(
 export const metadata: Metadata = generatePageMetadata({
 	title: "Drug Interaction Checker",
 	description:
-		"Check potential interactions between multiple drugs. Enter medicine names to get AI-powered analysis of possible drug-drug interactions.",
+		"Check medicine safety with AI. Enter one medicine for personalized safety checks against your history, or multiple medicines for direct drug-drug interaction analysis.",
 	path: "/drug-interaction",
 	keywords: [
 		"drug interaction",

@@ -112,6 +112,7 @@ export interface PrescriptionAnalysisResponse {
 /** `POST /api/ai/drug-interaction` response. */
 export interface DrugInteractionResponse {
 	description: string;
+	mode?: "personalized" | "direct";
 }
 
 /** `GET /api/disease/info` response. */

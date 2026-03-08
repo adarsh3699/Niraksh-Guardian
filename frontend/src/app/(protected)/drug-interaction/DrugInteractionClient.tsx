@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useDrugInteraction } from "@/hooks/useHealthTools";
@@ -16,25 +16,42 @@ import { cn } from "@/lib/utils";
 export function DrugInteractionClient() {
 	const searchParams = useSearchParams();
 	const urlMedicines = searchParams.get("medicines");
+	const lastAutoRunKeyRef = useRef<string>("");
 
 	const [medicines, setMedicines] = useSessionState<string[]>("ng:drug-interaction:medicines", [
-		"",
 		"",
 	]);
 	const { result, isLoading, error, checkInteraction, reset } = useDrugInteraction();
 
-	// Pre-fill from URL (?medicines=Paracetamol,Amoxicillin) only on fresh navigation
+	// Keep URL-driven navigation authoritative over session state.
 	useEffect(() => {
-		if (urlMedicines && !result) {
-			const list = urlMedicines
-				.split(",")
-				.map((m) => decodeURIComponent(m).trim())
-				.filter(Boolean);
-			while (list.length < 2) list.push("");
-			setMedicines(list);
+		if (!urlMedicines) return;
+
+		const nextList = urlMedicines
+			.split(",")
+			.map((m) => decodeURIComponent(m).trim())
+			.filter(Boolean);
+		if (nextList.length === 0) nextList.push("");
+
+		const normalizeKey = (list: string[]) =>
+			list
+				.map((item) => item.trim().toLowerCase())
+				.filter(Boolean)
+				.join("|");
+
+		const incomingKey = normalizeKey(nextList);
+		const currentKey = normalizeKey(medicines);
+
+		if (incomingKey !== currentKey) {
+			setMedicines(nextList);
+			reset();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+
+		if (incomingKey && incomingKey !== lastAutoRunKeyRef.current) {
+			lastAutoRunKeyRef.current = incomingKey;
+			void checkInteraction(nextList);
+		}
+	}, [urlMedicines, medicines, setMedicines, reset, checkInteraction]);
 
 	const handleChange = useCallback(
 		(index: number, value: string) => {
@@ -54,7 +71,7 @@ export function DrugInteractionClient() {
 	const handleRemove = useCallback(
 		(index: number) => {
 			setMedicines((prev) => {
-				if (prev.length <= 2) return prev; // Min 2
+				if (prev.length <= 1) return prev; // Min 1
 				return prev.filter((_, i) => i !== index);
 			});
 		},
@@ -62,12 +79,13 @@ export function DrugInteractionClient() {
 	);
 
 	const filledCount = medicines.filter((m) => m.trim()).length;
+	const resultMode = result?.mode ?? (filledCount === 1 ? "personalized" : "direct");
 
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {
 			e?.preventDefault();
 			const cleaned = medicines.map((m) => m.trim()).filter(Boolean);
-			if (cleaned.length < 2) return;
+			if (cleaned.length < 1) return;
 			await checkInteraction(cleaned);
 		},
 		[medicines, checkInteraction],
@@ -75,7 +93,7 @@ export function DrugInteractionClient() {
 
 	const handleReset = useCallback(() => {
 		reset();
-		setMedicines(["", ""]);
+		setMedicines([""]);
 	}, [reset, setMedicines]);
 
 	return (
@@ -91,8 +109,9 @@ export function DrugInteractionClient() {
 					</h1>
 				</div>
 				<p className="text-sm text-muted sm:text-base">
-					Enter two or more medicines to check for potential drug-drug interactions, severity
-					levels, and recommendations.
+					Enter one medicine for a personalized safety check against your last 1 year prescription
+					history and symptom-based disease context, or enter two or more medicines for direct
+					drug-drug interaction analysis.
 				</p>
 			</div>
 
@@ -120,7 +139,7 @@ export function DrugInteractionClient() {
 									)}
 									disabled={isLoading}
 								/>
-								{medicines.length > 2 && (
+								{medicines.length > 1 && (
 									<button
 										type="button"
 										onClick={() => handleRemove(i)}
@@ -151,11 +170,11 @@ export function DrugInteractionClient() {
 								type="submit"
 								variant="primary"
 								size="md"
-								disabled={filledCount < 2 || isLoading}
+								disabled={filledCount < 1 || isLoading}
 								loading={isLoading}
 							>
 								<Search className="mr-1.5 size-4" />
-								Check Interactions
+								{filledCount === 1 ? "Check Personalized Safety" : "Check Interactions"}
 							</Button>
 
 							{(result || medicines.some((m) => m.trim())) && (
@@ -180,7 +199,17 @@ export function DrugInteractionClient() {
 				{isLoading && <AnalysisResultSkeleton />}
 
 				{/* Result */}
-				{result && <AnalysisResult description={result.description} title="Interaction Analysis" />}
+				{result && (
+					<div className="space-y-3">
+						<div className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground">
+							Mode:
+							{resultMode === "personalized"
+								? "Personalized (history + disease context)"
+								: "Direct interaction"}
+						</div>
+						<AnalysisResult description={result.description} title="Interaction Analysis" />
+					</div>
+				)}
 			</div>
 		</div>
 	);

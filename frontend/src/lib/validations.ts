@@ -85,6 +85,6 @@ export type ProfileFormData = z.infer<typeof profileSchema>;
 export const drugInteractionSchema = z.object({
 	medicines: z
 		.array(z.string().min(1, "Medicine name cannot be empty"))
-		.min(2, "Enter at least 2 medicines"),
+		.min(1, "Enter at least 1 medicine"),
 });
 export type DrugInteractionFormData = z.infer<typeof drugInteractionSchema>;

@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
-import { analyzeMedicine, analyzePrescription, checkDrugInteraction } from "../services/ai/gemini";
+import {
+	analyzeMedicine,
+	analyzePrescription,
+	checkDrugInteraction,
+	checkPersonalizedDrugInteraction,
+} from "../services/ai/gemini";
 import { uploadImage } from "../services/cloudinary/cloudinary";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
@@ -11,6 +16,47 @@ interface AuthenticatedRequest extends Request {
 		userId: string;
 	};
 }
+
+const HISTORY_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+
+const normalizeMedicineSet = (values: string[]): string[] => {
+	const map = new Map<string, string>();
+	for (const value of values) {
+		const trimmed = value.trim();
+		if (!trimmed) continue;
+		const key = trimmed.toLowerCase();
+		if (!map.has(key)) map.set(key, trimmed);
+	}
+	return Array.from(map.values());
+};
+
+const extractMedicinesFromPrescriptionResult = (analysisResult: unknown): string[] => {
+	if (!analysisResult || typeof analysisResult !== "object" || Array.isArray(analysisResult)) return [];
+
+	const medicines = (analysisResult as { medicines?: unknown }).medicines;
+	if (!Array.isArray(medicines)) return [];
+
+	return medicines.filter((item): item is string => typeof item === "string").map((item) => item.trim());
+};
+
+const extractStringsDeep = (value: unknown, out: Set<string>) => {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (trimmed) out.add(trimmed);
+		return;
+	}
+
+	if (Array.isArray(value)) {
+		for (const item of value) extractStringsDeep(item, out);
+		return;
+	}
+
+	if (value && typeof value === "object") {
+		for (const nested of Object.values(value as Record<string, unknown>)) {
+			extractStringsDeep(nested, out);
+		}
+	}
+};
 
 // --- Medicine Analysis ---
 export const analyzeMedicineController = async (req: Request, res: Response) => {
@@ -105,20 +151,117 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
 		const { medicines } = drugInteractionSchema.parse(req.body);
+		const cleanedMedicines = normalizeMedicineSet(medicines);
+
+		if (cleanedMedicines.length === 0) {
+			return res.status(400).json({ error: "At least one medicine is required" });
+		}
+
+		if (cleanedMedicines.length === 1) {
+			const selectedMedicine = cleanedMedicines[0];
+			const oneYearAgo = new Date(Date.now() - HISTORY_WINDOW_MS);
+
+			const [prescriptionHistory, symptomHistory] = await Promise.all([
+				prisma.prescriptionHistory.findMany({
+					where: { userId, createdAt: { gte: oneYearAgo } },
+					select: {
+						analysisResult: true,
+						extractedText: true,
+					},
+				}),
+				prisma.symptomAnalysisHistory.findMany({
+					where: { userId, createdAt: { gte: oneYearAgo } },
+					select: {
+						predictedConditions: true,
+						symptoms: true,
+					},
+				}),
+			]);
+
+			const historicalMedicineCandidates: string[] = [];
+			for (const row of prescriptionHistory) {
+				const extracted = extractMedicinesFromPrescriptionResult(row.analysisResult);
+				if (extracted.length > 0) {
+					historicalMedicineCandidates.push(...extracted);
+					continue;
+				}
+
+				historicalMedicineCandidates.push(
+					...row.extractedText
+						.split(",")
+						.map((item) => item.trim())
+						.filter(Boolean)
+				);
+			}
+
+			const historicalMedicines = normalizeMedicineSet(historicalMedicineCandidates)
+				.filter((name) => name.toLowerCase() !== selectedMedicine.toLowerCase())
+				.slice(0, 20);
+
+			if (historicalMedicines.length === 0) {
+				const description = `## Checking ${selectedMedicine} against your prescription history\n\nNo historical prescriptions found in the last 1 year. Add at least one more medicine to check direct interactions, or upload a prescription to build your personalized history.`;
+
+				await prisma.drugInteractionHistory.create({
+					data: {
+						userId,
+						drugs: cleanedMedicines,
+						interactionResult: { description, mode: "personalized_no_history" },
+					},
+				});
+
+				return res.json({ description, mode: "personalized" });
+			}
+
+			const conditionSet = new Set<string>();
+			const symptomSet = new Set<string>();
+
+			for (const row of symptomHistory) {
+				for (const symptom of row.symptoms) {
+					const trimmed = symptom.trim();
+					if (trimmed) symptomSet.add(trimmed);
+				}
+				extractStringsDeep(row.predictedConditions, conditionSet);
+			}
+
+			const context = {
+				conditions: Array.from(conditionSet).slice(0, 15),
+				symptoms: Array.from(symptomSet).slice(0, 20),
+			};
+
+			const personalized = await checkPersonalizedDrugInteraction(selectedMedicine, historicalMedicines, context);
+
+			const description = `## Checking ${selectedMedicine} against your prescription history\n\n${personalized}`;
+
+			await prisma.drugInteractionHistory.create({
+				data: {
+					userId,
+					drugs: [selectedMedicine, ...historicalMedicines],
+					interactionResult: {
+						description,
+						mode: "personalized",
+						selectedMedicine,
+						historicalMedicines,
+						context,
+					},
+				},
+			});
+
+			return res.json({ description, mode: "personalized" });
+		}
 
 		// Analyze with AI
-		const description = await checkDrugInteraction(medicines);
+		const description = await checkDrugInteraction(cleanedMedicines);
 
 		// Save to history
 		await prisma.drugInteractionHistory.create({
 			data: {
 				userId,
-				drugs: medicines,
+				drugs: cleanedMedicines,
 				interactionResult: { description },
 			},
 		});
 
-		res.json({ description });
+		res.json({ description, mode: "direct" });
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return res.status(400).json({ error: error.issues });

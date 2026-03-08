@@ -126,7 +126,7 @@ export function useDrugInteraction() {
 
 	const checkInteraction = useCallback(
 		async (medicines: string[]) => {
-			if (medicines.length < 2) return null;
+			if (medicines.length < 1) return null;
 
 			setIsLoading(true);
 			setError(null);

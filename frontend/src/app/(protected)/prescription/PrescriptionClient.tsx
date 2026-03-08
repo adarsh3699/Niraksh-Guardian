@@ -7,7 +7,7 @@ import { usePrescriptionAnalysis } from "@/hooks/useHealthTools";
 import { FileUploadZone } from "@/components/health-tools/FileUploadZone";
 import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tools/AnalysisResult";
 import { Button } from "@/components/ui/Button";
-import { FileText, ArrowRight, Pill, RotateCcw, Search, AlertTriangle } from "lucide-react";
+import { FileText, ArrowRight, Pill, RotateCcw, AlertTriangle, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -45,16 +45,18 @@ export function PrescriptionClient() {
 		[setSelectedMedicines],
 	);
 
-	/** Navigate based on selection count */
-	const handleMedicineAction = useCallback(() => {
-		if (selectedMedicines.length === 1) {
-			// Single medicine → Medicine Search page
-			router.push(`/medicine?name=${encodeURIComponent(selectedMedicines[0])}`);
-		} else if (selectedMedicines.length >= 2) {
-			// Multiple medicines → Drug Interaction Checker
+	/** Navigate to interaction checker */
+	const handleCheckInteractions = useCallback(() => {
+		if (selectedMedicines.length >= 1) {
 			const params = selectedMedicines.map(encodeURIComponent).join(",");
 			router.push(`/drug-interaction?medicines=${params}`);
 		}
+	}, [selectedMedicines, router]);
+
+	/** Navigate to medicine details when exactly one medicine is selected */
+	const handleAboutMedicine = useCallback(() => {
+		if (selectedMedicines.length !== 1) return;
+		router.push(`/medicine?name=${encodeURIComponent(selectedMedicines[0])}`);
 	}, [selectedMedicines, router]);
 
 	return (
@@ -131,7 +133,8 @@ export function PrescriptionClient() {
 									Extracted Medicines
 								</h3>
 								<p className="mb-4 text-xs text-muted">
-									Select medicines to look up details or check interactions
+									Select one medicine for personalized safety check, or multiple for direct
+									interaction analysis
 								</p>
 
 								{/* Selectable chips */}
@@ -158,25 +161,32 @@ export function PrescriptionClient() {
 								</div>
 
 								{/* Dynamic CTA */}
-								<Button
-									variant="outline"
-									size="md"
-									onClick={handleMedicineAction}
-									disabled={selectedMedicines.length === 0}
-								>
-									{selectedMedicines.length === 1 ? (
-										<>
+								{selectedMedicines.length === 1 ? (
+									<div className="flex flex-wrap items-center gap-2">
+										<Button variant="outline" size="md" onClick={handleAboutMedicine}>
 											<Search className="mr-1.5 size-4" />
-											Check Medicine Details
-										</>
-									) : (
-										<>
+											About This Medicine
+											<ArrowRight className="ml-1.5 size-4" />
+										</Button>
+
+										<Button variant="outline" size="md" onClick={handleCheckInteractions}>
 											<AlertTriangle className="mr-1.5 size-4" />
 											Check Drug Interactions
-										</>
-									)}
-									<ArrowRight className="ml-1.5 size-4" />
-								</Button>
+											<ArrowRight className="ml-1.5 size-4" />
+										</Button>
+									</div>
+								) : (
+									<Button
+										variant="outline"
+										size="md"
+										onClick={handleCheckInteractions}
+										disabled={selectedMedicines.length === 0}
+									>
+										<AlertTriangle className="mr-1.5 size-4" />
+										Check Drug Interactions
+										<ArrowRight className="ml-1.5 size-4" />
+									</Button>
+								)}
 							</div>
 						)}
 					</>

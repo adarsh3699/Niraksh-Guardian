@@ -496,3 +496,64 @@ End with a brief disclaimer reminding patients to consult healthcare providers a
 		throw new Error("Failed to check drug interactions");
 	}
 };
+
+export const checkPersonalizedDrugInteraction = async (
+	medicine: string,
+	historicalMedicines: string[],
+	diseaseContext: { conditions: string[]; symptoms: string[] }
+): Promise<string> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const medicineList = historicalMedicines.join(", ");
+		const conditionList = diseaseContext.conditions.length
+			? diseaseContext.conditions.join(", ")
+			: "None from recent symptom history";
+		const symptomList = diseaseContext.symptoms.length
+			? diseaseContext.symptoms.join(", ")
+			: "None from recent symptom history";
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: {
+				systemInstruction:
+					"You are a clinical pharmacology assistant. Provide evidence-based medicine safety checks using medication history and disease context.",
+			},
+			contents: [
+				{
+					role: "user",
+					parts: [
+						{
+							text: `Perform a personalized drug safety review for this patient.
+
+Selected medicine: ${medicine}
+Recent historical medicines (last 1 year): ${medicineList}
+Recent disease context from symptom analysis (last 1 year):
+- Conditions: ${conditionList}
+- Symptoms: ${symptomList}
+
+Please provide:
+1. Drug-drug interaction check between selected medicine and each historical medicine
+2. Drug-disease cautions or contraindications based on listed conditions/symptoms
+3. Severity for each finding (none, mild, moderate, severe)
+4. Practical patient guidance and monitoring advice
+5. A short summary with clear next step
+
+Formatting requirements:
+- Use markdown headings and bullet points
+- Include a section titled "Drug-Disease Considerations"
+- If no clinically meaningful issues are found, state that clearly
+
+End with a brief disclaimer to consult a healthcare professional.`,
+						},
+					],
+				},
+			],
+		});
+
+		return result.text || "";
+	} catch (error) {
+		logger.error({ err: error }, "Gemini Personalized Drug Interaction Error");
+		throw new Error("Failed to check personalized drug interactions");
+	}
+};
