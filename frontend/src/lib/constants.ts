@@ -41,6 +41,7 @@ export const API_ROUTES = {
 	MEDICINE: "/api/ai/medicine",
 	PRESCRIPTION: "/api/ai/prescription",
 	DRUG_INTERACTION: "/api/ai/drug-interaction",
+	MEDICINE_AUTOCOMPLETE: "/api/medicine/autocomplete",
 
 	// Education
 	DISEASE_INFO: "/api/disease/info",
