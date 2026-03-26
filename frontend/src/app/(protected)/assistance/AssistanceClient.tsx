@@ -117,9 +117,9 @@ export function AssistanceClient() {
 			}
 
 			if (response.summary) {
-				// Store once — doctor-suggest page reads it, no second API call
+				// Store once — symptom-analysis page reads it, no second API call
 				sessionStorage.setItem("symptomSummary", response.summary);
-				router.push("/doctor-suggest");
+				router.push("/symptom-analysis");
 			}
 		} catch (err) {
 			addToast("error", err instanceof ApiError ? err.message : "Failed to analyze symptoms");

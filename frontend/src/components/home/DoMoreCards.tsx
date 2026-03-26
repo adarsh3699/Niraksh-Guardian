@@ -54,7 +54,7 @@ const TOOLS = [
 		cta: "Check Safety",
 	},
 	{
-		href: "/doctor-suggest",
+		href: "/symptom-analysis",
 		accentColor: "#3b82f6",
 		accentBg: "rgba(59,130,246,0.08)",
 		accentShadow: "rgba(59,130,246,0.18)",
@@ -74,7 +74,7 @@ const TOOLS = [
 				/>
 			</svg>
 		),
-		label: "Doctor Suggestion",
+		label: "Symptom Analysis",
 		desc: "Describe your symptoms and get matched with the right specialist near you — powered by AI.",
 		cta: "Find Doctor",
 	},
@@ -190,7 +190,7 @@ export function DoMoreCards() {
 					</p>
 				</div>
 				<Link
-					href="/doctor-suggest"
+					href="/symptom-analysis"
 					className="shrink-0 rounded-full border border-[#448e94]/30 px-5 py-2.5 text-[0.83rem] font-semibold text-[#448e94] no-underline transition-all hover:bg-[#448e94]/5 max-sm:hidden"
 				>
 					Explore all tools →

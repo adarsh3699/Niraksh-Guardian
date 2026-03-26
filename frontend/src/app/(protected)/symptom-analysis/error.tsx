@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { AlertTriangle } from "lucide-react";
 
-export default function DoctorSuggestError({
+export default function SymptomAnalysisError({
 	error,
 	reset,
 }: {
@@ -12,7 +12,7 @@ export default function DoctorSuggestError({
 	reset: () => void;
 }) {
 	useEffect(() => {
-		console.error("[DoctorSuggest Error]", error);
+		console.error("[SymptomAnalysis Error]", error);
 	}, [error]);
 
 	return (
@@ -22,7 +22,7 @@ export default function DoctorSuggestError({
 			</div>
 			<h2 className="font-heading text-lg font-bold text-foreground">Something went wrong</h2>
 			<p className="max-w-sm text-sm text-muted">
-				The Doctor Suggestion page encountered an error. Please try again.
+				The Symptom Analysis page encountered an error. Please try again.
 			</p>
 			<Button variant="primary" size="md" onClick={reset}>
 				Try Again

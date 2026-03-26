@@ -410,7 +410,7 @@ function transformHistoryData(
 									};
 									sessionStorage.setItem("ng:symptom:result", JSON.stringify(analysisResult));
 									sessionStorage.setItem("ng:symptom:symptoms", JSON.stringify(s.symptoms.join(", ")));
-									router.push("/doctor-suggest");
+									router.push("/symptom-analysis");
 							}
 						: undefined,
 				actionLabel: "Open Details",

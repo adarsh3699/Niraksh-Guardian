@@ -47,10 +47,10 @@ const quickActions = [
 		iconColor: "text-blue-500",
 	},
 	{
-		title: "Doctor Suggest",
-		description: "Find the right doctor",
+		title: "Symptom Analysis",
+		description: "Analyze your symptoms",
 		icon: Stethoscope,
-		href: "/doctor-suggest",
+		href: "/symptom-analysis",
 		gradient: "from-emerald-500/20 to-emerald-600/5",
 		iconColor: "text-emerald-500",
 	},

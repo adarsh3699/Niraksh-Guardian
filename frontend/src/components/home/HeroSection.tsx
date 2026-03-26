@@ -12,7 +12,7 @@ export function HeroSection() {
 		e.preventDefault();
 		const query = symptoms.trim();
 		if (!query) return;
-		router.push(`/doctor-suggest?symptoms=${encodeURIComponent(query)}`);
+		router.push(`/symptom-analysis?symptoms=${encodeURIComponent(query)}`);
 	}
 
 	return (

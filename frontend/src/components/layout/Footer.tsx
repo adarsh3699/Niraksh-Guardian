@@ -9,13 +9,13 @@ import { Instagram, Github, Linkedin, Phone, Mail, MapPin } from "lucide-react";
 
 const QUICK_LINKS = [
 	{ label: "Home", href: "/" },
-	{ label: "Find Doctor", href: "/doctor-suggest" },
+	{ label: "Find Doctor", href: "/symptom-analysis" },
 	{ label: "Services", href: "/assistance" },
 	{ label: "About", href: "/about" },
 ];
 
 const SERVICES = [
-	{ label: "Symptom Analysis", href: "/doctor-suggest" },
+	{ label: "Symptom Analysis", href: "/symptom-analysis" },
 	{ label: "Medicine Info", href: "/medicine" },
 	{ label: "Health Assistant", href: "/assistance" },
 	{ label: "Prescription", href: "/prescription" },

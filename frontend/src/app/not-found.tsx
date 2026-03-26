@@ -49,7 +49,7 @@ export default function NotFound() {
 				<ul className="flex flex-col gap-3 text-left">
 					<li>
 						<Link
-							href="/doctor-suggest"
+							href="/symptom-analysis"
 							className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-primary/5"
 						>
 							<div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">

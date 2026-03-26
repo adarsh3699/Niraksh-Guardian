@@ -145,7 +145,7 @@ export function DoctorSuggestClient() {
 				</div>
 				<div>
 					<h1 className="font-heading text-xl font-bold text-foreground sm:text-2xl">
-						Doctor Suggestion
+						Symptom Analysis
 					</h1>
 					<p className="text-sm text-muted">Analyze symptoms &amp; find the right specialist</p>
 				</div>

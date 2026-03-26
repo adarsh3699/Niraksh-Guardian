@@ -90,7 +90,7 @@ export function DiseaseClient() {
 
 	const handleFindDoctors = useCallback(() => {
 		if (!result?.name) return;
-		router.push(`/doctor-suggest?condition=${encodeURIComponent(result.name)}`);
+		router.push(`/symptom-analysis?condition=${encodeURIComponent(result.name)}`);
 	}, [result, router]);
 
 	return (

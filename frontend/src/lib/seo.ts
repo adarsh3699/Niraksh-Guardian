@@ -124,7 +124,7 @@ export function generateWebsiteJsonLd() {
 			"@type": "SearchAction",
 			target: {
 				"@type": "EntryPoint",
-				urlTemplate: `${SITE_CONFIG.url}/doctor-suggest?symptoms={search_term_string}`,
+				urlTemplate: `${SITE_CONFIG.url}/symptom-analysis?symptoms={search_term_string}`,
 			},
 			"query-input": "required name=search_term_string",
 		},

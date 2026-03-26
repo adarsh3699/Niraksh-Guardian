@@ -64,7 +64,7 @@ export function CTABanner() {
 							<ArrowRight className="h-4 w-4" />
 						</Link>
 						<Link
-							href="/doctor-suggest"
+							href="/symptom-analysis"
 							className="inline-flex h-12 items-center rounded-xl border border-white/30 px-8 text-[0.9rem] font-semibold text-white no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/10 active:translate-y-0"
 						>
 							Find a Doctor

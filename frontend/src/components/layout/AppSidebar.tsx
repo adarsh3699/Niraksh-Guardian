@@ -28,10 +28,10 @@ import { useAuth } from "@/contexts/AuthProvider";
 const mainNavItems = [
 	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/assistance", label: "AI Assistant", icon: MessageSquare },
-	{ href: "/doctor-suggest", label: "Doctor Suggest", icon: Stethoscope },
+	{ href: "/symptom-analysis", label: "Symptom Analysis", icon: Stethoscope },
+	{ href: "/drug-interaction", label: "Drug Interaction", icon: AlertTriangle },
 	{ href: "/prescription", label: "Prescription", icon: FileText },
 	{ href: "/medicine", label: "Medicine Search", icon: Pill },
-	{ href: "/drug-interaction", label: "Drug Interaction", icon: AlertTriangle },
 	{ href: "/disease", label: "Disease Info", icon: BookOpen },
 ];
 
