@@ -10,7 +10,7 @@ import Link from "next/link";
 
 const ROUTE_LABELS: Record<string, string> = {
 	"/dashboard": "Dashboard",
-	"/assistance": "AI Assistant",
+	"/niraksh-ai": "Niraksh AI",
 	"/symptom-analysis": "Symptom Analysis",
 	"/prescription": "Prescription",
 	"/medicine": "Medicine Search",

@@ -62,7 +62,7 @@ export default function NotFound() {
 					</li>
 					<li>
 						<Link
-							href="/assistance"
+							href="/niraksh-ai"
 							className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-primary/5"
 						>
 							<div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">

@@ -27,7 +27,7 @@ import { useAuth } from "@/contexts/AuthProvider";
 
 const mainNavItems = [
 	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-	{ href: "/assistance", label: "AI Assistant", icon: MessageSquare },
+	{ href: "/niraksh-ai", label: "Niraksh AI", icon: MessageSquare },
 	{ href: "/symptom-analysis", label: "Symptom Analysis", icon: Stethoscope },
 	{ href: "/drug-interaction", label: "Drug Interaction", icon: AlertTriangle },
 	{ href: "/prescription", label: "Prescription", icon: FileText },
@@ -36,9 +36,9 @@ const mainNavItems = [
 ];
 
 const accountNavItems = [
-	{ href: "/profile", label: "Profile", icon: User },
-	{ href: "/history", label: "Health History", icon: History },
 	{ href: "/reports", label: "Reports", icon: FileBarChart },
+	{ href: "/history", label: "Health History", icon: History },
+	{ href: "/profile", label: "Profile", icon: User },
 ];
 
 /* ------------------------------------------------------------------ */

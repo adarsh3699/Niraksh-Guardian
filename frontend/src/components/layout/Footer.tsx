@@ -10,14 +10,14 @@ import { Instagram, Github, Linkedin, Phone, Mail, MapPin } from "lucide-react";
 const QUICK_LINKS = [
 	{ label: "Home", href: "/" },
 	{ label: "Find Doctor", href: "/symptom-analysis" },
-	{ label: "Services", href: "/assistance" },
+	{ label: "Services", href: "/niraksh-ai" },
 	{ label: "About", href: "/about" },
 ];
 
 const SERVICES = [
 	{ label: "Symptom Analysis", href: "/symptom-analysis" },
 	{ label: "Medicine Info", href: "/medicine" },
-	{ label: "Health Assistant", href: "/assistance" },
+	{ label: "Health Assistant", href: "/niraksh-ai" },
 	{ label: "Prescription", href: "/prescription" },
 ];
 

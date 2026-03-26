@@ -39,10 +39,10 @@ import type { HealthReport } from "@/types/report";
 
 const quickActions = [
 	{
-		title: "AI Assistant",
+		title: "Niraksh AI",
 		description: "Chat about your health",
 		icon: MessageSquare,
-		href: "/assistance",
+		href: "/niraksh-ai",
 		gradient: "from-blue-500/20 to-blue-600/5",
 		iconColor: "text-blue-500",
 	},

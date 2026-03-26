@@ -186,7 +186,7 @@ export function AssistanceClient() {
 							<PanelLeft className="size-5" />
 						</button>
 						<h1 className="font-heading text-sm font-semibold text-foreground">
-							AI Health Assistant
+							Niraksh AI
 						</h1>
 					</div>
 				)}

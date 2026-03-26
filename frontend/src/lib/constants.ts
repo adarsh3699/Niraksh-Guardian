@@ -196,10 +196,10 @@ export const HEALTH_TOOL_CARDS: HealthToolCard[] = [
 		cta: "Search",
 	},
 	{
-		title: "AI Health Assistant",
+		title: "Niraksh AI",
 		description: "Chat with our AI assistant about your health concerns.",
 		icon: MessageSquare,
-		href: "/assistance",
+		href: "/niraksh-ai",
 		cta: "Chat Now",
 	},
 ];

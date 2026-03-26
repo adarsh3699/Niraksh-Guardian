@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { AlertTriangle } from "lucide-react";
 
-export default function AssistanceError({
+export default function NirakshAIError({
 	error,
 	reset,
 }: {
@@ -12,7 +12,7 @@ export default function AssistanceError({
 	reset: () => void;
 }) {
 	useEffect(() => {
-		console.error("[Assistance Error]", error);
+		console.error("[NirakshAI Error]", error);
 	}, [error]);
 
 	return (
@@ -22,7 +22,7 @@ export default function AssistanceError({
 			</div>
 			<h2 className="font-heading text-lg font-bold text-foreground">Something went wrong</h2>
 			<p className="max-w-sm text-sm text-muted">
-				The AI Health Assistant encountered an error. Please try again.
+				Niraksh AI encountered an error. Please try again.
 			</p>
 			<Button variant="primary" size="md" onClick={reset}>
 				Try Again

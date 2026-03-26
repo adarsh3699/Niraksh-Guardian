@@ -79,7 +79,7 @@ const TOOLS = [
 		cta: "Find Doctor",
 	},
 	{
-		href: "/assistance",
+		href: "/niraksh-ai",
 		accentColor: "#f97316",
 		accentBg: "rgba(249,115,22,0.08)",
 		accentShadow: "rgba(249,115,22,0.18)",
