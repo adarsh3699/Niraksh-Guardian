@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, type FormEvent } from "react";
-import { useSymptomAnalysis, useChatSummary } from "@/hooks/useDoctors";
+import { useChatSummary, useSymptomRelationship } from "@/hooks/useDoctors";
 import { Button } from "@/components/ui/Button";
 import Image from "next/image";
 import {
@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SymptomAnalysis as SymptomAnalysisType } from "@/types/doctor";
+import { SymptomBreakdown } from "./SymptomBreakdown";
+import { SymptomSuggestions } from "./SymptomSuggestions";
+import { SymptomRelationshipCard } from "./SymptomRelationshipCard";
+import { SymptomInsight } from "./SymptomInsight";
 
 /* ------------------------------------------------------------------ */
 /*  Severity badge colors                                             */
@@ -226,7 +230,7 @@ function ChatSummarySection({
 interface SymptomAnalysisProps {
 	chatId?: string | null;
 	initialSymptoms?: string;
-	/** Pre-loaded analysis result (e.g. from history "Open Details") — skips re-fetching */
+	/** @deprecated Pre-loaded result no longer needed — unified hook handles session */
 	initialResult?: SymptomAnalysisType | null;
 	/** If true, auto-submit analysis on mount (e.g. coming from chat with pre-computed summary) */
 	autoAnalyze?: boolean;
@@ -239,7 +243,8 @@ interface SymptomAnalysisProps {
 export function SymptomAnalysis({
 	chatId,
 	initialSymptoms,
-	initialResult,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	initialResult: _initialResult,
 	autoAnalyze = false,
 	onSpecialistFound,
 	onAnalysisComplete,
@@ -249,40 +254,61 @@ export function SymptomAnalysis({
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const autoSubmitted = useRef(false);
-	const { result, isAnalyzing, error, analyze, reset } = useSymptomAnalysis(initialResult);
 
+	// Single unified hook — backend returns both SRI + legacy analysis
+	const {
+		result: sriResult,
+		isAnalyzing,
+		error,
+		analyze: sriAnalyze,
+		reset,
+	} = useSymptomRelationship();
+
+	// Notify parent with legacy analysis data (for matchTags etc.) — does NOT trigger doctor search
+	useEffect(() => {
+		if (sriResult?.analysis) {
+			onAnalysisComplete?.(sriResult.analysis);
+		}
+	}, [sriResult, onAnalysisComplete]);
+
+	// When user clicks a suggestion chip — only update the textarea.
+	// User must click "Analyze Symptoms" to trigger a new analysis.
+	const handleSuggestionSelect = useCallback(
+		(symptom: string) => {
+			// Don't add if already present (case-insensitive check)
+			const alreadyPresent = symptoms
+				.split(/[,\n]+/)
+				.map((s) => s.trim().toLowerCase())
+				.includes(symptom.toLowerCase());
+			if (alreadyPresent) return;
+
+			setSymptoms((prev) => (prev.trim() ? `${prev}, ${symptom}` : symptom));
+		},
+		[symptoms],
+	);
+
+	// Unified submit — single endpoint does everything
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {
 			e?.preventDefault();
-			if (!symptoms.trim()) return;
-
-			// Split paragraph-style input into array of symptoms
-			const symptomList = symptoms
-				.split(/[,\n]+/)
-				.map((s) => s.trim())
-				.filter(Boolean);
-
-			if (symptomList.length === 0) return;
-
-			const analysisResult = await analyze(symptomList, image ?? undefined);
-			if (analysisResult) onAnalysisComplete?.(analysisResult);
+			if (!symptoms.trim() && !image) return; // Allow image-only analysis
+			await sriAnalyze(symptoms, image || undefined);
 		},
-		[symptoms, image, analyze, onAnalysisComplete],
+		[symptoms, image, sriAnalyze],
 	);
 
-	// When chatId summary fills the symptoms, auto-submit the analysis
+	// When chatId summary fills the symptoms, auto-submit
 	const handleSummaryReady = useCallback((summaryText: string) => {
 		setSymptoms(summaryText);
 	}, []);
 
-	// Auto-submit when autoAnalyze is true (pre-computed summary from chat)
-	// or when chatId summary fills the symptoms
+	// Auto-submit when autoAnalyze or chatId summary fills symptoms
 	useEffect(() => {
-		if ((autoAnalyze || chatId) && symptoms && !autoSubmitted.current && !result && !isAnalyzing) {
+		if ((autoAnalyze || chatId) && symptoms && !autoSubmitted.current && !sriResult && !isAnalyzing) {
 			autoSubmitted.current = true;
 			handleSubmit();
 		}
-	}, [autoAnalyze, chatId, symptoms, result, isAnalyzing, handleSubmit]);
+	}, [autoAnalyze, chatId, symptoms, sriResult, isAnalyzing, handleSubmit]);
 
 	const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -310,7 +336,7 @@ export function SymptomAnalysis({
 			{/* Chat summary (if navigated from a chat) */}
 			{chatId && <ChatSummarySection chatId={chatId} onSummaryReady={handleSummaryReady} />}
 
-			{/* Symptom input */}
+			{/* Symptom input card */}
 			<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-6">
 				<h3 className="mb-3 font-heading text-lg font-bold text-foreground">
 					Describe Your Symptoms
@@ -346,7 +372,7 @@ export function SymptomAnalysis({
 						</div>
 					)}
 
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<Button
 							type="submit"
 							variant="primary"
@@ -377,7 +403,7 @@ export function SymptomAnalysis({
 							aria-hidden="true"
 						/>
 
-						{result && (
+						{sriResult && (
 							<Button type="button" variant="ghost" size="md" onClick={handleReset}>
 								Clear
 							</Button>
@@ -388,8 +414,27 @@ export function SymptomAnalysis({
 				</form>
 			</div>
 
-			{/* Analysis result */}
-			{result && <AnalysisResult result={result} onFindDoctors={onSpecialistFound} />}
+			{/* When < 2 symptoms → show suggestions + legacy analysis */}
+			{sriResult?.needMoreInfo === true && sriResult.suggestedSymptoms && sriResult.message && (
+				<SymptomSuggestions
+					symptoms={sriResult.symptoms}
+					message={sriResult.message}
+					suggestedSymptoms={sriResult.suggestedSymptoms}
+					onSelect={handleSuggestionSelect}
+				/>
+			)}
+
+			{/* When ≥ 2 symptoms → show deep SRI analysis */}
+			{sriResult?.needMoreInfo === false && (
+				<div className="space-y-4">
+					<SymptomBreakdown symptoms={sriResult.symptoms} />
+					{sriResult.relationship && <SymptomRelationshipCard relationship={sriResult.relationship} />}
+					{sriResult.insight && <SymptomInsight insight={sriResult.insight} />}
+				</div>
+			)}
+
+			{/* Legacy analysis result — always shows from the same response */}
+			{sriResult?.analysis && <AnalysisResult result={sriResult.analysis} onFindDoctors={onSpecialistFound} />}
 		</div>
 	);
 }

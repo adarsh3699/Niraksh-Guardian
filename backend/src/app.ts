@@ -12,6 +12,7 @@ import healthRoutes from "./routes/health";
 import chatRoutes from "./routes/chat";
 import doctorRoutes from "./routes/doctor";
 import symptomRoutes from "./routes/symptom";
+import symptomRelationshipRoutes from "./routes/symptomRelationship";
 import diseaseRoutes from "./routes/education";
 import historyRoutes from "./routes/history";
 import profileRoutes from "./routes/profile";
@@ -130,6 +131,7 @@ app.use("/health", healthRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/ai", symptomRoutes);
+app.use("/api/symptoms", symptomRelationshipRoutes);
 app.use("/api/disease", diseaseRoutes);
 app.use("/api/history", historyRoutes); // Register History Routes
 app.use("/api/profile", profileRoutes); // Register Profile Routes

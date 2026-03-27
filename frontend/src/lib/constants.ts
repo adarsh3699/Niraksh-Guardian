@@ -59,6 +59,9 @@ export const API_ROUTES = {
 	// Reports
 	REPORTS: "/api/reports",
 	GENERATE_REPORT: "/api/reports/health-summary",
+
+	// Symptom Relationship Intelligence
+	SYMPTOM_RELATIONSHIP: "/api/symptoms/analyze",
 } as const;
 
 /* ------------------------------------------------------------------ */

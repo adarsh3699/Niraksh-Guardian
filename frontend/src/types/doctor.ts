@@ -67,3 +67,42 @@ export interface SymptomSummaryResponse {
 	summary: string;
 	status: "success" | "non_medical";
 }
+
+/* ------------------------------------------------------------------ */
+/*  Symptom Relationship Intelligence (SRI) types                     */
+/* ------------------------------------------------------------------ */
+
+export interface SymptomRelationshipEdge {
+	from: string;
+	to: string;
+	relation: string;
+}
+
+export interface SymptomRelationshipGraph {
+	nodes: string[];
+	edges: SymptomRelationshipEdge[];
+	cluster: { name: string; description: string };
+}
+
+export interface SymptomInsightData {
+	category: string;
+	severity: "Mild" | "Moderate" | "Severe" | "Emergency";
+	affectedSystem: string;
+	summary: string;
+}
+
+export interface SymptomRelationshipResponse {
+	symptoms: string[];
+	duration: string | null;
+	severity: string | null;
+	needMoreInfo: boolean;
+	// needMoreInfo=true fields
+	suggestedSymptoms?: string[];
+	message?: string;
+	// needMoreInfo=false fields
+	relationship?: SymptomRelationshipGraph;
+	insight?: SymptomInsightData;
+	specialist?: string;
+	// Legacy analysis — always present
+	analysis?: SymptomAnalysis;
+}

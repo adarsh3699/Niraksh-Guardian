@@ -7,8 +7,8 @@ import { API_ROUTES } from "@/lib/constants";
 import type {
 	Doctor,
 	DoctorSearchParams,
-	SymptomAnalysis,
 	SymptomSummaryResponse,
+	SymptomRelationshipResponse,
 } from "@/types/doctor";
 import type { PaginatedResponse } from "@/types/api";
 import type { ProfileResponse } from "@/types/health";
@@ -53,50 +53,6 @@ export function useDoctorSearch(params: DoctorSearchParams) {
 		isLoading,
 		isError: !!error,
 	};
-}
-
-/* ------------------------------------------------------------------ */
-/*  useSymptomAnalysis — POST /api/ai/analyze                         */
-/* ------------------------------------------------------------------ */
-
-export function useSymptomAnalysis(initialResult?: SymptomAnalysis | null) {
-	const [result, setResult] = useState<SymptomAnalysis | null>(initialResult ?? null);
-	const [isAnalyzing, setIsAnalyzing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	const analyze = useCallback(async (symptoms: string[], image?: File, language = "en") => {
-		setIsAnalyzing(true);
-		setError(null);
-
-		try {
-			const formData = new FormData();
-			formData.append("symptoms", JSON.stringify(symptoms));
-			formData.append("language", language);
-			if (image) formData.append("image", image);
-
-			const data = await apiClient<SymptomAnalysis>(API_ROUTES.ANALYZE_SYMPTOMS, {
-				method: "POST",
-				body: formData,
-				isFile: true,
-			});
-
-			setResult(data);
-			return data;
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Analysis failed";
-			setError(message);
-			throw err;
-		} finally {
-			setIsAnalyzing(false);
-		}
-	}, []);
-
-	const reset = useCallback(() => {
-		setResult(null);
-		setError(null);
-	}, []);
-
-	return { result, isAnalyzing, error, analyze, reset };
 }
 
 /* ------------------------------------------------------------------ */
@@ -154,4 +110,49 @@ export function useUserProfile() {
 		city: data?.healthProfile?.city ?? undefined,
 		state: data?.healthProfile?.state ?? undefined,
 	};
+}
+
+/* ------------------------------------------------------------------ */
+/*  useSymptomRelationship — POST /api/symptoms/analyze               */
+/* ------------------------------------------------------------------ */
+
+export function useSymptomRelationship() {
+	const [result, setResult] = useState<SymptomRelationshipResponse | null>(null);
+	const [isAnalyzing, setIsAnalyzing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const analyze = useCallback(async (input: string, image?: File) => {
+		setIsAnalyzing(true);
+		setError(null);
+
+		try {
+			const formData = new FormData();
+			formData.append("input", input);
+			if (image) {
+				formData.append("image", image);
+			}
+
+			const data = await apiClient<SymptomRelationshipResponse>(API_ROUTES.SYMPTOM_RELATIONSHIP, {
+				method: "POST",
+				body: formData,
+				isFile: true,
+			});
+
+			setResult(data);
+			return data;
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Analysis failed";
+			setError(message);
+			throw err;
+		} finally {
+			setIsAnalyzing(false);
+		}
+	}, []);
+
+	const reset = useCallback(() => {
+		setResult(null);
+		setError(null);
+	}, []);
+
+	return { result, isAnalyzing, error, analyze, reset };
 }
