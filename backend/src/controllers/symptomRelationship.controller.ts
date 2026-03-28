@@ -50,19 +50,22 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 
 			// Save to history (fire-and-forget)
 			imageUrlPromise.then((imageUrl) => {
-				prisma.symptomAnalysisHistory.create({
-					data: {
-						userId,
-						symptoms: extracted.symptoms.length > 0 ? extracted.symptoms : [input],
-						imageUrl: imageUrl || null,
-						predictedConditions: combined.diagnosis.possibleConditions || [],
-						urgencyLevel: combined.diagnosis.urgency || "Unknown",
-						recommendedSpecialist: combined.diagnosis.recommendedSpecialists?.join(", ") || "General Physician",
-						severity: combined.diagnosis.severity || null,
-						reasoning: combined.diagnosis.reasoning || null,
-						homeRemedies: combined.diagnosis.homeRemedies || [],
-					},
-				}).catch((err: unknown) => logger.error({ err }, "Failed to save symptom analysis to history"));
+				prisma.symptomAnalysisHistory
+					.create({
+						data: {
+							userId,
+							symptoms: extracted.symptoms.length > 0 ? extracted.symptoms : [input],
+							imageUrl: imageUrl || null,
+							predictedConditions: combined.diagnosis.possibleConditions || [],
+							urgencyLevel: combined.diagnosis.urgency || "Unknown",
+							recommendedSpecialist:
+								combined.diagnosis.recommendedSpecialists?.join(", ") || "General Physician",
+							severity: combined.diagnosis.severity || null,
+							reasoning: combined.diagnosis.reasoning || null,
+							homeRemedies: combined.diagnosis.homeRemedies || [],
+						},
+					})
+					.catch((err: unknown) => logger.error({ err }, "Failed to save symptom analysis to history"));
 			});
 
 			return res.json({
@@ -81,19 +84,22 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 
 		// Save to history (fire-and-forget)
 		imageUrlPromise.then((imageUrl) => {
-			prisma.symptomAnalysisHistory.create({
-				data: {
-					userId,
-					symptoms: extracted.symptoms,
-					imageUrl: imageUrl || null,
-					predictedConditions: fullAnalysis.diagnosis.possibleConditions || [],
-					urgencyLevel: fullAnalysis.diagnosis.urgency || "Unknown",
-					recommendedSpecialist: fullAnalysis.diagnosis.recommendedSpecialists?.join(", ") || "General Physician",
-					severity: fullAnalysis.diagnosis.severity || null,
-					reasoning: fullAnalysis.diagnosis.reasoning || null,
-					homeRemedies: fullAnalysis.diagnosis.homeRemedies || [],
-				},
-			}).catch((err: unknown) => logger.error({ err }, "Failed to save symptom analysis to history"));
+			prisma.symptomAnalysisHistory
+				.create({
+					data: {
+						userId,
+						symptoms: extracted.symptoms,
+						imageUrl: imageUrl || null,
+						predictedConditions: fullAnalysis.diagnosis.possibleConditions || [],
+						urgencyLevel: fullAnalysis.diagnosis.urgency || "Unknown",
+						recommendedSpecialist:
+							fullAnalysis.diagnosis.recommendedSpecialists?.join(", ") || "General Physician",
+						severity: fullAnalysis.diagnosis.severity || null,
+						reasoning: fullAnalysis.diagnosis.reasoning || null,
+						homeRemedies: fullAnalysis.diagnosis.homeRemedies || [],
+					},
+				})
+				.catch((err: unknown) => logger.error({ err }, "Failed to save symptom analysis to history"));
 		});
 
 		return res.json({
