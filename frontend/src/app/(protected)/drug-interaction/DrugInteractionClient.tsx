@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ResearchPanel } from "@/components/health-tools/ResearchPanel";
+import { AnalysisResult } from "@/components/health-tools/AnalysisResult";
 
 /* ------------------------------------------------------------------ */
 /*  DrugInteractionClient                                              */
