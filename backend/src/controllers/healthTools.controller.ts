@@ -230,7 +230,17 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 
 			const personalized = await checkPersonalizedDrugInteraction(selectedMedicine, historicalMedicines, context);
 
-			const description = `## Checking ${selectedMedicine} against your prescription history\n\n${personalized}`;
+			// Convert tabs array to markdown format with proper safety checks
+			const markdownContent = personalized.tabs
+				.map((tab) => {
+					const titleStr = typeof tab.title === "string" ? tab.title : String(tab.title || "");
+					const contentStr =
+						typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || "");
+					return `## ${titleStr}\n\n${contentStr}`;
+				})
+				.join("\n\n");
+
+			const description = `## Checking ${selectedMedicine} against your prescription history\n\n${markdownContent}`;
 
 			await prisma.drugInteractionHistory.create({
 				data: {
@@ -242,6 +252,7 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 						selectedMedicine,
 						historicalMedicines,
 						context,
+						rawTabs: personalized.tabs,
 					},
 				},
 			});
@@ -250,18 +261,38 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 		}
 
 		// Analyze with AI
-		const description = await checkDrugInteraction(cleanedMedicines);
+		const tabsResponse = await checkDrugInteraction(cleanedMedicines);
+
+		// Convert tabs array to markdown format with proper safety checks
+		const description = tabsResponse.tabs
+			.map((tab) => {
+				const titleStr = typeof tab.title === "string" ? tab.title : String(tab.title || "");
+				const contentStr = typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || "");
+				return `## ${titleStr}\n\n${contentStr}`;
+			})
+			.join("\n\n");
 
 		// Save to history
 		await prisma.drugInteractionHistory.create({
 			data: {
 				userId,
 				drugs: cleanedMedicines,
-				interactionResult: { description },
+				interactionResult: {
+					description,
+					mode: "direct",
+					severity: tabsResponse.severity,
+					riskScore: tabsResponse.riskScore,
+					rawTabs: tabsResponse.tabs,
+				},
 			},
 		});
 
-		res.json({ description, mode: "direct" });
+		res.json({
+			description,
+			mode: "direct",
+			severity: tabsResponse.severity,
+			riskScore: tabsResponse.riskScore,
+		});
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return res.status(400).json({ error: error.issues });
