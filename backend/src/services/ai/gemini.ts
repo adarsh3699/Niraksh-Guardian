@@ -429,6 +429,76 @@ MEDICINES_JSON:[{"name":"Medicine Name 1", "dosage":"Dosage 1"},{"name":"Medicin
 	}
 };
 
+const stripOuterQuotes = (input: string): string => {
+	const trimmed = input.trim();
+	if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+		return trimmed.slice(1, -1).trim();
+	}
+	return trimmed;
+};
+
+const toPointByPointMarkdown = (value: unknown): string => {
+	if (value == null) return "";
+
+	if (typeof value === "string") {
+		const cleaned = stripOuterQuotes(value).replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
+
+		if (!cleaned) return "";
+
+		if ((cleaned.startsWith("[") && cleaned.endsWith("]")) || (cleaned.startsWith("{") && cleaned.endsWith("}"))) {
+			try {
+				return toPointByPointMarkdown(JSON.parse(cleaned));
+			} catch {
+				/* non-JSON string, continue */
+			}
+		}
+
+		return cleaned
+			.replace(/\",\s*\"/g, "\n- ")
+			.replace(/^\[\"/, "")
+			.replace(/\"\]$/, "")
+			.trim();
+	}
+
+	if (Array.isArray(value)) {
+		const lines = value
+			.map((item) => toPointByPointMarkdown(item))
+			.map((line) => line.trim())
+			.filter(Boolean)
+			.map((line) => (line.startsWith("- ") ? line : `- ${line}`));
+		return lines.join("\n");
+	}
+
+	if (typeof value === "object") {
+		const entries = Object.entries(value as Record<string, unknown>);
+		const lines = entries
+			.map(([key, entryValue]) => {
+				const normalized = toPointByPointMarkdown(entryValue).trim();
+				if (!normalized) return "";
+				const heading = key.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+				if (normalized.startsWith("- ")) {
+					return `- **${heading}:**\n${normalized}`;
+				}
+				return `- **${heading}:** ${normalized}`;
+			})
+			.filter(Boolean);
+		return lines.join("\n");
+	}
+
+	return String(value);
+};
+
+const normalizeTabTitle = (value: unknown): string => {
+	const raw = typeof value === "string" ? value : String(value || "Analysis");
+	return stripOuterQuotes(raw).replace(/\*\*/g, "").trim() || "Analysis";
+};
+
+const normalizeTabContent = (value: unknown): string => {
+	const markdown = toPointByPointMarkdown(value).trim();
+	if (!markdown) return "No specific details provided.";
+	return markdown;
+};
+
 export const checkDrugInteraction = async (
 	medicines: string[]
 ): Promise<{
@@ -538,8 +608,8 @@ Output Structure:
 			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
 
 		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
-			title: typeof tab.title === "string" ? tab.title : String(tab.title || "Analysis"),
-			content: typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || ""),
+			title: normalizeTabTitle(tab.title),
+			content: normalizeTabContent(tab.content),
 		}));
 
 		return {
@@ -656,8 +726,8 @@ Output Structure:
 			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
 
 		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
-			title: typeof tab.title === "string" ? tab.title : String(tab.title || "Analysis"),
-			content: typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || ""),
+			title: normalizeTabTitle(tab.title),
+			content: normalizeTabContent(tab.content),
 		}));
 
 		return {

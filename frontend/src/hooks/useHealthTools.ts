@@ -128,6 +128,8 @@ export function useDrugInteraction() {
 		async (medicines: string[]) => {
 			if (medicines.length < 1) return null;
 
+			// Always clear stale result before running a new interaction check.
+			setResult(null);
 			setIsLoading(true);
 			setError(null);
 
