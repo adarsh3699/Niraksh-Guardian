@@ -8,6 +8,7 @@ import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tool
 import { Button } from "@/components/ui/Button";
 import { AlertTriangle, Plus, X, Search, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResearchPanel } from "@/components/health-tools/ResearchPanel";
 
 /* ------------------------------------------------------------------ */
 /*  DrugInteractionClient                                              */
@@ -208,6 +209,7 @@ export function DrugInteractionClient() {
 								: "Direct interaction"}
 						</div>
 						<AnalysisResult description={result.description} title="Interaction Analysis" />
+						<ResearchPanel query={medicines.filter((m) => m.trim()).join(" ")} />
 					</div>
 				)}
 			</div>

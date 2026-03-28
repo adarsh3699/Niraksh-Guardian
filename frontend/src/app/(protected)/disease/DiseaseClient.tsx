@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ResearchPanel } from "@/components/health-tools/ResearchPanel";
 
 /* ------------------------------------------------------------------ */
 /*  Section card helper                                                */
@@ -293,6 +294,9 @@ export function DiseaseClient() {
 								</div>
 							</InfoSection>
 						)}
+
+						{/* Research Papers */}
+						<ResearchPanel query={result.name} />
 
 						{/* Find Doctors CTA */}
 						<div className="pt-2">
