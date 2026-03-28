@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
 import Image from "next/image";
+import { ResearchPanel } from "@/components/health-tools/ResearchPanel";
 
 /* ------------------------------------------------------------------ */
 /*  1mg autocomplete types                                            */
@@ -392,7 +393,12 @@ export function MedicineClient() {
 				{isLoading && <AnalysisResultSkeleton />}
 
 				{/* Result */}
-				{result && <AnalysisResult description={result.description} title="Medicine Information" />}
+				{result && (
+					<div className="space-y-3">
+						<AnalysisResult description={result.description} title="Medicine Information" />
+						<ResearchPanel query={name.trim()} />
+					</div>
+				)}
 			</div>
 		</div>
 	);

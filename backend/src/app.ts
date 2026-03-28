@@ -18,6 +18,7 @@ import historyRoutes from "./routes/history";
 import profileRoutes from "./routes/profile";
 import reportRoutes from "./routes/report";
 import medicineRoutes from "./routes/medicine";
+import researchRouter from "./routes/research";
 import { apiRateLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
 
@@ -137,7 +138,10 @@ app.use("/api/history", historyRoutes); // Register History Routes
 app.use("/api/profile", profileRoutes); // Register Profile Routes
 app.use("/api/reports", reportRoutes); // Register Report Routes
 app.use("/api/medicine", medicineRoutes); // Medicine autocomplete proxy
+app.use("/api/research", researchRouter); // Register Research Routes
 // Global Error Handler
 app.use(errorHandler);
 
 export default app;
+// Trigger restart for the backend server
+// ENV updated

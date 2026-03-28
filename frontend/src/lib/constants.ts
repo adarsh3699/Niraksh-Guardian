@@ -62,6 +62,9 @@ export const API_ROUTES = {
 
 	// Symptom Relationship Intelligence
 	SYMPTOM_RELATIONSHIP: "/api/symptoms/analyze",
+
+	// Research RAG
+	RESEARCH_PAPERS: "/api/research/papers",
 } as const;
 
 /* ------------------------------------------------------------------ */
