@@ -113,6 +113,8 @@ export interface PrescriptionAnalysisResponse {
 export interface DrugInteractionResponse {
 	description: string;
 	mode?: "personalized" | "direct";
+	severity?: "none" | "mild" | "moderate" | "severe";
+	riskScore?: number;
 }
 
 /** `GET /api/disease/info` response. */

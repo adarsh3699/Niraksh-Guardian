@@ -429,7 +429,13 @@ MEDICINES_JSON:[{"name":"Medicine Name 1", "dosage":"Dosage 1"},{"name":"Medicin
 	}
 };
 
-export const checkDrugInteraction = async (medicines: string[]): Promise<string> => {
+export const checkDrugInteraction = async (
+	medicines: string[]
+): Promise<{
+	tabs: { title: string; content: string }[];
+	severity: "none" | "mild" | "moderate" | "severe";
+	riskScore: number;
+}> => {
 	try {
 		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -439,7 +445,7 @@ export const checkDrugInteraction = async (medicines: string[]): Promise<string>
 			model: MODEL_NAME,
 			config: {
 				systemInstruction:
-					"You are a helpful medical assistant that provides accurate information about drug interactions based on established medical knowledge. Always provide specific details about interactions when known medicines are mentioned, with evidence-based information. Never refuse to answer with generic disclaimers when legitimate medicines are provided.",
+					"You are a helpful medical assistant that provides accurate information about drug interactions based on established medical knowledge. Always provide specific details about interactions when known medicines are mentioned, with evidence-based information. Never refuse to answer with generic disclaimers when legitimate medicines are provided.\nProvide a structured analysis in JSON format ONLY.",
 			},
 			contents: [
 				{
@@ -449,48 +455,98 @@ export const checkDrugInteraction = async (medicines: string[]): Promise<string>
 							text: `Provide a detailed analysis of potential Drug-Drug interactions between the following medications: ${medicineList}.
 
 For these specific medications:
-
 1. Explain in detail any known interactions between these exact medications using pharmaceutical databases
 2. Rate each interaction's severity (No interaction, mild, moderate, severe) with clinical significance
 3. Provide clear recommendations for patients regarding timing, dosing, or monitoring
 
-Important guidelines:
-- If these are legitimate medications, provide specific interaction information
-- If you don't recognize a medication name, suggest possible corrections or similar medication names
-- If a true interaction exists, be specific about the mechanism and management
-- Format your response with clear headings and bullet points for readability
+Format the response strictly as a JSON object. Include a "severity" field (values: "none", "mild", "moderate", "severe") representing the HIGHEST severity found, and a "tabs" array for detailed information.
 
-End with a brief disclaimer reminding patients to consult healthcare providers about drug interactions.`,
+Output Structure:
+{
+    "severity": "mild|moderate|severe|none",
+    "tabs": [
+        { "title": "Overview", "content": "Analysis intro..." },
+        { "title": "Mechanisms", "content": "Detailed bullet points..." },
+        { "title": "Recommendations", "content": "What to do..." }
+    ]
+}`,
 						},
 					],
 				},
 			],
 		});
 
-		const text = result.text || "";
+		let text = result.text || "";
 
 		// Fallback if response is too generic
 		if (text.length < 500 && /I am an AI|I cannot provide|I'm not able/i.test(text)) {
 			const retryResult = await ai.models.generateContent({
 				model: MODEL_NAME,
 				config: {
-					systemInstruction: "You are a medical database assistant with expertise in drug interactions.",
+					systemInstruction:
+						"You are a medical database assistant with expertise in drug interactions.\nProvide a structured analysis in JSON format ONLY.",
 				},
 				contents: [
 					{
 						role: "user",
 						parts: [
 							{
-								text: `As a pharmacology expert, analyze drug interactions between: ${medicineList}. Provide severity ratings and clinical recommendations. Be specific and evidence-based.`,
+								text: `As a pharmacology expert, analyze drug interactions between: ${medicineList}. Include severity field: "none|mild|moderate|severe". Provide severity ratings and clinical recommendations. Be specific and evidence-based. Format response strictly as JSON with a "severity" field and "tabs" array containing {title, content} objects.`,
 							},
 						],
 					},
 				],
 			});
-			return retryResult.text || text;
+			text = retryResult.text || text;
 		}
 
-		return text;
+		// Robust JSON extraction
+		let jsonStr = text
+			.replace(/```json/g, "")
+			.replace(/```/g, "")
+			.trim();
+		const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+
+		if (jsonMatch) {
+			jsonStr = jsonMatch[0];
+		} else {
+			logger.warn({ text }, "Failed to extract JSON from AI response (Drug Interaction)");
+			throw new Error("Invalid AI response format");
+		}
+
+		const parsed = JSON.parse(jsonStr);
+
+		// Ensure tabs array exists and all content is strings
+		if (!Array.isArray(parsed.tabs)) {
+			logger.warn({ parsed }, "Invalid tabs structure from AI response");
+			throw new Error("Invalid tabs structure in AI response");
+		}
+
+		// Extract and validate severity
+		const severityMap: Record<string, { score: number; label: string }> = {
+			none: { score: 0, label: "none" },
+			"no interaction": { score: 0, label: "none" },
+			mild: { score: 33, label: "mild" },
+			moderate: { score: 66, label: "moderate" },
+			severe: { score: 100, label: "severe" },
+		};
+
+		const rawSeverity = String(parsed.severity || "")
+			.trim()
+			.toLowerCase();
+		const severityData =
+			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
+
+		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
+			title: typeof tab.title === "string" ? tab.title : String(tab.title || "Analysis"),
+			content: typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || ""),
+		}));
+
+		return {
+			tabs: sanitizedTabs,
+			severity: severityData.label as "none" | "mild" | "moderate" | "severe",
+			riskScore: severityData.score,
+		};
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Drug Interaction Error");
 		throw new Error("Failed to check drug interactions");
@@ -501,7 +557,11 @@ export const checkPersonalizedDrugInteraction = async (
 	medicine: string,
 	historicalMedicines: string[],
 	diseaseContext: { conditions: string[]; symptoms: string[] }
-): Promise<string> => {
+): Promise<{
+	tabs: { title: string; content: string }[];
+	severity: "none" | "mild" | "moderate" | "severe";
+	riskScore: number;
+}> => {
 	try {
 		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -517,7 +577,7 @@ export const checkPersonalizedDrugInteraction = async (
 			model: MODEL_NAME,
 			config: {
 				systemInstruction:
-					"You are a clinical pharmacology assistant. Provide evidence-based medicine safety checks using medication history and disease context.",
+					"You are a clinical pharmacology assistant. Provide evidence-based medicine safety checks using medication history and disease context.\nProvide a structured analysis in JSON format ONLY.",
 			},
 			contents: [
 				{
@@ -539,19 +599,72 @@ Please provide:
 4. Practical patient guidance and monitoring advice
 5. A short summary with clear next step
 
-Formatting requirements:
-- Use markdown headings and bullet points
-- Include a section titled "Drug-Disease Considerations"
-- If no clinically meaningful issues are found, state that clearly
+Format the response strictly as a JSON object. Include a "severity" field (values: "none", "mild", "moderate", "severe") representing the HIGHEST risk found.
 
-End with a brief disclaimer to consult a healthcare professional.`,
+Output Structure:
+{
+    "severity": "mild|moderate|severe|none",
+    "tabs": [
+        { "title": "Overview", "content": "Analysis intro..." },
+        { "title": "Drug-Disease Considerations", "content": "Detailed bullet points..." },
+        { "title": "Recommendations", "content": "What to do..." }
+    ]
+}`,
 						},
 					],
 				},
 			],
 		});
 
-		return result.text || "";
+		const text = result.text || "";
+
+		// Robust JSON extraction
+		let jsonStr = text
+			.replace(/```json/g, "")
+			.replace(/```/g, "")
+			.trim();
+		const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+
+		if (jsonMatch) {
+			jsonStr = jsonMatch[0];
+		} else {
+			logger.warn({ text }, "Failed to extract JSON from AI response (Personalized Drug Interaction)");
+			throw new Error("Invalid AI response format");
+		}
+
+		const parsed = JSON.parse(jsonStr);
+
+		// Ensure tabs array exists and all content is strings
+		if (!Array.isArray(parsed.tabs)) {
+			logger.warn({ parsed }, "Invalid tabs structure from AI response");
+			throw new Error("Invalid tabs structure in AI response");
+		}
+
+		// Extract and validate severity
+		const severityMap: Record<string, { score: number; label: string }> = {
+			none: { score: 0, label: "none" },
+			"no interaction": { score: 0, label: "none" },
+			mild: { score: 33, label: "mild" },
+			moderate: { score: 66, label: "moderate" },
+			severe: { score: 100, label: "severe" },
+		};
+
+		const rawSeverity = String(parsed.severity || "")
+			.trim()
+			.toLowerCase();
+		const severityData =
+			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
+
+		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
+			title: typeof tab.title === "string" ? tab.title : String(tab.title || "Analysis"),
+			content: typeof tab.content === "string" ? tab.content : JSON.stringify(tab.content || ""),
+		}));
+
+		return {
+			tabs: sanitizedTabs,
+			severity: severityData.label as "none" | "mild" | "moderate" | "severe",
+			riskScore: severityData.score,
+		};
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Personalized Drug Interaction Error");
 		throw new Error("Failed to check personalized drug interactions");
