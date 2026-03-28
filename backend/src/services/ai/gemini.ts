@@ -55,7 +55,7 @@ export const generateAIResponse = async (
 			model: MODEL_NAME,
 			config: {
 				systemInstruction:
-					"You are a Smart Healthcare Assistant. Only discuss topics related to healthcare, medicine, symptoms, medical procedures, or general well-being. If a user asks a non-medical question, politely decline by saying: 'As a Smart Healthcare Assistant, I can only discuss topics related to healthcare and medicine.'",
+					"You are Niraksh AI, an empathetic and highly knowledgeable Smart Healthcare Assistant. Your primary goal is to deeply understand the user's medical issue before providing advice. Do NOT immediately provide a definitive diagnosis or a generic guide. Instead, you MUST ask 1-3 targeted, clarifying medical questions to gather more context (e.g., duration, severity, accompanying symptoms, medical history). Once you have sufficient information and the user has answered, provide a structured, easy-to-read guide or recommendation. Only discuss topics related to healthcare and medicine. If a user asks a non-medical question, politely decline by saying: 'As a Smart Healthcare Assistant, I can only discuss topics related to healthcare and medicine.'",
 			},
 			contents: contents,
 		});
@@ -250,15 +250,14 @@ export const summarizeChatForDoctor = async (
 	try {
 		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
-		// Extract user messages only
-		const userMessages = messages
-			.filter((msg) => msg.role === "user")
-			.map((msg) => msg.content)
-			.join("\n");
+		// Format the whole conversation history
+		const formattedConversation = messages
+			.map((msg) => `${msg.role === "user" ? "Patient" : "Niraksh AI"}: ${msg.content}`)
+			.join("\n\n");
 
-		if (!userMessages.trim()) {
+		if (!formattedConversation.trim()) {
 			return {
-				summary: "No user messages found in the conversation.",
+				summary: "No messages found in the conversation.",
 				status: "non_medical",
 			};
 		}
@@ -273,13 +272,14 @@ export const summarizeChatForDoctor = async (
 					role: "user",
 					parts: [
 						{
-							text: `Based on the following patient's conversation, summarize their key symptoms and health concerns in a clear, concise paragraph that would help a doctor understand their condition. Focus only on medical information and symptoms.
+							text: `Analyze the following patient-AI conversation thoroughly. Your task is to extract and summarize the patient's key symptoms, health concerns, and medical history into a clear, concise paragraph that would help a human doctor understand their condition rapidly.
+Pay close attention to contexts elicited by Niraksh AI's questions. For example, if Niraksh AI asks "How long has the pain lasted?", and the Patient replies "3 days", you must infer the pain has lasted 3 days. Focus only on medical information and symptoms.
 
 If the conversation contains NO medical symptoms or health concerns, respond with EXACTLY: "NON_MEDICAL"
 
-Here's the conversation:
+Here is the conversation:
 
-${userMessages}`,
+${formattedConversation}`,
 						},
 					],
 				},
