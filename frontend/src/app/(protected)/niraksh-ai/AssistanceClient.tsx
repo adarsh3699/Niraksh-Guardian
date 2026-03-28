@@ -176,12 +176,26 @@ export function AssistanceClient() {
 			)}
 
 			{/* Main chat area */}
-			<div className="flex flex-1 flex-col overflow-hidden">
-				{/* Mobile header OR Desktop hidden sidebar header with toggle */}
-				{(isMobile || !isSidebarVisible) && (
+			<div className="flex flex-1 flex-col overflow-hidden relative">
+				{/* Desktop Floating Toggle Button (Unhide) */}
+				{!isMobile && !isSidebarVisible && (
+					<div className="absolute top-4 left-4 z-10">
+						<button
+							onClick={() => setIsSidebarVisible(true)}
+							className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition-colors"
+							title="Open sidebar"
+							aria-label="Open sidebar"
+						>
+							<PanelLeft className="size-4" />
+						</button>
+					</div>
+				)}
+
+				{/* Mobile header with toggle */}
+				{isMobile && (
 					<div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
 						<button
-							onClick={() => (isMobile ? setSidebarOpen(true) : setIsSidebarVisible(true))}
+							onClick={() => setSidebarOpen(true)}
 							className="rounded-md p-1.5 text-muted transition-colors hover:bg-border hover:text-foreground"
 							aria-label="Open chat list"
 						>
