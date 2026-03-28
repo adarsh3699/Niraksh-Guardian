@@ -19,6 +19,7 @@ import { PanelLeft } from "lucide-react";
 export function AssistanceClient() {
 	const [language, setLanguage] = useState<ChatLanguage>("en");
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [isSidebarVisible, setIsSidebarVisible] = useState(true); // Desktop toggle
 
 	const isMobile = useMediaQuery("(max-width: 768px)");
 	const { addToast } = useToast();
@@ -131,7 +132,7 @@ export function AssistanceClient() {
 	return (
 		<div className="flex h-[calc(100vh-4rem)] overflow-hidden">
 			{/* Desktop sidebar */}
-			{!isMobile && (
+			{!isMobile && isSidebarVisible && (
 				<ChatSidebar
 					chats={chats}
 					activeChatId={activeChatId}
@@ -142,6 +143,7 @@ export function AssistanceClient() {
 					onDeleteChat={handleDeleteChat}
 					onRenameChat={handleRenameChat}
 					onLanguageChange={setLanguage}
+					onToggleSidebar={() => setIsSidebarVisible(false)}
 				/>
 			)}
 
@@ -175,11 +177,11 @@ export function AssistanceClient() {
 
 			{/* Main chat area */}
 			<div className="flex flex-1 flex-col overflow-hidden">
-				{/* Mobile header with toggle */}
-				{isMobile && (
+				{/* Mobile header OR Desktop hidden sidebar header with toggle */}
+				{(isMobile || !isSidebarVisible) && (
 					<div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
 						<button
-							onClick={() => setSidebarOpen(true)}
+							onClick={() => (isMobile ? setSidebarOpen(true) : setIsSidebarVisible(true))}
 							className="rounded-md p-1.5 text-muted transition-colors hover:bg-border hover:text-foreground"
 							aria-label="Open chat list"
 						>

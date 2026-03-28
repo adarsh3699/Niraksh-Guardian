@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { cn, formatDate, truncateText } from "@/lib/utils";
 import { CHAT_LANGUAGES } from "@/lib/constants";
 import type { ChatWithLastMessage, ChatLanguage } from "@/types/chat";
-import { Plus, Trash2, Pencil, Check, X, MessageSquare, ChevronLeft, Globe } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, MessageSquare, ChevronLeft, Globe, PanelLeft } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
 /* ------------------------------------------------------------------ */
@@ -22,6 +22,7 @@ interface ChatSidebarProps {
 	onRenameChat: (chatId: string, title: string) => void;
 	onLanguageChange: (lang: ChatLanguage) => void;
 	onClose?: () => void;
+	onToggleSidebar?: () => void;
 	isMobileOverlay?: boolean;
 }
 
@@ -36,6 +37,7 @@ export function ChatSidebar({
 	onRenameChat,
 	onLanguageChange,
 	onClose,
+	onToggleSidebar,
 	isMobileOverlay = false,
 }: ChatSidebarProps) {
 	const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,14 +82,14 @@ export function ChatSidebar({
 	return (
 		<aside
 			className={cn(
-				"flex h-full flex-col border-r border-border bg-background",
+				"flex h-full flex-col border-r border-border bg-background transition-all duration-300",
 				isMobileOverlay ? "w-full" : "w-72",
 			)}
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between border-b border-border px-4 py-3">
 				<div className="flex items-center gap-2">
-					{isMobileOverlay && onClose && (
+					{isMobileOverlay && onClose ? (
 						<button
 							onClick={onClose}
 							className="rounded-md p-1.5 text-muted transition-colors hover:bg-border hover:text-foreground"
@@ -95,6 +97,17 @@ export function ChatSidebar({
 						>
 							<ChevronLeft className="size-5" />
 						</button>
+					) : (
+						onToggleSidebar && (
+							<button
+								onClick={onToggleSidebar}
+								className="rounded-md p-1.5 text-muted transition-colors hover:bg-border hover:text-foreground border border-transparent hover:border-border"
+								aria-label="Toggle sidebar"
+								title="Close sidebar"
+							>
+								<PanelLeft className="size-5" />
+							</button>
+						)
 					)}
 					<h2 className="font-heading text-sm font-semibold">Chats</h2>
 				</div>
