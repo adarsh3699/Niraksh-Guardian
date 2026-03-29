@@ -10,7 +10,16 @@ interface SymptomRelationshipCardProps {
 }
 
 // Math helper for curved lines and bounding box snapping
-function getEdgePathAndMidpoint(sx: number, sy: number, ex: number, ey: number, isCenterStart: boolean, isCenterEnd: boolean, cx: number, cy: number) {
+function getEdgePathAndMidpoint(
+	sx: number,
+	sy: number,
+	ex: number,
+	ey: number,
+	isCenterStart: boolean,
+	isCenterEnd: boolean,
+	cx: number,
+	cy: number,
+) {
 	// Base dimensions (w/h) for the HTML nodes + extra padding
 	const startW = isCenterStart ? 120 : 110;
 	const startH = isCenterStart ? 48 : 42;
@@ -22,13 +31,17 @@ function getEdgePathAndMidpoint(sx: number, sy: number, ex: number, ey: number, 
 	const dist = Math.sqrt(dx * dx + dy * dy);
 	if (dist === 0) return { pathD: `M ${sx} ${sy} L ${ex} ${ey}`, midX: sx, midY: sy };
 
-	let tStart = 0, tEnd = 0;
+	let tStart = 0,
+		tEnd = 0;
 	if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
 		tStart = Math.min(Math.abs(startW / 2 / dx), Math.abs(startH / 2 / dy));
 		tEnd = Math.min(Math.abs(endW / 2 / dx), Math.abs(endH / 2 / dy));
 	}
 
-	let startX = sx, startY = sy, endX = ex, endY = ey;
+	let startX = sx,
+		startY = sy,
+		endX = ex,
+		endY = ey;
 	if (tStart + tEnd < 1) {
 		startX = sx + dx * tStart;
 		startY = sy + dy * tStart;
@@ -48,7 +61,7 @@ function getEdgePathAndMidpoint(sx: number, sy: number, ex: number, ey: number, 
 		const ox = controlX - cx;
 		const oy = controlY - cy;
 		const odist = Math.sqrt(ox * ox + oy * oy) || 1;
-		controlX += (ox / odist) * 60; 
+		controlX += (ox / odist) * 60;
 		controlY += (oy / odist) * 60;
 	} else {
 		// Center-connected edge: slight pinwheel curve
@@ -128,10 +141,12 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 						<GitGraph className="size-3.5" />
 						Symptom Mind Map
 					</h5>
-					<span className="text-[10px] text-muted-foreground hidden sm:inline-block">Hover nodes and links to explore</span>
+					<span className="text-[10px] text-muted-foreground hidden sm:inline-block">
+						Hover nodes and links to explore
+					</span>
 				</div>
 
-				<div className="relative mx-auto w-full max-w-[800px] aspect-[4/3] bg-white/40 dark:bg-slate-900/40 rounded-lg">
+				<div className="relative isolate z-0 mx-auto w-full max-w-[800px] aspect-[4/3] bg-white/40 dark:bg-slate-900/40 rounded-lg">
 					{/* SVG Layer for Edges ONLY */}
 					<svg
 						className="pointer-events-none absolute inset-0 h-full w-full"
@@ -139,10 +154,24 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 						preserveAspectRatio="xMidYMid meet"
 					>
 						<defs>
-							<marker id="arrowhead" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto">
+							<marker
+								id="arrowhead"
+								markerWidth="6"
+								markerHeight="6"
+								refX="2"
+								refY="3"
+								orient="auto"
+							>
 								<polygon points="0 0, 6 3, 0 6" className="fill-info/50" />
 							</marker>
-							<marker id="arrowhead-active" markerWidth="6" markerHeight="6" refX="2" refY="3" orient="auto">
+							<marker
+								id="arrowhead-active"
+								markerWidth="6"
+								markerHeight="6"
+								refX="2"
+								refY="3"
+								orient="auto"
+							>
 								<polygon points="0 0, 6 3, 0 6" className="fill-info" />
 							</marker>
 						</defs>
@@ -154,7 +183,16 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 
 							const isActive = activeNode === edge.from || activeNode === edge.to;
 							const isDimmed = activeNode !== null && !isActive;
-							const { pathD } = getEdgePathAndMidpoint(start.x, start.y, end.x, end.y, edge.from === centerNode, edge.to === centerNode, cx, cy);
+							const { pathD } = getEdgePathAndMidpoint(
+								start.x,
+								start.y,
+								end.x,
+								end.y,
+								edge.from === centerNode,
+								edge.to === centerNode,
+								cx,
+								cy,
+							);
 
 							return (
 								<path
@@ -164,7 +202,9 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 									className={cn(
 										"transition-all duration-300",
 										isDimmed ? "opacity-10" : "opacity-100",
-										isActive ? "stroke-info stroke-[2px]" : "stroke-info/40 stroke-[1.5px] dark:stroke-info/50"
+										isActive
+											? "stroke-info stroke-[2px]"
+											: "stroke-info/40 stroke-[1.5px] dark:stroke-info/50",
 									)}
 									markerEnd={isActive ? "url(#arrowhead-active)" : "url(#arrowhead)"}
 								/>
@@ -181,7 +221,16 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 
 							const isActive = activeNode === edge.from || activeNode === edge.to;
 							const isDimmed = activeNode !== null && !isActive;
-							const { midX, midY } = getEdgePathAndMidpoint(start.x, start.y, end.x, end.y, edge.from === centerNode, edge.to === centerNode, cx, cy);
+							const { midX, midY } = getEdgePathAndMidpoint(
+								start.x,
+								start.y,
+								end.x,
+								end.y,
+								edge.from === centerNode,
+								edge.to === centerNode,
+								cx,
+								cy,
+							);
 
 							// Smart positioning: if in the bottom half, tooltip expands upwards to avoid clipping
 							const isBottomHalf = midY > height / 2;
@@ -191,7 +240,7 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 									key={`label-${i}`}
 									className={cn(
 										"absolute group pointer-events-auto flex items-center justify-center transition-opacity duration-300",
-										isDimmed ? "opacity-10 z-0" : "opacity-100 z-40 hover:z-[100]" // Fixes tooltip overlapping adjacent edges/nodes
+										isDimmed ? "opacity-10 z-0" : "opacity-100 z-40 hover:z-[100]", // Fixes tooltip overlapping adjacent edges/nodes
 									)}
 									style={{
 										left: `${(midX / width) * 100}%`,
@@ -203,7 +252,7 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 									<div
 										className={cn(
 											"bg-white/95 dark:bg-slate-900/95 text-[8.5px] sm:text-[9px] font-bold tracking-wider uppercase text-info/70 px-1.5 py-0.5 transition-all duration-200 cursor-help max-w-[140px] truncate text-center",
-											isActive && "text-info scale-105 rounded-[4px] shadow-sm ring-1 ring-info/20"
+											isActive && "text-info scale-105 rounded-[4px] shadow-sm ring-1 ring-info/20",
 										)}
 									>
 										{edge.relation}
@@ -213,7 +262,7 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 									<div
 										className={cn(
 											"absolute left-1/2 -translate-x-1/2 w-48 sm:w-64 bg-slate-900 dark:bg-slate-50 text-slate-50 dark:text-slate-900 text-xs p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none text-center leading-relaxed font-medium",
-											isBottomHalf ? "bottom-full mb-2" : "top-full mt-2"
+											isBottomHalf ? "bottom-full mb-2" : "top-full mt-2",
 										)}
 									>
 										{edge.relation}
@@ -223,7 +272,7 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 												"absolute left-1/2 -translate-x-1/2 border-[6px] border-transparent",
 												isBottomHalf
 													? "-bottom-1.5 border-t-slate-900 dark:border-t-slate-50"
-													: "-top-1.5 border-b-slate-900 dark:border-b-slate-50"
+													: "-top-1.5 border-b-slate-900 dark:border-b-slate-50",
 											)}
 										/>
 									</div>
@@ -241,19 +290,24 @@ export function SymptomRelationshipCard({ relationship }: SymptomRelationshipCar
 							const isCenter = node === centerNode;
 							const isActive = activeNode === node;
 							const isConnected = edges.some(
-								(e) => (e.from === node && e.to === activeNode) || (e.to === node && e.from === activeNode),
+								(e) =>
+									(e.from === node && e.to === activeNode) ||
+									(e.to === node && e.from === activeNode),
 							);
 							const isDimmed = activeNode !== null && !isActive && !isConnected;
 
-							let nodeClass = "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-info/40 z-10 shadow-sm";
+							let nodeClass =
+								"border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-info/40 z-10 shadow-sm";
 							if (isActive) {
-								nodeClass = "z-50 scale-110 border-info bg-info text-info-foreground shadow-[0_8px_30px_rgb(0,0,0,0.12)] font-bold text-xs ring-2 ring-info/30";
+								nodeClass =
+									"z-50 scale-110 border-info bg-info text-info-foreground shadow-[0_8px_30px_rgb(0,0,0,0.12)] font-bold text-xs ring-2 ring-info/30";
 							} else if (isConnected) {
 								nodeClass = isCenter
 									? "z-30 scale-105 border-info bg-info text-info-foreground ring-4 ring-info/20 font-bold"
 									: "z-30 scale-105 border-info/50 bg-info/10 text-info dark:bg-info/20 font-semibold shadow-md";
 							} else if (isCenter) {
-								nodeClass = "z-20 border-info bg-info text-info-foreground shadow-md font-bold text-xs ring-4 ring-info/20";
+								nodeClass =
+									"z-20 border-info bg-info text-info-foreground shadow-md font-bold text-xs ring-4 ring-info/20";
 							}
 
 							return (

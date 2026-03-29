@@ -9,7 +9,11 @@ import { DoctorCard } from "@/components/doctor/DoctorCard";
 import { Pagination } from "@/components/doctor/Pagination";
 import { Spinner } from "@/components/ui/Spinner";
 import { Stethoscope, SearchX } from "lucide-react";
-import type { DoctorSearchParams, SymptomAnalysis as SymptomAnalysisType } from "@/types/doctor";
+import type {
+	DoctorSearchParams,
+	SymptomAnalysis as SymptomAnalysisType,
+	SymptomRelationshipResponse,
+} from "@/types/doctor";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                         */
@@ -60,6 +64,19 @@ export function DoctorSuggestClient() {
 		return null;
 	});
 
+	const [storedSRIResult] = useState<SymptomRelationshipResponse | null>(() => {
+		if (typeof window === "undefined") return null;
+		const raw = sessionStorage.getItem("ng:symptom:sri-result");
+		if (!raw) return null;
+
+		sessionStorage.removeItem("ng:symptom:sri-result");
+		try {
+			return JSON.parse(raw) as SymptomRelationshipResponse;
+		} catch {
+			return null;
+		}
+	});
+
 	const [storedSymptoms] = useState<string | undefined>(() => {
 		if (typeof window === "undefined") return undefined;
 		const raw = sessionStorage.getItem("ng:symptom:symptoms");
@@ -81,7 +98,9 @@ export function DoctorSuggestClient() {
 	const { city: userCity, state: userState } = useUserProfile();
 
 	// Latest full analysis result (for possibleConditions → matchTags)
-	const [lastAnalysis, setLastAnalysis] = useState<SymptomAnalysisType | null>(storedResult);
+	const [lastAnalysis, setLastAnalysis] = useState<SymptomAnalysisType | null>(
+		storedSRIResult?.analysis ?? storedResult,
+	);
 
 	const [params, setParams] = useState<DoctorSearchParams>(() => ({
 		...DEFAULT_PARAMS,
@@ -155,7 +174,8 @@ export function DoctorSuggestClient() {
 			<SymptomAnalysis
 				chatId={chatId}
 				initialSymptoms={effectiveSymptoms}
-				initialResult={storedResult}
+				initialResult={storedSRIResult?.analysis ?? storedResult}
+				initialSRIResult={storedSRIResult}
 				autoAnalyze={!!storedSummary}
 				onSpecialistFound={handleSpecialistFound}
 				onAnalysisComplete={handleAnalysisComplete}

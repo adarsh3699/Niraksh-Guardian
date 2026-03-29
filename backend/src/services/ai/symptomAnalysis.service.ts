@@ -142,7 +142,6 @@ const VALID_SEVERITIES: InsightSeverity[] = ["Mild", "Moderate", "Severe", "Emer
 export interface FullAnalysisResult {
 	relationship: SymptomRelationshipGraph;
 	insight: SymptomInsightData;
-	specialist: string;
 	diagnosis: {
 		possibleConditions: string[];
 		severity: "Mild" | "Moderate" | "Severe" | "Emergency";
@@ -162,7 +161,7 @@ export async function generateFullAnalysis(
 
 Return valid JSON only, no markdown. Combine all analyses into a single response.
 
-You MUST choose recommendedSpecialists and specialist ONLY from this exact list:
+You MUST choose recommendedSpecialists ONLY from this exact list:
 ${KNOWN_SPECIALISTS.join(", ")}
 
 Output structure:
@@ -183,7 +182,6 @@ Output structure:
     "affectedSystem": "e.g. Respiratory, Neurological, Digestive, Cardiovascular",
     "summary": "2-3 sentence clinical summary"
   },
-  "specialist": "Single most appropriate specialist from the list",
   "diagnosis": {
     "possibleConditions": ["Condition 1", "Condition 2"],
     "severity": "Mild | Moderate | Severe | Emergency",
@@ -199,7 +197,6 @@ Rules:
 - every edge from/to must reference a value in nodes
 - insight.severity must be exactly one of: Mild, Moderate, Severe, Emergency
 - diagnosis.possibleConditions MUST be informed by the symptom relationship pattern, clinical insight, and any attached image
-- specialist must be exactly one value from the allowed list
 - recommendedSpecialists: return 1–3 from the allowed list
 - diagnosis.reasoning should reference the symptom relationship patterns and any visible signs in the image`;
 
@@ -265,13 +262,6 @@ Rules:
 		throw new Error("Unexpected AI response structure");
 	}
 
-	// Validate specialist
-	let specialist = typeof parsed.specialist === "string" ? parsed.specialist.trim() : "General Physician";
-	if (!KNOWN_SPECIALISTS.includes(specialist as KnownSpecialist)) {
-		logger.warn({ specialist }, "generateFullAnalysis returned unknown specialist, falling back");
-		specialist = "General Physician";
-	}
-
 	// Validate diagnosis
 	const diag = parsed.diagnosis as Record<string, unknown>;
 	if (
@@ -297,7 +287,6 @@ Rules:
 			affectedSystem: ins.affectedSystem,
 			summary: ins.summary,
 		},
-		specialist,
 		diagnosis: {
 			possibleConditions: diag.possibleConditions as string[],
 			severity: diag.severity as "Mild" | "Moderate" | "Severe" | "Emergency",

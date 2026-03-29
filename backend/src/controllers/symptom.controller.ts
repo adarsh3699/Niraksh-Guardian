@@ -50,6 +50,9 @@ export const symptomDiagnosisController = async (req: Request, res: Response) =>
 					userId,
 					symptoms,
 					imageUrl: imageUrl || null,
+					needMoreInfo: false,
+					suggestedSymptoms: [],
+					followUpMessage: null,
 					predictedConditions: analysis.possibleConditions || [],
 					urgencyLevel: analysis.urgency || "Unknown",
 					// DB column is a single string — store comma-joined list

@@ -94,7 +94,6 @@ export interface SymptomInsightData {
 export interface SymptomRelationshipResponse {
 	symptoms: string[];
 	duration: string | null;
-	severity: string | null;
 	needMoreInfo: boolean;
 	// needMoreInfo=true fields
 	suggestedSymptoms?: string[];
@@ -102,7 +101,6 @@ export interface SymptomRelationshipResponse {
 	// needMoreInfo=false fields
 	relationship?: SymptomRelationshipGraph;
 	insight?: SymptomInsightData;
-	specialist?: string;
 	// Legacy analysis — always present
 	analysis?: SymptomAnalysis;
 }

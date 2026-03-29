@@ -437,7 +437,19 @@ function transformHistoryData(
 										: [],
 									homeRemedies: s.homeRemedies || [],
 								};
+
+								const sriResult = {
+									symptoms: s.symptoms,
+									duration: s.duration,
+									needMoreInfo: s.needMoreInfo,
+									suggestedSymptoms: s.suggestedSymptoms,
+									message: s.followUpMessage ?? undefined,
+									relationship: s.relationship ?? undefined,
+									insight: s.insight ?? undefined,
+									analysis: analysisResult,
+								};
 								sessionStorage.setItem("ng:symptom:result", JSON.stringify(analysisResult));
+								sessionStorage.setItem("ng:symptom:sri-result", JSON.stringify(sriResult));
 								sessionStorage.setItem(
 									"ng:symptom:symptoms",
 									JSON.stringify(s.symptoms.join(", ")),

@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
+import { Prisma } from "../generated/prisma";
 
 interface AuthenticatedRequest extends Request {
 	user?: {
@@ -56,6 +57,10 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 							userId,
 							symptoms: extracted.symptoms.length > 0 ? extracted.symptoms : [input],
 							imageUrl: imageUrl || null,
+							duration: extracted.duration,
+							needMoreInfo: true,
+							suggestedSymptoms: combined.suggestions || [],
+							followUpMessage: "Help us understand better — do you also have any of these?",
 							predictedConditions: combined.diagnosis.possibleConditions || [],
 							urgencyLevel: combined.diagnosis.urgency || "Unknown",
 							recommendedSpecialist:
@@ -71,7 +76,6 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 			return res.json({
 				symptoms: extracted.symptoms,
 				duration: extracted.duration,
-				severity: extracted.severity,
 				needMoreInfo: true,
 				suggestedSymptoms: combined.suggestions,
 				message: "Help us understand better — do you also have any of these?",
@@ -90,6 +94,12 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 						userId,
 						symptoms: extracted.symptoms,
 						imageUrl: imageUrl || null,
+						duration: extracted.duration,
+						needMoreInfo: false,
+						suggestedSymptoms: [],
+						followUpMessage: null,
+						relationship: fullAnalysis.relationship as unknown as Prisma.InputJsonValue,
+						insight: fullAnalysis.insight as unknown as Prisma.InputJsonValue,
 						predictedConditions: fullAnalysis.diagnosis.possibleConditions || [],
 						urgencyLevel: fullAnalysis.diagnosis.urgency || "Unknown",
 						recommendedSpecialist:
@@ -105,11 +115,9 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 		return res.json({
 			symptoms: extracted.symptoms,
 			duration: extracted.duration,
-			severity: extracted.severity,
 			needMoreInfo: false,
 			relationship: fullAnalysis.relationship,
 			insight: fullAnalysis.insight,
-			specialist: fullAnalysis.specialist,
 			analysis: fullAnalysis.diagnosis,
 		});
 	} catch (error) {

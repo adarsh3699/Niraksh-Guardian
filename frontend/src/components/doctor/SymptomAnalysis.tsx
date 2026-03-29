@@ -21,6 +21,7 @@ import { SymptomBreakdown } from "./SymptomBreakdown";
 import { SymptomSuggestions } from "./SymptomSuggestions";
 import { SymptomRelationshipCard } from "./SymptomRelationshipCard";
 import { SymptomInsight } from "./SymptomInsight";
+import type { SymptomRelationshipResponse } from "@/types/doctor";
 
 /* ------------------------------------------------------------------ */
 /*  Severity badge colors                                             */
@@ -232,6 +233,8 @@ interface SymptomAnalysisProps {
 	initialSymptoms?: string;
 	/** @deprecated Pre-loaded result no longer needed — unified hook handles session */
 	initialResult?: SymptomAnalysisType | null;
+	/** Full SRI payload preloaded from history. */
+	initialSRIResult?: SymptomRelationshipResponse | null;
 	/** If true, auto-submit analysis on mount (e.g. coming from chat with pre-computed summary) */
 	autoAnalyze?: boolean;
 	/** Called with an array of matched specialists (usually 1, can be multiple) */
@@ -245,6 +248,7 @@ export function SymptomAnalysis({
 	initialSymptoms,
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	initialResult: _initialResult,
+	initialSRIResult = null,
 	autoAnalyze = false,
 	onSpecialistFound,
 	onAnalysisComplete,
@@ -263,13 +267,17 @@ export function SymptomAnalysis({
 		analyze: sriAnalyze,
 		reset,
 	} = useSymptomRelationship();
+	const [hydratedResult, setHydratedResult] = useState<SymptomRelationshipResponse | null>(
+		initialSRIResult,
+	);
+	const activeResult = sriResult ?? hydratedResult;
 
 	// Notify parent with legacy analysis data (for matchTags etc.) — does NOT trigger doctor search
 	useEffect(() => {
-		if (sriResult?.analysis) {
-			onAnalysisComplete?.(sriResult.analysis);
+		if (activeResult?.analysis) {
+			onAnalysisComplete?.(activeResult.analysis);
 		}
-	}, [sriResult, onAnalysisComplete]);
+	}, [activeResult, onAnalysisComplete]);
 
 	// When user clicks a suggestion chip — only update the textarea.
 	// User must click "Analyze Symptoms" to trigger a new analysis.
@@ -292,6 +300,7 @@ export function SymptomAnalysis({
 		async (e?: FormEvent) => {
 			e?.preventDefault();
 			if (!symptoms.trim() && !image) return; // Allow image-only analysis
+			setHydratedResult(null);
 			await sriAnalyze(symptoms, image || undefined);
 		},
 		[symptoms, image, sriAnalyze],
@@ -304,11 +313,21 @@ export function SymptomAnalysis({
 
 	// Auto-submit when autoAnalyze or chatId summary fills symptoms
 	useEffect(() => {
-		if ((autoAnalyze || chatId) && symptoms && !autoSubmitted.current && !sriResult && !isAnalyzing) {
+		if (
+			(autoAnalyze || chatId) &&
+			symptoms &&
+			!autoSubmitted.current &&
+			!activeResult &&
+			!isAnalyzing
+		) {
 			autoSubmitted.current = true;
-			handleSubmit();
+			const timer = window.setTimeout(() => {
+				setHydratedResult(null);
+				void sriAnalyze(symptoms, image || undefined);
+			}, 0);
+			return () => window.clearTimeout(timer);
 		}
-	}, [autoAnalyze, chatId, symptoms, sriResult, isAnalyzing, handleSubmit]);
+	}, [autoAnalyze, chatId, symptoms, activeResult, isAnalyzing, sriAnalyze, image]);
 
 	const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -327,6 +346,7 @@ export function SymptomAnalysis({
 
 	const handleReset = useCallback(() => {
 		reset();
+		setHydratedResult(null);
 		setSymptoms("");
 		removeImage();
 	}, [reset, removeImage]);
@@ -415,26 +435,32 @@ export function SymptomAnalysis({
 			</div>
 
 			{/* When < 2 symptoms → show suggestions + legacy analysis */}
-			{sriResult?.needMoreInfo === true && sriResult.suggestedSymptoms && sriResult.message && (
-				<SymptomSuggestions
-					symptoms={sriResult.symptoms}
-					message={sriResult.message}
-					suggestedSymptoms={sriResult.suggestedSymptoms}
-					onSelect={handleSuggestionSelect}
-				/>
-			)}
+			{activeResult?.needMoreInfo === true &&
+				activeResult.suggestedSymptoms &&
+				activeResult.message && (
+					<SymptomSuggestions
+						symptoms={activeResult.symptoms}
+						message={activeResult.message}
+						suggestedSymptoms={activeResult.suggestedSymptoms}
+						onSelect={handleSuggestionSelect}
+					/>
+				)}
 
 			{/* When ≥ 2 symptoms → show deep SRI analysis */}
-			{sriResult?.needMoreInfo === false && (
+			{activeResult?.needMoreInfo === false && (
 				<div className="space-y-4">
-					<SymptomBreakdown symptoms={sriResult.symptoms} />
-					{sriResult.relationship && <SymptomRelationshipCard relationship={sriResult.relationship} />}
-					{sriResult.insight && <SymptomInsight insight={sriResult.insight} />}
+					<SymptomBreakdown symptoms={activeResult.symptoms} />
+					{activeResult.relationship && (
+						<SymptomRelationshipCard relationship={activeResult.relationship} />
+					)}
+					{activeResult.insight && <SymptomInsight insight={activeResult.insight} />}
 				</div>
 			)}
 
 			{/* Legacy analysis result — always shows from the same response */}
-			{sriResult?.analysis && <AnalysisResult result={sriResult.analysis} onFindDoctors={onSpecialistFound} />}
+			{activeResult?.analysis && (
+				<AnalysisResult result={activeResult.analysis} onFindDoctors={onSpecialistFound} />
+			)}
 		</div>
 	);
 }

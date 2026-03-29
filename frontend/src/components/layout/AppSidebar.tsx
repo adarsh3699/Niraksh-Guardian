@@ -180,7 +180,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
 			{/* Overlay */}
 			{open && (
 				<div
-					className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+					className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm lg:hidden"
 					onClick={onClose}
 				/>
 			)}
@@ -188,7 +188,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
 			{/* Drawer */}
 			<aside
 				className={cn(
-					"fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-surface transition-transform duration-300 lg:hidden",
+					"fixed inset-y-0 left-0 z-[130] flex w-72 flex-col border-r border-border bg-surface transition-transform duration-300 lg:hidden",
 					open ? "translate-x-0" : "-translate-x-full",
 				)}
 			>

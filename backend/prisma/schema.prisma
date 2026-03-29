@@ -187,6 +187,12 @@ model SymptomAnalysisHistory {
   userId                String   @map("user_id")
   symptoms              String[]
   imageUrl              String?  @map("image_url")
+  duration              String?
+  needMoreInfo          Boolean  @default(false) @map("need_more_info")
+  suggestedSymptoms     String[] @default([]) @map("suggested_symptoms")
+  followUpMessage       String?  @map("follow_up_message")
+  relationship          Json?
+  insight               Json?
   predictedConditions   Json     @map("predicted_conditions")
   urgencyLevel          String   @map("urgency_level")
   recommendedSpecialist String   @map("recommended_specialist")
