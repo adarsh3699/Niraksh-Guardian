@@ -1,7 +1,10 @@
 import redisClient from "../config/redis";
 import logger from "../config/logger";
+import env from "../config/env";
 
 const BLACKLIST_PREFIX = "token_blacklist:";
+
+export type TokenBlacklistCheckResult = "blacklisted" | "clear" | "check_failed";
 
 /**
  * Add an access token to the Redis blacklist.
@@ -20,13 +23,21 @@ export const blacklistToken = async (token: string, expiresInSeconds: number): P
 /**
  * Check if an access token is blacklisted.
  */
-export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
+export const checkTokenBlacklist = async (token: string): Promise<TokenBlacklistCheckResult> => {
 	try {
 		const key = `${BLACKLIST_PREFIX}${token}`;
 		const result = await redisClient.get(key);
-		return result !== null;
+		return result !== null ? "blacklisted" : "clear";
 	} catch (error) {
-		logger.error({ err: error }, "Failed to check token blacklist");
-		return false; // Fail open to avoid blocking all requests if Redis is down
+		logger.error({ err: error, mode: env.TOKEN_BLACKLIST_FAIL_MODE }, "Failed to check token blacklist");
+		return "check_failed";
 	}
+};
+
+export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
+	const result = await checkTokenBlacklist(token);
+	if (result === "blacklisted") return true;
+	if (result === "clear") return false;
+
+	return env.TOKEN_BLACKLIST_FAIL_MODE === "closed";
 };

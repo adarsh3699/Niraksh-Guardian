@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
+import redisClient from "../config/redis";
 
 interface AuthenticatedRequest extends Request {
 	user?: { userId: string };
@@ -8,6 +9,17 @@ interface AuthenticatedRequest extends Request {
 
 const ONE_MG_AUTOCOMPLETE = "https://www.1mg.com/pwa-dweb-api/api/v4/search/autocomplete";
 const DEFAULT_CITY = "New Delhi";
+const MEDICINE_AUTOCOMPLETE_CACHE_TTL_SECONDS = 15 * 60;
+
+interface MedicineSuggestion {
+	name: string;
+	search_term: string | null;
+	image: string | null;
+	url: string | null;
+	slug: string | null;
+	pack_size_label: string | null;
+	manufacturer_name: string | null;
+}
 
 export const medicineAutocompleteController = async (req: Request, res: Response) => {
 	try {
@@ -23,6 +35,23 @@ export const medicineAutocompleteController = async (req: Request, res: Response
 			.catch(() => null);
 
 		const city = profile?.city ?? DEFAULT_CITY;
+		const normalizedQuery = q.toLowerCase();
+		const normalizedCity = city.toLowerCase();
+		const cacheKey = `cache:medicine:autocomplete:${normalizedCity}:${normalizedQuery}`;
+
+		try {
+			const cached = await redisClient.get(cacheKey);
+			if (cached) {
+				const parsed = JSON.parse(cached) as { suggestions: MedicineSuggestion[] };
+				logger.info(
+					{ cacheHit: true, q: normalizedQuery, city: normalizedCity },
+					"Medicine autocomplete cache hit"
+				);
+				return res.json(parsed);
+			}
+		} catch (cacheReadError) {
+			logger.warn({ err: cacheReadError, q: normalizedQuery }, "Medicine autocomplete cache read failed");
+		}
 
 		const upstream = await fetch(`${ONE_MG_AUTOCOMPLETE}?q=${encodeURIComponent(q)}&types=sku,udp&per_page=12`, {
 			headers: {
@@ -44,19 +73,29 @@ export const medicineAutocompleteController = async (req: Request, res: Response
 		// Normalize on the backend — only return drug type with clean fields
 		const raw: Record<string, unknown>[] = data?.data?.search_results ?? data?.search_results ?? [];
 
-		const suggestions = raw
+		const suggestions: MedicineSuggestion[] = raw
 			.filter((s) => s.type === "drug" && s.name)
 			.map((s) => ({
-				name: s.name,
-				search_term: s.search_term ?? null,
-				image: s.image ?? null,
-				url: s.url ?? null,
-				slug: s.slug ?? null,
-				pack_size_label: s.pack_size_label ?? null,
-				manufacturer_name: s.manufacturer_name ?? null,
+				name: String(s.name),
+				search_term: s.search_term ? String(s.search_term) : null,
+				image: s.image ? String(s.image) : null,
+				url: s.url ? String(s.url) : null,
+				slug: s.slug ? String(s.slug) : null,
+				pack_size_label: s.pack_size_label ? String(s.pack_size_label) : null,
+				manufacturer_name: s.manufacturer_name ? String(s.manufacturer_name) : null,
 			}));
 
-		res.json({ suggestions });
+		const responsePayload = { suggestions };
+
+		try {
+			await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+				EX: MEDICINE_AUTOCOMPLETE_CACHE_TTL_SECONDS,
+			});
+		} catch (cacheWriteError) {
+			logger.warn({ err: cacheWriteError, q: normalizedQuery }, "Medicine autocomplete cache write failed");
+		}
+
+		res.json(responsePayload);
 	} catch (error) {
 		logger.error({ err: error }, "Medicine autocomplete failed");
 		res.status(500).json({ error: "Internal Server Error" });

@@ -1,10 +1,9 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient } from "../generated/prisma";
 import redisClient from "../config/redis";
 import logger from "../config/logger";
+import prisma from "../db/prisma";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get("/", async (req: Request, res: Response) => {
 	const checks: Record<string, { status: string; latency?: number; error?: string }> = {};

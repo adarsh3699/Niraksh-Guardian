@@ -27,7 +27,11 @@ export function getRefreshToken(): string | null {
 }
 
 export function setRefreshToken(token: string): void {
-	localStorage.setItem(REFRESH_TOKEN_KEY, token);
+	// During cookie migration, do not persist refresh tokens in localStorage.
+	// Keep this helper for backwards-compatible call sites.
+	if (token) {
+		localStorage.removeItem(REFRESH_TOKEN_KEY);
+	}
 }
 
 /* — User details — */

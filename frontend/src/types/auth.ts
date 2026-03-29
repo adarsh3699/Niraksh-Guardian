@@ -11,7 +11,6 @@ export interface User {
 
 export interface Tokens {
 	accessToken: string;
-	refreshToken: string;
 }
 
 /** Successful signup / login / google response. */
@@ -24,7 +23,6 @@ export interface AuthResponse {
 /** Refresh-token response — flat (NOT wrapped in `tokens`). */
 export interface RefreshTokenResponse {
 	accessToken: string;
-	refreshToken: string;
 }
 
 /* — Request bodies — */

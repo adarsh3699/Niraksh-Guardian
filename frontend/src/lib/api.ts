@@ -4,14 +4,7 @@
 
 import type { ApiError as ApiErrorType } from "@/types/api";
 import type { RefreshTokenResponse } from "@/types/auth";
-import {
-	getAccessToken,
-	getRefreshToken,
-	setAccessToken,
-	setRefreshToken,
-	clearTokens,
-	isTokenExpired,
-} from "@/lib/auth";
+import { getAccessToken, setAccessToken, clearTokens, isTokenExpired } from "@/lib/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -38,21 +31,17 @@ export class ApiError extends Error implements ApiErrorType {
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
-	const refreshToken = getRefreshToken();
-	if (!refreshToken) return false;
-
 	try {
 		const res = await fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ refreshToken }),
+			credentials: "include",
 		});
 
 		if (!res.ok) return false;
 
 		const data = (await res.json()) as RefreshTokenResponse;
 		setAccessToken(data.accessToken);
-		setRefreshToken(data.refreshToken);
 		return true;
 	} catch {
 		return false;
@@ -123,6 +112,7 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 	const res = await fetch(`${API_BASE_URL}${endpoint}`, {
 		method,
 		headers,
+		credentials: "include",
 		body: isFile ? (body as FormData) : body ? JSON.stringify(body) : undefined,
 	});
 

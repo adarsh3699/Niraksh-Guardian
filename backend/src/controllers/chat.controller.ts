@@ -1,10 +1,9 @@
 import { Request, Response } from "express";
-import { PrismaClient, Message } from "../generated/prisma";
+import { Message } from "../generated/prisma";
 import { createChatSchema, sendMessageSchema } from "../validators/chat.schema";
 import { ZodError } from "zod";
 import logger from "../config/logger";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma";
 
 interface AuthenticatedRequest extends Request {
 	user?: {

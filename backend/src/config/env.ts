@@ -14,6 +14,7 @@ const envSchema = z.object({
 	GEMINI_API_KEY: z.string().optional(),
 	SENDER_EMAIL: z.string().email().optional(),
 	REDIS_URL: z.string().default("redis://localhost:6379"),
+	TOKEN_BLACKLIST_FAIL_MODE: z.enum(["open", "closed"]).default("open"),
 	AWS_REGION: z.string().default("ap-south-1"),
 	AWS_ACCESS_KEY_ID: z.string().optional(),
 	AWS_SECRET_ACCESS_KEY: z.string().optional(),

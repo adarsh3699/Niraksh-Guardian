@@ -38,7 +38,6 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
 			err,
 			path: req.path,
 			method: req.method,
-			body: req.body,
 		},
 		"Unhandled Error"
 	);

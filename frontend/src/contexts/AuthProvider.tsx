@@ -15,7 +15,6 @@ import {
 	getRefreshToken,
 	getUserDetails,
 	setAccessToken,
-	setRefreshToken,
 	setUserDetails,
 	clearTokens,
 	isTokenExpired,
@@ -59,28 +58,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				if (!cancelled) setUser(stored);
 			} else if (token && isTokenExpired(token)) {
 				const rt = getRefreshToken();
-				if (rt) {
-					try {
-						const res = await fetch(
-							`${process.env.NEXT_PUBLIC_API_URL}${API_ROUTES.REFRESH_TOKEN}`,
-							{
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({ refreshToken: rt }),
-							},
-						);
-						if (res.ok) {
-							const data: RefreshTokenResponse = await res.json();
-							setAccessToken(data.accessToken);
-							setRefreshToken(data.refreshToken);
-							if (!cancelled) setUser(stored);
-						} else {
-							clearTokens();
-						}
-					} catch {
+				const refreshBody = rt ? JSON.stringify({ refreshToken: rt }) : undefined;
+				try {
+					const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${API_ROUTES.REFRESH_TOKEN}`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						credentials: "include",
+						body: refreshBody,
+					});
+					if (res.ok) {
+						const data: RefreshTokenResponse = await res.json();
+						setAccessToken(data.accessToken);
+						if (!cancelled) setUser(stored);
+					} else {
 						clearTokens();
 					}
-				} else {
+				} catch {
 					clearTokens();
 				}
 			}
@@ -98,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const login = useCallback((tokens: Tokens, userData: User) => {
 		setAccessToken(tokens.accessToken);
-		setRefreshToken(tokens.refreshToken);
 		setUserDetails(userData);
 		setUser(userData);
 	}, []);
@@ -109,7 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			await apiClient(API_ROUTES.LOGOUT, {
 				method: "POST",
 				body: { refreshToken },
-				noAuth: true,
 			});
 		} catch {
 			/* Best-effort — clear local state regardless */
@@ -120,15 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const refreshAuth = useCallback(async (): Promise<boolean> => {
 		const refreshToken = getRefreshToken();
-		if (!refreshToken) return false;
+		const refreshPayload = refreshToken ? { refreshToken } : undefined;
 		try {
 			const data = await apiClient<RefreshTokenResponse>(API_ROUTES.REFRESH_TOKEN, {
 				method: "POST",
-				body: { refreshToken },
+				body: refreshPayload,
 				noAuth: true,
 			});
 			setAccessToken(data.accessToken);
-			setRefreshToken(data.refreshToken);
 			return true;
 		} catch {
 			clearTokens();

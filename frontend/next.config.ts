@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	images: {
-		dangerouslyAllowSVG: true,
+		dangerouslyAllowSVG: false,
 		contentDispositionType: "attachment",
 		contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
 		remotePatterns: [

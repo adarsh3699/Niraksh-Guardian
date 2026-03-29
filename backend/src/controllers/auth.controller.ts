@@ -1,13 +1,35 @@
 import * as express from "express";
-import { PrismaClient } from "../generated/prisma";
 import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
 import { ZodError } from "zod";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../services/jwt/jwt";
 import { blacklistToken } from "../services/tokenBlacklist";
 import jwt from "jsonwebtoken";
+import prisma from "../db/prisma";
+import env from "../config/env";
 
-const prisma = new PrismaClient();
+const REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
+const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_COOKIE_SAME_SITE = env.NODE_ENV === "production" ? "none" : "lax";
+
+const setRefreshTokenCookie = (res: express.Response, token: string) => {
+	res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, {
+		httpOnly: true,
+		secure: env.NODE_ENV === "production",
+		sameSite: REFRESH_TOKEN_COOKIE_SAME_SITE,
+		path: "/api/auth",
+		maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+	});
+};
+
+const clearRefreshTokenCookie = (res: express.Response) => {
+	res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
+		httpOnly: true,
+		secure: env.NODE_ENV === "production",
+		sameSite: REFRESH_TOKEN_COOKIE_SAME_SITE,
+		path: "/api/auth",
+	});
+};
 
 export const signup = async (req: express.Request, res: express.Response) => {
 	try {
@@ -46,10 +68,12 @@ export const signup = async (req: express.Request, res: express.Response) => {
 			},
 		});
 
+		setRefreshTokenCookie(res, refreshToken);
+
 		res.status(201).json({
 			message: "User created successfully",
 			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
-			tokens: { accessToken, refreshToken },
+			tokens: { accessToken },
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -92,6 +116,8 @@ export const login = async (req: express.Request, res: express.Response) => {
 			},
 		});
 
+		setRefreshTokenCookie(res, refreshToken);
+
 		// Update last login
 		await prisma.user.update({
 			where: { id: user.id },
@@ -101,7 +127,7 @@ export const login = async (req: express.Request, res: express.Response) => {
 		res.status(200).json({
 			message: "Login successful",
 			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
-			tokens: { accessToken, refreshToken },
+			tokens: { accessToken },
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -114,12 +140,20 @@ export const login = async (req: express.Request, res: express.Response) => {
 
 export const refreshToken = async (req: express.Request, res: express.Response) => {
 	try {
-		const { refreshToken } = refreshTokenSchema.parse(req.body);
-		const decoded = verifyRefreshToken(refreshToken);
+		const parsed = refreshTokenSchema.parse(req.body ?? {});
+		const tokenFromBody = parsed.refreshToken;
+		const tokenFromCookie = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as string | undefined;
+		const incomingRefreshToken = tokenFromBody ?? tokenFromCookie;
+
+		if (!incomingRefreshToken) {
+			return res.status(401).json({ error: "Refresh token missing" });
+		}
+
+		const decoded = verifyRefreshToken(incomingRefreshToken);
 		if (typeof decoded === "string") {
 			throw new Error("Invalid token payload");
 		}
-		const tokenHash = hashToken(refreshToken);
+		const tokenHash = hashToken(incomingRefreshToken);
 
 		const storedToken = await prisma.refreshToken.findFirst({
 			where: {
@@ -155,18 +189,23 @@ export const refreshToken = async (req: express.Request, res: express.Response) 
 			},
 		});
 
+		setRefreshTokenCookie(res, newRefreshToken);
+
 		res.json({
 			accessToken: newAccessToken,
-			refreshToken: newRefreshToken,
 		});
 	} catch {
+		clearRefreshTokenCookie(res);
 		res.status(401).json({ error: "Invalid refresh token" });
 	}
 };
 
 export const logout = async (req: express.Request, res: express.Response) => {
 	try {
-		const { refreshToken } = req.body;
+		const bodyRefreshToken = (req.body?.refreshToken as string | undefined) ?? undefined;
+		const cookieRefreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as string | undefined;
+		const refreshToken = bodyRefreshToken ?? cookieRefreshToken;
+
 		if (refreshToken) {
 			const tokenHash = hashToken(refreshToken);
 			await prisma.refreshToken.updateMany({
@@ -188,6 +227,8 @@ export const logout = async (req: express.Request, res: express.Response) => {
 			}
 		}
 
+		clearRefreshTokenCookie(res);
+
 		res.status(200).json({ message: "Logged out successfully" });
 	} catch {
 		res.status(500).json({ error: "Internal Server Error" });
@@ -195,7 +236,6 @@ export const logout = async (req: express.Request, res: express.Response) => {
 };
 
 import { OAuth2Client } from "google-auth-library";
-import env from "../config/env";
 
 const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -284,6 +324,8 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 			},
 		});
 
+		setRefreshTokenCookie(res, refreshToken);
+
 		// Update last login
 		await prisma.user.update({
 			where: { id: user.id },
@@ -293,7 +335,7 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 		res.status(200).json({
 			message: "Google login successful",
 			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
-			tokens: { accessToken, refreshToken },
+			tokens: { accessToken },
 		});
 	} catch (error) {
 		console.error("Google Login Error:", error);

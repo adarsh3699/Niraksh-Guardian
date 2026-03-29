@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../services/jwt/jwt";
-import { isTokenBlacklisted } from "../services/tokenBlacklist";
+import { checkTokenBlacklist } from "../services/tokenBlacklist";
+import env from "../config/env";
 
 // Extend Express Request interface to include user
 
@@ -15,9 +16,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
 	try {
 		// Check if token is blacklisted (revoked on logout)
-		const blacklisted = await isTokenBlacklisted(token);
-		if (blacklisted) {
+		const blacklistStatus = await checkTokenBlacklist(token);
+
+		if (blacklistStatus === "blacklisted") {
 			return res.status(401).json({ error: "Unauthorized: Token has been revoked" });
+		}
+
+		if (blacklistStatus === "check_failed" && env.TOKEN_BLACKLIST_FAIL_MODE === "closed") {
+			return res.status(503).json({ error: "Authentication temporarily unavailable" });
 		}
 
 		const decoded = verifyAccessToken(token);

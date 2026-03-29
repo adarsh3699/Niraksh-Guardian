@@ -1,8 +1,6 @@
 import Validator from "sns-validator";
-import { PrismaClient } from "../../generated/prisma";
 import logger from "../../config/logger";
-
-const prisma = new PrismaClient();
+import prisma from "../../db/prisma";
 
 interface SnsMessage {
 	Type: string;
