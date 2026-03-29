@@ -1,11 +1,6 @@
 "use client";
 
-import {
-	useState,
-	useCallback,
-	useEffect,
-	useRef,
-} from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSessionState } from "@/hooks/useSessionState";
@@ -14,7 +9,17 @@ import { useMedicineAnalysis } from "@/hooks/useHealthTools";
 import { FileUploadZone } from "@/components/health-tools/FileUploadZone";
 import { AnalysisResult, AnalysisResultSkeleton } from "@/components/health-tools/AnalysisResult";
 import { Button } from "@/components/ui/Button";
-import { Search, Pill, RotateCcw, Sparkles, ExternalLink, Loader2 } from "lucide-react";
+import {
+	Search,
+	Pill,
+	RotateCcw,
+	Sparkles,
+	ExternalLink,
+	Loader2,
+	Info,
+	FlaskConical,
+	Activity,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
@@ -44,6 +49,15 @@ interface AutocompleteResponse {
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
+const QUICK_MEDICINES = [
+	"Paracetamol 650",
+	"Dolo 650",
+	"Azithromycin",
+	"Pantoprazole",
+	"Cetirizine",
+	"Ibuprofen",
+];
+
 function buildOneMgUrl(suggestion: OneMgSuggestion): string {
 	if (suggestion.url) {
 		const path = suggestion.url.startsWith("/") ? suggestion.url : `/${suggestion.url}`;
@@ -61,6 +75,16 @@ function stripHtml(html: string): string {
 	return html.replace(/<[^>]*>/g, "");
 }
 
+function toDisplayMedicineTitle(value: string): string {
+	const trimmed = value.trim();
+	if (!trimmed) return "";
+
+	return trimmed
+		.split(/\s+/)
+		.map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+		.join(" ");
+}
+
 /* ------------------------------------------------------------------ */
 /*  MedicineClient                                                     */
 /* ------------------------------------------------------------------ */
@@ -70,6 +94,7 @@ export function MedicineClient() {
 	const urlName = searchParams.get("name");
 
 	const [name, setName] = useSessionState("ng:medicine:name", urlName ?? "");
+	const [resultTitle, setResultTitle] = useSessionState("ng:medicine:resultTitle", "");
 	const [files, setFiles] = useState<File[]>([]);
 	const { result, isLoading, error, analyze, reset } = useMedicineAnalysis();
 
@@ -78,9 +103,12 @@ export function MedicineClient() {
 	const [isFetching, setIsFetching] = useState(false);
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeIndex, setActiveIndex] = useState(-1);
+	const [isResearchOpen, setIsResearchOpen] = useState(false);
 	const debouncedName = useDebounce(name, 300);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const suppressAutocompleteRef = useRef(false);
+	const autocompleteRequestSeqRef = useRef(0);
 
 	// Keep URL-driven navigation authoritative over session state.
 	useEffect(() => {
@@ -91,7 +119,12 @@ export function MedicineClient() {
 		if (incomingName.toLowerCase() !== currentName.toLowerCase()) {
 			reset();
 			setName(incomingName);
-			void analyze(incomingName);
+			void (async () => {
+				const response = await analyze(incomingName);
+				if (response) {
+					setResultTitle(toDisplayMedicineTitle(incomingName));
+				}
+			})();
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [urlName]);
@@ -105,23 +138,35 @@ export function MedicineClient() {
 			return;
 		}
 
+		if (suppressAutocompleteRef.current) {
+			setSuggestions([]);
+			setIsOpen(false);
+			return;
+		}
+
 		let cancelled = false;
+		const requestSeq = ++autocompleteRequestSeqRef.current;
 		setIsFetching(true);
 
 		apiClient<AutocompleteResponse>(
 			`${API_ROUTES.MEDICINE_AUTOCOMPLETE}?q=${encodeURIComponent(q)}`,
 		)
 			.then((res) => {
-				if (cancelled) return;
+				if (
+					cancelled ||
+					suppressAutocompleteRef.current ||
+					requestSeq !== autocompleteRequestSeqRef.current
+				)
+					return;
 				setSuggestions(res?.suggestions ?? []);
 				setIsOpen(true);
 				setActiveIndex(-1);
 			})
 			.catch(() => {
-				if (!cancelled) setSuggestions([]);
+				if (!cancelled && requestSeq === autocompleteRequestSeqRef.current) setSuggestions([]);
 			})
 			.finally(() => {
-				if (!cancelled) setIsFetching(false);
+				if (!cancelled && requestSeq === autocompleteRequestSeqRef.current) setIsFetching(false);
 			});
 
 		return () => {
@@ -144,19 +189,29 @@ export function MedicineClient() {
 		async (e?: FormEvent) => {
 			e?.preventDefault();
 			if (!name.trim() && files.length === 0) return;
+			const queryName = name.trim();
+			suppressAutocompleteRef.current = true;
+			autocompleteRequestSeqRef.current += 1;
+			setIsFetching(false);
+			setSuggestions([]);
 			setIsOpen(false);
-			await analyze(name || undefined, files[0] ?? undefined);
+			const response = await analyze(queryName || undefined, files[0] ?? undefined);
+			if (response) {
+				setResultTitle(queryName ? toDisplayMedicineTitle(queryName) : "Medicine Information");
+			}
 		},
-		[name, files, analyze],
+		[name, files, analyze, setResultTitle],
 	);
 
 	const handleReset = useCallback(() => {
 		reset();
+		suppressAutocompleteRef.current = false;
+		setResultTitle("");
 		setName("");
 		setFiles([]);
 		setSuggestions([]);
 		setIsOpen(false);
-	}, [reset, setName]);
+	}, [reset, setName, setResultTitle]);
 
 	const handleSelectSuggestion = useCallback((suggestion: OneMgSuggestion) => {
 		setIsOpen(false);
@@ -164,10 +219,35 @@ export function MedicineClient() {
 	}, []);
 
 	const handleSearchWithAI = useCallback(async () => {
+		const queryName = name.trim();
+		suppressAutocompleteRef.current = true;
+		autocompleteRequestSeqRef.current += 1;
+		setIsFetching(false);
+		setSuggestions([]);
 		setIsOpen(false);
-		if (!name.trim()) return;
-		await analyze(name.trim());
-	}, [name, analyze]);
+		if (!queryName) return;
+		const response = await analyze(queryName);
+		if (response) {
+			setResultTitle(toDisplayMedicineTitle(queryName));
+		}
+	}, [name, analyze, setResultTitle]);
+
+	const applyQuickMedicine = useCallback(
+		async (value: string) => {
+			suppressAutocompleteRef.current = true;
+			autocompleteRequestSeqRef.current += 1;
+			setIsFetching(false);
+			setName(value);
+			setFiles([]);
+			setSuggestions([]);
+			setIsOpen(false);
+			const response = await analyze(value);
+			if (response) {
+				setResultTitle(toDisplayMedicineTitle(value));
+			}
+		},
+		[analyze, setName, setResultTitle],
+	);
 
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent<HTMLInputElement>) => {
@@ -197,8 +277,12 @@ export function MedicineClient() {
 		[isOpen, suggestions, activeIndex, handleSelectSuggestion, handleSearchWithAI, handleSubmit],
 	);
 
+	useEffect(() => {
+		setIsResearchOpen(false);
+	}, [result?.description]);
+
 	return (
-		<div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+		<div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
 			{/* Header */}
 			<div className="mb-8">
 				<div className="mb-2 flex items-center gap-3">
@@ -213,11 +297,19 @@ export function MedicineClient() {
 					Search by medicine name or upload an image to get detailed information about composition,
 					uses, side effects, and dosage.
 				</p>
+				<div className="mt-4 flex items-start gap-3 rounded-xl border border-accent/25 bg-accent/10 px-4 py-3 text-sm text-accent">
+					<Info className="mt-0.5 size-4 shrink-0" />
+					<p>
+						Use brand or generic names. You can also upload strip/box images to identify medicine
+						faster.
+					</p>
+				</div>
 			</div>
 
 			<div className="space-y-6">
 				{/* Input section */}
-				<div className="rounded-xl border border-border bg-surface p-4 shadow-card sm:p-6">
+				<div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-6">
+					<div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-primary to-primary-light" />
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Text input with autocomplete */}
 						<div>
@@ -230,22 +322,25 @@ export function MedicineClient() {
 
 							<div ref={containerRef} className="relative">
 								<div className="relative">
+									<Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
 									<input
 										ref={inputRef}
 										id="medicine-name"
 										type="text"
 										value={name}
 										onChange={(e) => {
+											suppressAutocompleteRef.current = false;
 											setName(e.target.value);
 											if (!e.target.value.trim()) setIsOpen(false);
 										}}
 										onFocus={() => {
-											if (suggestions.length > 0) setIsOpen(true);
+											if (!suppressAutocompleteRef.current && suggestions.length > 0)
+												setIsOpen(true);
 										}}
 										onKeyDown={handleKeyDown}
 										placeholder="E.g., Paracetamol, Amoxicillin, Ibuprofen..."
 										className={cn(
-											"h-11 w-full rounded-lg border border-border bg-background px-4 pr-10 text-sm text-foreground",
+											"h-11 w-full rounded-lg border border-border bg-background pl-10 pr-10 text-sm text-foreground",
 											"placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
 										)}
 										disabled={isLoading}
@@ -272,9 +367,7 @@ export function MedicineClient() {
 													onMouseEnter={() => setActiveIndex(i)}
 													className={cn(
 														"flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm transition-colors",
-														activeIndex === i
-															? "bg-primary/10"
-															: "hover:bg-muted/10",
+														activeIndex === i ? "bg-primary/10" : "hover:bg-muted/10",
 													)}
 												>
 													{/* Medicine image */}
@@ -294,10 +387,12 @@ export function MedicineClient() {
 
 													{/* Text */}
 													<div className="min-w-0 flex-1">
-														<p className={cn(
-															"truncate font-medium",
-															activeIndex === i ? "text-primary" : "text-foreground",
-														)}>
+														<p
+															className={cn(
+																"truncate font-medium",
+																activeIndex === i ? "text-primary" : "text-foreground",
+															)}
+														>
 															{s.search_term ?? stripHtml(s.name)}
 														</p>
 														{(s.pack_size_label || s.manufacturer_name) && (
@@ -340,6 +435,21 @@ export function MedicineClient() {
 							</div>
 						</div>
 
+						<div className="flex flex-wrap items-center gap-2 pt-1">
+							<span className="text-xs text-muted">Trending medicines:</span>
+							{QUICK_MEDICINES.map((medicine) => (
+								<button
+									key={medicine}
+									type="button"
+									onClick={() => applyQuickMedicine(medicine)}
+									disabled={isLoading}
+									className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted transition hover:border-accent/50 hover:bg-accent/10 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
+								>
+									{medicine}
+								</button>
+							))}
+						</div>
+
 						{/* Divider */}
 						<div className="flex items-center gap-3">
 							<div className="h-px flex-1 bg-border" />
@@ -359,7 +469,7 @@ export function MedicineClient() {
 						</div>
 
 						{/* Actions */}
-						<div className="flex items-center gap-3">
+						<div className="flex flex-wrap items-center gap-3">
 							<Button
 								type="submit"
 								variant="primary"
@@ -395,8 +505,41 @@ export function MedicineClient() {
 				{/* Result */}
 				{result && (
 					<div className="space-y-3">
-						<AnalysisResult description={result.description} title="Medicine Information" />
-						<ResearchPanel query={name.trim()} />
+						<AnalysisResult
+							description={result.description}
+							title={resultTitle || "Medicine Information"}
+							variant="medicine"
+							className="rounded-2xl"
+						/>
+
+						<div className="flex flex-wrap items-center gap-3 pt-1">
+							<Button
+								variant="outline"
+								size="md"
+								onClick={() => setIsResearchOpen((v) => !v)}
+								disabled={!name.trim()}
+							>
+								<FlaskConical className="mr-1.5 size-4" />
+								{isResearchOpen ? "Hide Research Papers" : "View Research Papers"}
+							</Button>
+						</div>
+
+						<div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-foreground">
+							<div className="mb-1.5 flex items-center gap-2 font-medium text-warning">
+								<Activity className="size-4" />
+								Medical disclaimer
+							</div>
+							<p className="text-sm text-foreground/80">
+								This information is for general awareness and cannot replace professional medical
+								diagnosis or treatment advice.
+							</p>
+						</div>
+
+						<ResearchPanel
+							query={name.trim()}
+							hideTriggerButton
+							isExternallyOpen={isResearchOpen}
+						/>
 					</div>
 				)}
 			</div>

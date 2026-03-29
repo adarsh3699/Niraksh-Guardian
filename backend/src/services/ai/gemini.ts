@@ -328,13 +328,49 @@ export const analyzeMedicine = async (
 
 		const parts: any[] = [];
 
+		const buildMedicinePrompt = (topicInstruction: string, includeUncertaintyRule: boolean): string => {
+			const uncertaintyRule = includeUncertaintyRule
+				? "- If medicine identity is uncertain, clearly state uncertainty before giving guidance."
+				: "";
+
+			return `${topicInstruction}
+
+Use simple, patient-friendly, result-oriented language.
+Format in markdown with clear H2 headings and bullet points.
+
+Use this section order when relevant (skip irrelevant sections):
+## Overview
+## Uses
+## Composition
+## How To Take
+## Side Effects
+## Warnings & Precautions
+## Interactions
+## Alternatives
+## When To Seek Help
+
+Quality rules:
+- Give practical, useful detail for normal patients.
+- Add 3-5 unique bullet points per included section.
+- Do not repeat the same idea across sections, even with different wording.
+- Do not duplicate headings (only one section for each heading).
+- If dosage is mentioned, keep it general and clearly say doctor advice has priority.
+- For side effects, separate common effects from serious warning signs when possible.
+- Do not invent unknown details or unsupported claims.
+${uncertaintyRule}
+- End with one short safety note advising consultation with a doctor for personalized decisions.`;
+		};
+
 		if (medicineName) {
 			parts.push({
-				text: `Tell me about this medicine named "${medicineName}" and its uses, side effects, dosage, composition, alternatives, and everything important about it. Format your response in clear markdown with headings. Give a small note at the end to consult a doctor for medical advice.`,
+				text: buildMedicinePrompt(`Explain this medicine named "${medicineName}" for a normal patient.`, false),
 			});
 		} else if (imageBuffer && mimeType) {
 			parts.push({
-				text: `Tell me about this medicine shown in the image — its name, uses, side effects, dosage, composition, alternatives, and everything important about it. Format your response in clear markdown with headings. Give a small note at the end to consult a doctor for medical advice.`,
+				text: buildMedicinePrompt(
+					"Identify and explain the medicine shown in this image for a normal patient.",
+					true
+				),
 			});
 			parts.push({
 				inlineData: {
@@ -352,7 +388,8 @@ export const analyzeMedicine = async (
 			contents: [{ role: "user", parts }],
 		});
 
-		return result.text || "";
+		const raw = result.text || "";
+		return normalizeMarkdownForPatients(raw);
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Medicine Analysis Error");
 		throw new Error("Failed to analyze medicine");
@@ -422,7 +459,7 @@ MEDICINES_JSON:[{"name":"Medicine Name 1", "dosage":"Dosage 1"},{"name":"Medicin
 			.replace(/```json[\s\S]*?```/g, "")
 			.trim();
 
-		return { description, medicines };
+		return { description: normalizeMarkdownForPatients(description), medicines };
 	} catch (error) {
 		logger.error({ err: error }, "Gemini Prescription Analysis Error");
 		throw new Error("Failed to analyze prescription");
@@ -454,9 +491,9 @@ const toPointByPointMarkdown = (value: unknown): string => {
 		}
 
 		return cleaned
-			.replace(/\",\s*\"/g, "\n- ")
-			.replace(/^\[\"/, "")
-			.replace(/\"\]$/, "")
+			.replace(/",\s*"/g, "\n- ")
+			.replace(/^\["/, "")
+			.replace(/"\]$/, "")
 			.trim();
 	}
 
@@ -491,6 +528,42 @@ const toPointByPointMarkdown = (value: unknown): string => {
 const normalizeTabTitle = (value: unknown): string => {
 	const raw = typeof value === "string" ? value : String(value || "Analysis");
 	return stripOuterQuotes(raw).replace(/\*\*/g, "").trim() || "Analysis";
+};
+
+const normalizePatientFacingTitle = (value: string): string => {
+	const raw = stripOuterQuotes(value).replace(/\*\*/g, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+
+	if (!raw) return "Overview";
+
+	const key = raw.toLowerCase();
+
+	if (/overview|summary|introduction|about|at a glance/.test(key)) return "Overview";
+	if (/use|benefit|indication|what .* for|why .* used/.test(key)) return "Uses";
+	if (/composition|ingredient|contains|active/.test(key)) return "Composition";
+	if (/dose|dosage|how to take|administration/.test(key)) return "How To Take";
+	if (/side effect|adverse|undesired/.test(key)) return "Side Effects";
+	if (/warning|precaution|contraindication|safety|avoid/.test(key)) return "Warnings & Precautions";
+	if (/interaction|drug.?drug|drug.?disease/.test(key)) return "Interactions";
+	if (/mechanism|how .* work|mode of action/.test(key)) return "How It Works";
+	if (/alternative|substitute|replacement/.test(key)) return "Alternatives";
+	if (/monitor|follow up|test|checkup/.test(key)) return "Monitoring";
+	if (/seek help|see a doctor|emergency|red flag/.test(key)) return "When To Seek Help";
+	if (/recommendation|next step|what to do|guidance|plan/.test(key)) return "What To Do Next";
+
+	return raw
+		.split(" ")
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+};
+
+const normalizeMarkdownForPatients = (markdown: string): string => {
+	if (!markdown.trim()) return markdown;
+
+	const normalized = markdown.replace(/^(#{2,3})\s+(.*)$/gm, (_full, hashes: string, title: string) => {
+		return `${hashes} ${normalizePatientFacingTitle(title)}`;
+	});
+
+	return normalized.trim();
 };
 
 const normalizeTabContent = (value: unknown): string => {
@@ -529,6 +602,8 @@ For these specific medications:
 2. Rate each interaction's severity (No interaction, mild, moderate, severe) with clinical significance
 3. Provide clear recommendations for patients regarding timing, dosing, or monitoring
 
+Use patient-friendly language and generic result-oriented tab titles only.
+
 Format the response strictly as a JSON object. Include a "severity" field (values: "none", "mild", "moderate", "severe") representing the HIGHEST severity found, and a "tabs" array for detailed information.
 
 Output Structure:
@@ -536,8 +611,8 @@ Output Structure:
     "severity": "mild|moderate|severe|none",
     "tabs": [
         { "title": "Overview", "content": "Analysis intro..." },
-        { "title": "Mechanisms", "content": "Detailed bullet points..." },
-        { "title": "Recommendations", "content": "What to do..." }
+		{ "title": "Interactions", "content": "Detailed bullet points..." },
+		{ "title": "What To Do Next", "content": "Practical next steps..." }
     ]
 }`,
 						},
@@ -608,7 +683,7 @@ Output Structure:
 			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
 
 		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
-			title: normalizeTabTitle(tab.title),
+			title: normalizePatientFacingTitle(normalizeTabTitle(tab.title)),
 			content: normalizeTabContent(tab.content),
 		}));
 
@@ -669,6 +744,8 @@ Please provide:
 4. Practical patient guidance and monitoring advice
 5. A short summary with clear next step
 
+Use patient-friendly language and generic result-oriented tab titles only.
+
 Format the response strictly as a JSON object. Include a "severity" field (values: "none", "mild", "moderate", "severe") representing the HIGHEST risk found.
 
 Output Structure:
@@ -676,8 +753,9 @@ Output Structure:
     "severity": "mild|moderate|severe|none",
     "tabs": [
         { "title": "Overview", "content": "Analysis intro..." },
-        { "title": "Drug-Disease Considerations", "content": "Detailed bullet points..." },
-        { "title": "Recommendations", "content": "What to do..." }
+		{ "title": "Interactions", "content": "Detailed bullet points..." },
+		{ "title": "Warnings & Precautions", "content": "Condition-based cautions..." },
+		{ "title": "What To Do Next", "content": "Practical next steps..." }
     ]
 }`,
 						},
@@ -726,7 +804,7 @@ Output Structure:
 			severityMap[rawSeverity] || (rawSeverity.includes("severe") ? severityMap.severe : severityMap.mild);
 
 		const sanitizedTabs = parsed.tabs.map((tab: Record<string, unknown>) => ({
-			title: normalizeTabTitle(tab.title),
+			title: normalizePatientFacingTitle(normalizeTabTitle(tab.title)),
 			content: normalizeTabContent(tab.content),
 		}));
 

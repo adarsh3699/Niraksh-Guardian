@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Pill, LayoutList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -16,7 +16,7 @@ interface AnalysisResultProps {
 	/** Optional title for the result card */
 	title?: string;
 	/** Optional rendering variant */
-	variant?: "default" | "drug-interaction";
+	variant?: "default" | "drug-interaction" | "medicine";
 	/** Optional severity for risk badge (drug-interaction variant) */
 	severity?: string;
 	/** Optional risk score (drug-interaction variant) */
@@ -62,7 +62,27 @@ function parseMarkdownSections(markdown: string): { title: string; content: stri
 		parsedTabs.push({ title: "Analysis", content: markdown });
 	}
 
-	return parsedTabs.filter((tab) => tab.content.length > 0);
+	const nonEmptyTabs = parsedTabs.filter((tab) => tab.content.length > 0);
+	const mergedTabs: { title: string; content: string }[] = [];
+	const titleToIndex = new Map<string, number>();
+
+	for (const tab of nonEmptyTabs) {
+		const normalizedTitle = tab.title.trim().toLowerCase().replace(/\s+/g, " ");
+		const existingIndex = titleToIndex.get(normalizedTitle);
+
+		if (existingIndex == null) {
+			titleToIndex.set(normalizedTitle, mergedTabs.length);
+			mergedTabs.push(tab);
+			continue;
+		}
+
+		const existing = mergedTabs[existingIndex];
+		if (existing.content.trim() === tab.content.trim()) continue;
+
+		existing.content = `${existing.content.trim()}\n\n${tab.content.trim()}`.trim();
+	}
+
+	return mergedTabs;
 }
 
 /* ------------------------------------------------------------------ */
@@ -84,8 +104,100 @@ export function AnalysisResult({
 	const tabs = useMemo(() => parseMarkdownSections(safeDescription), [safeDescription]);
 	const [activeTabIndex, setActiveTabIndex] = useState(0);
 	const selectedTabIndex = activeTabIndex >= tabs.length ? 0 : activeTabIndex;
+	const overviewTabIndex = tabs.findIndex((tab) => tab.title.trim().toLowerCase() === "overview");
+	const overviewContent = overviewTabIndex >= 0 ? tabs[overviewTabIndex].content : "";
+	const medicineTabs = tabs.filter((_, idx) => idx !== overviewTabIndex);
+	const selectedMedicineTabIndex = activeTabIndex >= medicineTabs.length ? 0 : activeTabIndex;
 
 	if (!safeDescription) return null;
+
+	if (variant === "medicine") {
+		const medicineTitle = title?.trim() ? title : "Medicine Information";
+
+		return (
+			<div
+				className={cn(
+					"rounded-[24px] border border-border bg-surface p-6 shadow-sm relative overflow-hidden",
+					className,
+				)}
+			>
+				<div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-primary to-primary-light" />
+
+				<div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-5">
+					<div>
+						<h3 className="font-heading text-xl font-semibold text-foreground tracking-tight">
+							{medicineTitle}
+						</h3>
+						<p className="mt-1 text-sm text-muted leading-relaxed">
+							AI-generated medicine analysis with composition, use, and safety guidance.
+						</p>
+					</div>
+					<div className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+						<Pill className="size-3.5" />
+						Medicine insights
+					</div>
+				</div>
+
+				{overviewContent && (
+					<div className="mb-5 rounded-xl border border-border/70 bg-background/60 p-4">
+						<p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">
+							Overview
+						</p>
+						<div className="prose prose-sm max-w-none text-muted prose-p:my-1.5 prose-strong:text-foreground">
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>{overviewContent}</ReactMarkdown>
+						</div>
+					</div>
+				)}
+
+				<div className="mb-5 grid gap-3 sm:grid-cols-2">
+					<div className="rounded-xl border border-border bg-background px-4 py-3">
+						<p className="text-[11px] uppercase tracking-wide text-muted">Sections</p>
+						<p className="mt-1 text-2xl font-semibold text-foreground">{medicineTabs.length}</p>
+						<p className="text-xs text-primary">Organized result breakdown</p>
+					</div>
+					<div className="rounded-xl border border-border bg-background px-4 py-3">
+						<p className="text-[11px] uppercase tracking-wide text-muted">Detail level</p>
+						<p className="mt-1 text-2xl font-semibold text-foreground">
+							{safeDescription.length > 1200
+								? "High"
+								: safeDescription.length > 600
+									? "Medium"
+									: "Basic"}
+						</p>
+						<p className="text-xs text-primary">Based on response depth</p>
+					</div>
+				</div>
+
+				{medicineTabs.length > 0 && (
+					<div className="mb-5 border-b border-border">
+						<div className="-mb-px flex flex-wrap gap-2">
+							{medicineTabs.map((tab, idx) => (
+								<button
+									key={idx}
+									onClick={() => setActiveTabIndex(idx)}
+									className={cn(
+										"inline-flex items-center gap-1.5 rounded-t-lg border-b-2 px-3 py-2 text-sm transition",
+										selectedTabIndex === idx
+											? "border-primary text-primary"
+											: "border-transparent text-muted hover:text-foreground",
+									)}
+								>
+									<LayoutList className="size-3.5" />
+									{tab.title}
+								</button>
+							))}
+						</div>
+					</div>
+				)}
+
+				<div className="prose prose-sm max-w-none text-muted prose-headings:font-heading prose-headings:text-foreground prose-h2:text-base prose-h3:text-sm prose-h2:mt-4 prose-h2:mb-2 prose-h3:mt-3 prose-h3:mb-2 prose-p:my-1.5 prose-strong:text-foreground prose-li:my-0.5 prose-li:text-muted prose-a:text-primary prose-a:font-medium hover:prose-a:text-primary/80">
+					<ReactMarkdown remarkPlugins={[remarkGfm]}>
+						{medicineTabs[selectedMedicineTabIndex]?.content ?? safeDescription}
+					</ReactMarkdown>
+				</div>
+			</div>
+		);
+	}
 
 	if (variant === "drug-interaction") {
 		const safeRiskScore = Math.max(0, Math.min(100, riskScore ?? 0));

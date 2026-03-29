@@ -236,15 +236,44 @@ function formatPrescriptionContent(content: string) {
 	return content;
 }
 
-function formatInteractionContent(content: string) {
-	// Cut off before enumerative sections start
-	const match = content.match(
-		/\n(#+|\*\*)\s*(1\.|Detailed Analysis|Mechanism|Severity|Recommendations|Alternative Medications|Medical Disclaimer)/i,
-	);
-	if (match) {
-		return content.substring(0, match.index).trim();
+function resolveInteractionContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!content || typeof content !== "object") return "No interaction data available";
+
+	const payload = content as {
+		description?: unknown;
+		tabs?: Array<{ title?: unknown; content?: unknown }>;
+		rawTabs?: Array<{ title?: unknown; content?: unknown }>;
+	};
+
+	if (typeof payload.description === "string" && payload.description.trim()) {
+		return payload.description;
 	}
-	return content;
+
+	const tabs = Array.isArray(payload.rawTabs)
+		? payload.rawTabs
+		: Array.isArray(payload.tabs)
+			? payload.tabs
+			: [];
+	const preferred =
+		tabs.find((tab) =>
+			String(tab?.title ?? "")
+				.toLowerCase()
+				.includes("overview"),
+		) ?? tabs[0];
+	const text = typeof preferred?.content === "string" ? preferred.content.trim() : "";
+
+	return text ? `## Overview\n\n${text}` : "No interaction data available";
+}
+
+function formatInteractionContent(content: unknown) {
+	const text = resolveInteractionContent(content).trim();
+	if (!text || text === "No interaction data available") return "No interaction data available";
+
+	const overview = text.match(/(?:^|\n)#{2,3}\s*overview\s*\n([\s\S]*?)(?=\n#{2,3}\s|$)/i);
+	if (overview?.[1]) return `## Overview\n\n${overview[1].trim()}`;
+
+	return text.split(/\n#{2,3}\s/)[0].trim();
 }
 
 function formatSymptomContent(s: SymptomAnalysisHistory): string {
@@ -360,17 +389,13 @@ function transformHistoryData(
 		}
 		case "interaction": {
 			const d = item as DrugInteractionHistory;
-			const fullContent =
-				typeof d.interactionResult === "string"
-					? d.interactionResult
-					: ((d.interactionResult as { description?: string })?.description ??
-						"No interaction data available");
+			const fullContent = resolveInteractionContent(d.interactionResult);
 			return {
 				id: d.id,
 				title: d.drugs.join(" + "),
 				subtitle: `${d.drugs.length} drugs checked`,
 				date: d.createdAt,
-				content: formatInteractionContent(fullContent) || "No interaction data available",
+				content: formatInteractionContent(d.interactionResult) || "No interaction data available",
 				onAction:
 					d.drugs.length > 0
 						? () => {
@@ -400,17 +425,24 @@ function transformHistoryData(
 				onAction:
 					s.symptoms.length > 0
 						? () => {
-									const analysisResult = {
-										possibleConditions: Array.isArray(s.predictedConditions) ? s.predictedConditions : [],
-										severity: s.severity || "Unknown",
-										urgency: s.urgencyLevel || "Unknown",
-										reasoning: s.reasoning || "",
-										recommendedSpecialists: s.recommendedSpecialist ? s.recommendedSpecialist.split(", ") : [],
-										homeRemedies: s.homeRemedies || [],
-									};
-									sessionStorage.setItem("ng:symptom:result", JSON.stringify(analysisResult));
-									sessionStorage.setItem("ng:symptom:symptoms", JSON.stringify(s.symptoms.join(", ")));
-									router.push("/symptom-analysis");
+								const analysisResult = {
+									possibleConditions: Array.isArray(s.predictedConditions)
+										? s.predictedConditions
+										: [],
+									severity: s.severity || "Unknown",
+									urgency: s.urgencyLevel || "Unknown",
+									reasoning: s.reasoning || "",
+									recommendedSpecialists: s.recommendedSpecialist
+										? s.recommendedSpecialist.split(", ")
+										: [],
+									homeRemedies: s.homeRemedies || [],
+								};
+								sessionStorage.setItem("ng:symptom:result", JSON.stringify(analysisResult));
+								sessionStorage.setItem(
+									"ng:symptom:symptoms",
+									JSON.stringify(s.symptoms.join(", ")),
+								);
+								router.push("/symptom-analysis");
 							}
 						: undefined,
 				actionLabel: "Open Details",

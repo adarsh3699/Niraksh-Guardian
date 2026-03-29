@@ -27,6 +27,8 @@ export function useMedicineAnalysis() {
 		async (name?: string, image?: File) => {
 			if (!name?.trim() && !image) return null;
 
+			// Clear stale result before running a new medicine analysis.
+			setResult(null);
 			setIsLoading(true);
 			setError(null);
 

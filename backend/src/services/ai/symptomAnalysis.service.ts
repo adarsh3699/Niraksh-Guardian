@@ -58,7 +58,11 @@ export interface ExtractedSymptoms {
 	severity: string | null;
 }
 
-export async function extractSymptoms(input: string, imageBuffer?: Buffer, mimeType?: string): Promise<ExtractedSymptoms> {
+export async function extractSymptoms(
+	input: string,
+	imageBuffer?: Buffer,
+	mimeType?: string
+): Promise<ExtractedSymptoms> {
 	const textPrompt = `Extract medical symptoms from the following patient description and/or attached image. Return valid JSON only, no markdown.
 
 Patient description: "${input}"
@@ -85,10 +89,12 @@ Rules:
 
 	const result = await ai.models.generateContent({
 		model: MODEL_NAME,
-		config: { systemInstruction: "You are a medical symptom extraction assistant. Analyze images and text to extract symptoms. Only respond with valid JSON." },
+		config: {
+			systemInstruction:
+				"You are a medical symptom extraction assistant. Analyze images and text to extract symptoms. Only respond with valid JSON.",
+		},
 		contents: [{ role: "user", parts }],
 	});
-
 
 	const parsed = extractJson(result.text || "") as Record<string, unknown>;
 
@@ -147,7 +153,11 @@ export interface FullAnalysisResult {
 	};
 }
 
-export async function generateFullAnalysis(symptoms: string[], imageBuffer?: Buffer, mimeType?: string): Promise<FullAnalysisResult> {
+export async function generateFullAnalysis(
+	symptoms: string[],
+	imageBuffer?: Buffer,
+	mimeType?: string
+): Promise<FullAnalysisResult> {
 	const textPrompt = `Perform a comprehensive analysis of these symptoms: ${symptoms.join(", ")}.
 
 Return valid JSON only, no markdown. Combine all analyses into a single response.
@@ -202,7 +212,10 @@ Rules:
 
 	const result = await ai.models.generateContent({
 		model: MODEL_NAME,
-		config: { systemInstruction: "You are an expert clinical medical AI (Niraksh Guardian). Consider both the text symptoms and any attached image in your analysis. Only respond with valid JSON." },
+		config: {
+			systemInstruction:
+				"You are an expert clinical medical AI (Niraksh Guardian). Consider both the text symptoms and any attached image in your analysis. Only respond with valid JSON.",
+		},
 		contents: [{ role: "user", parts }],
 	});
 
@@ -210,7 +223,13 @@ Rules:
 
 	// Validate relationship
 	const rel = parsed.relationship as Record<string, unknown>;
-	if (!rel || !Array.isArray(rel.nodes) || !Array.isArray(rel.edges) || typeof rel.cluster !== "object" || rel.cluster === null) {
+	if (
+		!rel ||
+		!Array.isArray(rel.nodes) ||
+		!Array.isArray(rel.edges) ||
+		typeof rel.cluster !== "object" ||
+		rel.cluster === null
+	) {
 		throw new Error("Unexpected AI response structure");
 	}
 	const nodes = (rel.nodes as unknown[]).filter((n): n is string => typeof n === "string");
@@ -218,7 +237,13 @@ Rules:
 	const edges = (rel.edges as unknown[]).filter((e): e is SymptomRelationshipEdge => {
 		if (typeof e !== "object" || e === null) return false;
 		const edge = e as Record<string, unknown>;
-		return typeof edge.from === "string" && typeof edge.to === "string" && typeof edge.relation === "string" && nodeSet.has(edge.from) && nodeSet.has(edge.to);
+		return (
+			typeof edge.from === "string" &&
+			typeof edge.to === "string" &&
+			typeof edge.relation === "string" &&
+			nodeSet.has(edge.from) &&
+			nodeSet.has(edge.to)
+		);
 	});
 	const cluster = rel.cluster as Record<string, unknown>;
 	if (typeof cluster.name !== "string" || typeof cluster.description !== "string") {
@@ -227,7 +252,13 @@ Rules:
 
 	// Validate insight
 	const ins = parsed.insight as Record<string, unknown>;
-	if (!ins || typeof ins.category !== "string" || typeof ins.severity !== "string" || typeof ins.affectedSystem !== "string" || typeof ins.summary !== "string") {
+	if (
+		!ins ||
+		typeof ins.category !== "string" ||
+		typeof ins.severity !== "string" ||
+		typeof ins.affectedSystem !== "string" ||
+		typeof ins.summary !== "string"
+	) {
 		throw new Error("Unexpected AI response structure");
 	}
 	if (!VALID_SEVERITIES.includes(ins.severity as InsightSeverity)) {
@@ -243,16 +274,29 @@ Rules:
 
 	// Validate diagnosis
 	const diag = parsed.diagnosis as Record<string, unknown>;
-	if (!diag || !Array.isArray(diag.possibleConditions) || typeof diag.severity !== "string" || typeof diag.urgency !== "string" || typeof diag.reasoning !== "string") {
+	if (
+		!diag ||
+		!Array.isArray(diag.possibleConditions) ||
+		typeof diag.severity !== "string" ||
+		typeof diag.urgency !== "string" ||
+		typeof diag.reasoning !== "string"
+	) {
 		throw new Error("Unexpected AI response structure");
 	}
 	if (!Array.isArray(diag.recommendedSpecialists)) {
-		diag.recommendedSpecialists = diag.recommendedSpecialist ? [diag.recommendedSpecialist as string] : ["General Physician"];
+		diag.recommendedSpecialists = diag.recommendedSpecialist
+			? [diag.recommendedSpecialist as string]
+			: ["General Physician"];
 	}
 
 	return {
 		relationship: { nodes, edges, cluster: { name: cluster.name, description: cluster.description } },
-		insight: { category: ins.category, severity: ins.severity as InsightSeverity, affectedSystem: ins.affectedSystem, summary: ins.summary },
+		insight: {
+			category: ins.category,
+			severity: ins.severity as InsightSeverity,
+			affectedSystem: ins.affectedSystem,
+			summary: ins.summary,
+		},
 		specialist,
 		diagnosis: {
 			possibleConditions: diag.possibleConditions as string[],
@@ -282,7 +326,11 @@ export interface SuggestionWithDiagnosisResult {
 	};
 }
 
-export async function generateSuggestionsWithDiagnosis(symptoms: string[], imageBuffer?: Buffer, mimeType?: string): Promise<SuggestionWithDiagnosisResult> {
+export async function generateSuggestionsWithDiagnosis(
+	symptoms: string[],
+	imageBuffer?: Buffer,
+	mimeType?: string
+): Promise<SuggestionWithDiagnosisResult> {
 	const textPrompt = `A patient has reported these symptoms: ${symptoms.join(", ")}.
 
 Perform TWO tasks and return the combined result as valid JSON only, no markdown.
@@ -318,7 +366,10 @@ Rules:
 
 	const result = await ai.models.generateContent({
 		model: MODEL_NAME,
-		config: { systemInstruction: "You are an expert clinical medical AI (Niraksh Guardian). Consider both the text symptoms and any attached image in your analysis. Only respond with valid JSON." },
+		config: {
+			systemInstruction:
+				"You are an expert clinical medical AI (Niraksh Guardian). Consider both the text symptoms and any attached image in your analysis. Only respond with valid JSON.",
+		},
 		contents: [{ role: "user", parts }],
 	});
 
@@ -334,11 +385,19 @@ Rules:
 
 	// Validate diagnosis
 	const diag = parsed.diagnosis as Record<string, unknown>;
-	if (!diag || !Array.isArray(diag.possibleConditions) || typeof diag.severity !== "string" || typeof diag.urgency !== "string" || typeof diag.reasoning !== "string") {
+	if (
+		!diag ||
+		!Array.isArray(diag.possibleConditions) ||
+		typeof diag.severity !== "string" ||
+		typeof diag.urgency !== "string" ||
+		typeof diag.reasoning !== "string"
+	) {
 		throw new Error("Unexpected AI response structure");
 	}
 	if (!Array.isArray(diag.recommendedSpecialists)) {
-		diag.recommendedSpecialists = diag.recommendedSpecialist ? [diag.recommendedSpecialist as string] : ["General Physician"];
+		diag.recommendedSpecialists = diag.recommendedSpecialist
+			? [diag.recommendedSpecialist as string]
+			: ["General Physician"];
 	}
 
 	return {
