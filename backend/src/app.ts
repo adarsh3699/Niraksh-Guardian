@@ -131,5 +131,3 @@ app.use("/api/research", researchRouter); // Register Research Routes
 app.use(errorHandler);
 
 export default app;
-// Trigger restart for the backend server
-// ENV updated

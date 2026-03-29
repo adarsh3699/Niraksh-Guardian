@@ -54,6 +54,10 @@ const writeProfileCache = async (
 	userId: string,
 	logContext: string
 ) => {
+	if (!redisClient.isOpen) {
+		return;
+	}
+
 	try {
 		await Promise.all([
 			redisClient.set(
@@ -179,20 +183,22 @@ export const getProfile = async (req: Request, res: Response) => {
 		if (!userId) return res.status(401).json({ error: "Unauthorized" });
 		const cacheKeys = getProfileCacheKeys(userId);
 
-		try {
-			const [cachedProfile, cachedStats] = await Promise.all([
-				redisClient.get(cacheKeys.profile),
-				redisClient.get(cacheKeys.stats),
-			]);
+		if (redisClient.isOpen) {
+			try {
+				const [cachedProfile, cachedStats] = await Promise.all([
+					redisClient.get(cacheKeys.profile),
+					redisClient.get(cacheKeys.stats),
+				]);
 
-			if (cachedProfile && cachedStats) {
-				const profilePayload = JSON.parse(cachedProfile) as Omit<ProfileResponsePayload, "profileStats">;
-				const statsPayload = JSON.parse(cachedStats) as ProfileResponsePayload["profileStats"];
-				logger.info({ userId, cacheHit: true }, "Profile cache hit");
-				return res.status(200).json({ ...profilePayload, profileStats: statsPayload });
+				if (cachedProfile && cachedStats) {
+					const profilePayload = JSON.parse(cachedProfile) as Omit<ProfileResponsePayload, "profileStats">;
+					const statsPayload = JSON.parse(cachedStats) as ProfileResponsePayload["profileStats"];
+					logger.info({ userId, cacheHit: true }, "Profile cache hit");
+					return res.status(200).json({ ...profilePayload, profileStats: statsPayload });
+				}
+			} catch (cacheReadError) {
+				logger.warn({ err: cacheReadError, userId }, "Profile cache read failed");
 			}
-		} catch (cacheReadError) {
-			logger.warn({ err: cacheReadError, userId }, "Profile cache read failed");
 		}
 
 		const user = await prisma.user.findUnique({
@@ -247,66 +253,78 @@ export const updateProfile = async (req: Request, res: Response) => {
 		if (name !== undefined) userUpdateData.name = name;
 		if (gender !== undefined) userUpdateData.gender = gender;
 		if (languagePreference !== undefined) userUpdateData.languagePreference = languagePreference;
-
-		if (Object.keys(userUpdateData).length > 0) {
-			await prisma.user.update({
-				where: { id: userId },
-				data: userUpdateData,
-			});
-		}
+		const hasUserUpdates = Object.keys(userUpdateData).length > 0;
 
 		const allergiesInput = Array.isArray(allergies) ? allergies : undefined;
 		const chronicConditionsInput = Array.isArray(chronicConditions) ? chronicConditions : undefined;
 
 		const needsExistingProfile = allergiesInput === undefined || chronicConditionsInput === undefined;
-		const existingProfile = needsExistingProfile
-			? await prisma.patientHealthProfile.findUnique({
-					where: { userId },
-					select: { allergies: true, chronicConditions: true },
-				})
-			: null;
 
-		// Calculate risk score automatically
-		const effectiveChronicConditions = chronicConditionsInput ?? existingProfile?.chronicConditions ?? [];
-		const effectiveAllergies = allergiesInput ?? existingProfile?.allergies ?? [];
-		const healthRiskScore = calculateRiskScore(effectiveChronicConditions);
+		const updatedResult = await prisma.$transaction(async (tx) => {
+			const existingUser = await tx.user.findUnique({
+				where: { id: userId },
+				select: { id: true, email: true, name: true, gender: true, languagePreference: true },
+			});
 
-		const profile = await prisma.patientHealthProfile.upsert({
-			where: { userId },
-			update: {
-				bloodGroup,
-				allergies: allergiesInput,
-				chronicConditions: chronicConditionsInput,
-				emergencyContactName,
-				emergencyContactPhone,
-				emergencyContactEmail,
-				city,
-				state,
-				healthRiskScore,
-			},
-			create: {
-				userId,
-				bloodGroup,
-				allergies: effectiveAllergies,
-				chronicConditions: effectiveChronicConditions,
-				emergencyContactName,
-				emergencyContactPhone,
-				emergencyContactEmail,
-				city,
-				state,
-				healthRiskScore,
-			},
+			if (!existingUser) {
+				return null;
+			}
+
+			const updatedUser = hasUserUpdates
+				? await tx.user.update({
+						where: { id: userId },
+						data: userUpdateData,
+						select: { id: true, email: true, name: true, gender: true, languagePreference: true },
+					})
+				: existingUser;
+
+			const existingProfile = needsExistingProfile
+				? await tx.patientHealthProfile.findUnique({
+						where: { userId },
+						select: { allergies: true, chronicConditions: true },
+					})
+				: null;
+
+			// Calculate risk score automatically
+			const effectiveChronicConditions = chronicConditionsInput ?? existingProfile?.chronicConditions ?? [];
+			const effectiveAllergies = allergiesInput ?? existingProfile?.allergies ?? [];
+			const healthRiskScore = calculateRiskScore(effectiveChronicConditions);
+
+			const profile = await tx.patientHealthProfile.upsert({
+				where: { userId },
+				update: {
+					bloodGroup,
+					allergies: allergiesInput,
+					chronicConditions: chronicConditionsInput,
+					emergencyContactName,
+					emergencyContactPhone,
+					emergencyContactEmail,
+					city,
+					state,
+					healthRiskScore,
+				},
+				create: {
+					userId,
+					bloodGroup,
+					allergies: effectiveAllergies,
+					chronicConditions: effectiveChronicConditions,
+					emergencyContactName,
+					emergencyContactPhone,
+					emergencyContactEmail,
+					city,
+					state,
+					healthRiskScore,
+				},
+			});
+
+			return { user: updatedUser, profile };
 		});
 
-		// Fetch updated user for response
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { id: true, email: true, name: true, gender: true, languagePreference: true },
-		});
-
-		if (!user) {
+		if (!updatedResult) {
 			return res.status(404).json({ message: "User not found" });
 		}
+
+		const { user, profile } = updatedResult;
 
 		const responsePayload = buildProfileResponse({
 			...user,

@@ -16,6 +16,10 @@ const createRateLimiter = (options: {
 
 		const key = `rate_limit:${options.prefix}:${ip}`;
 
+		if (!redisClient.isOpen) {
+			return next();
+		}
+
 		try {
 			const requests = await redisClient.incr(key);
 

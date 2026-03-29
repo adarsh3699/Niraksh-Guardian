@@ -12,6 +12,10 @@ export type TokenBlacklistCheckResult = "blacklisted" | "clear" | "check_failed"
  */
 export const blacklistToken = async (token: string, expiresInSeconds: number): Promise<void> => {
 	try {
+		if (!redisClient.isOpen) {
+			return;
+		}
+
 		const key = `${BLACKLIST_PREFIX}${token}`;
 		await redisClient.set(key, "1", { EX: expiresInSeconds });
 		logger.debug(`Token blacklisted (TTL: ${expiresInSeconds}s)`);
@@ -25,6 +29,10 @@ export const blacklistToken = async (token: string, expiresInSeconds: number): P
  */
 export const checkTokenBlacklist = async (token: string): Promise<TokenBlacklistCheckResult> => {
 	try {
+		if (!redisClient.isOpen) {
+			return "check_failed";
+		}
+
 		const key = `${BLACKLIST_PREFIX}${token}`;
 		const result = await redisClient.get(key);
 		return result !== null ? "blacklisted" : "clear";
