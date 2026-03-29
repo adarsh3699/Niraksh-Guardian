@@ -56,7 +56,13 @@ export function useSessionState<T>(
  */
 export function clearHealthToolSession() {
 	if (typeof window === "undefined") return;
-	const prefixes = ["ng:disease:", "ng:medicine:", "ng:prescription:", "ng:drug-interaction:"];
+	const prefixes = [
+		"ng:disease:",
+		"ng:medicine:",
+		"ng:prescription:",
+		"ng:drug-interaction:",
+		"ng:research:",
+	];
 	for (let i = sessionStorage.length - 1; i >= 0; i--) {
 		const k = sessionStorage.key(i);
 		if (k && prefixes.some((p) => k.startsWith(p))) {

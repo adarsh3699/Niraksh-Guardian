@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { FlaskConical, ChevronDown, ExternalLink, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
+import { useSessionState } from "@/hooks/useSessionState";
 
 interface ResearchPaper {
 	id: string;
@@ -40,6 +41,19 @@ interface ResearchResponse {
 	keywords: string[];
 	rag: ResearchRagSummary;
 	metadata: ResearchMetadata;
+}
+
+interface ResearchCacheEntry {
+	data: ResearchResponse;
+	cachedAt: number;
+}
+
+type ResearchCacheMap = Record<string, ResearchCacheEntry>;
+
+const RESEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+function normalizeQueryKey(query: string): string {
+	return query.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function PaperCard({ paper, index }: { paper: ResearchPaper; index: number }) {
@@ -132,13 +146,16 @@ interface ResearchPanelProps {
 	query: string; // the search term — medicine name, disease, or drug names joined with space
 	hideTriggerButton?: boolean;
 	isExternallyOpen?: boolean;
+	prefetchOnQueryChange?: boolean;
 }
 
 export function ResearchPanel({
 	query,
 	hideTriggerButton = false,
 	isExternallyOpen = false,
+	prefetchOnQueryChange = true,
 }: ResearchPanelProps) {
+	const [cache, setCache] = useSessionState<ResearchCacheMap>("ng:research:cache", {});
 	const [papers, setPapers] = useState<ResearchPaper[]>([]);
 	const [keywords, setKeywords] = useState<string[]>([]);
 	const [rag, setRag] = useState<ResearchRagSummary | null>(null);
@@ -147,60 +164,154 @@ export function ResearchPanel({
 	const [hasFetched, setHasFetched] = useState(false);
 	const [isVisible, setIsVisible] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const inFlightRequest = useRef<Promise<ResearchResponse> | null>(null);
+
+	const cacheKey = useMemo(() => normalizeQueryKey(query), [query]);
+
+	const getCachedResponse = useCallback(
+		(key: string): ResearchResponse | null => {
+			if (!key) return null;
+			const entry = cache[key];
+			if (!entry) return null;
+			if (Date.now() - entry.cachedAt > RESEARCH_CACHE_TTL_MS) return null;
+			return entry.data;
+		},
+		[cache],
+	);
+
+	const hydrateFromResponse = useCallback((data: ResearchResponse) => {
+		setPapers(data.papers ?? []);
+		setKeywords(data.keywords ?? []);
+		setRag(data.rag ?? null);
+		setMetadata(data.metadata ?? null);
+		setHasFetched(true);
+	}, []);
 
 	useEffect(() => {
-		setPapers([]);
-		setKeywords([]);
-		setRag(null);
-		setMetadata(null);
 		setError(null);
-		setHasFetched(false);
-		setIsVisible(false);
-	}, [query]);
 
-	const handleFetch = useCallback(async () => {
-		if (!query.trim()) return;
-		setIsLoading(true);
-		setError(null);
-		try {
-			const data = await apiClient<ResearchResponse>(
-				`${API_ROUTES.RESEARCH_PAPERS}?q=${encodeURIComponent(query)}`,
-			);
-			setPapers(data.papers ?? []);
-			setKeywords(data.keywords ?? []);
-			setRag(data.rag ?? null);
-			setMetadata(data.metadata ?? null);
-			setHasFetched(true);
-			setIsVisible(true);
-		} catch {
-			setError("Unable to fetch research right now. Please try again in a moment.");
+		if (!query.trim()) {
 			setPapers([]);
 			setKeywords([]);
 			setRag(null);
 			setMetadata(null);
-			setHasFetched(true);
-			setIsVisible(true);
-		} finally {
-			setIsLoading(false);
+			setHasFetched(false);
+			setIsVisible(false);
+			return;
 		}
-	}, [query]);
+
+		const cached = getCachedResponse(cacheKey);
+		if (cached) {
+			hydrateFromResponse(cached);
+			setIsVisible(false);
+			return;
+		}
+
+		setPapers([]);
+		setKeywords([]);
+		setRag(null);
+		setMetadata(null);
+		setHasFetched(false);
+		setIsVisible(false);
+
+		if (cache[cacheKey] && Date.now() - cache[cacheKey].cachedAt > RESEARCH_CACHE_TTL_MS) {
+			setCache((prev) => {
+				const next = { ...prev };
+				delete next[cacheKey];
+				return next;
+			});
+		}
+	}, [query, cacheKey, cache, getCachedResponse, hydrateFromResponse, setCache]);
+
+	const fetchResearch = useCallback(
+		async (mode: "interactive" | "prefetch") => {
+			if (!query.trim()) return;
+
+			const cached = getCachedResponse(cacheKey);
+			if (cached) {
+				hydrateFromResponse(cached);
+				if (mode === "interactive") {
+					setIsVisible(true);
+					setError(null);
+				}
+				return;
+			}
+
+			if (mode === "interactive") {
+				setIsLoading(true);
+				setError(null);
+			}
+
+			if (!inFlightRequest.current) {
+				inFlightRequest.current = apiClient<ResearchResponse>(
+					`${API_ROUTES.RESEARCH_PAPERS}?q=${encodeURIComponent(query)}`,
+				);
+			}
+
+			try {
+				const data = await inFlightRequest.current;
+				hydrateFromResponse(data);
+				setCache((prev) => ({
+					...prev,
+					[cacheKey]: {
+						data,
+						cachedAt: Date.now(),
+					},
+				}));
+				if (mode === "interactive") {
+					setIsVisible(true);
+				}
+			} catch {
+				if (mode === "interactive") {
+					setError("Unable to fetch research right now. Please try again in a moment.");
+					setPapers([]);
+					setKeywords([]);
+					setRag(null);
+					setMetadata(null);
+					setHasFetched(true);
+					setIsVisible(true);
+				}
+			} finally {
+				inFlightRequest.current = null;
+				if (mode === "interactive") {
+					setIsLoading(false);
+				}
+			}
+		},
+		[query, cacheKey, getCachedResponse, hydrateFromResponse, setCache],
+	);
 
 	const handleToggle = useCallback(() => {
 		if (!hasFetched) {
-			void handleFetch();
+			setIsVisible(true);
+			void fetchResearch("interactive");
 		} else {
 			setIsVisible((v) => !v);
 		}
-	}, [hasFetched, handleFetch]);
+	}, [hasFetched, fetchResearch]);
 
 	useEffect(() => {
 		if (!isExternallyOpen || !query.trim()) return;
 		if (!hasFetched) {
-			void handleFetch();
+			setIsVisible(true);
+			void fetchResearch("interactive");
 			return;
 		}
 		setIsVisible(true);
-	}, [isExternallyOpen, query, hasFetched, handleFetch]);
+	}, [isExternallyOpen, query, hasFetched, fetchResearch]);
+
+	useEffect(() => {
+		if (!prefetchOnQueryChange || !query.trim() || hasFetched) return;
+
+		const cached = getCachedResponse(cacheKey);
+		if (cached) return;
+
+		const timeoutId = window.setTimeout(() => {
+			void fetchResearch("prefetch");
+		}, 250);
+
+		return () => window.clearTimeout(timeoutId);
+	}, [prefetchOnQueryChange, query, hasFetched, cacheKey, getCachedResponse, fetchResearch]);
 
 	if (!query.trim()) return null;
 
@@ -225,16 +336,12 @@ export function ResearchPanel({
 					) : (
 						<FlaskConical className="size-4" />
 					)}
-					{isLoading
-						? "Fetching research..."
-						: isVisible
-							? "Hide Research Papers"
-							: "View Research Papers"}
+					{isLoading ? "Fetching research..." : "View Research Papers"}
 				</button>
 			)}
 
 			{/* Panel */}
-			{isVisible && hasFetched && (
+			{isVisible && (
 				<div className="mt-4 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-emerald-500/5">
 					{/* Header */}
 					<div className="flex items-center gap-2.5 border-b border-primary/10 px-4 py-3">
@@ -275,7 +382,12 @@ export function ResearchPanel({
 
 					{/* Cards */}
 					<div className="flex flex-col gap-2 p-3">
-						{error ? (
+						{isLoading && !hasFetched ? (
+							<div className="flex items-center justify-center gap-2 py-6 text-sm text-muted">
+								<Loader2 className="size-4 animate-spin" />
+								Fetching research papers...
+							</div>
+						) : error ? (
 							<p className="py-4 text-center text-sm text-destructive">{error}</p>
 						) : papers.length === 0 ? (
 							<p className="py-4 text-center text-sm text-muted">
