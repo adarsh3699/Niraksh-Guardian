@@ -36,7 +36,7 @@ const mainNavItems = [
 ];
 
 const accountNavItems = [
-	{ href: "/reports", label: "Reports", icon: FileBarChart },
+	{ href: "/reports", label: "Unified Reports", icon: FileBarChart },
 	{ href: "/history", label: "Health History", icon: History },
 	{ href: "/profile", label: "Profile", icon: User },
 ];

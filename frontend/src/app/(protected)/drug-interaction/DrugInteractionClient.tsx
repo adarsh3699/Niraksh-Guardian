@@ -127,14 +127,6 @@ export function DrugInteractionClient() {
 
 	return (
 		<div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-			{/* Breadcrumb */}
-			<div className="mb-6 flex items-center gap-1.5 min-w-0 text-xs text-muted animate-in fade-in duration-500">
-				<Home className="size-3.5" />
-				<span>Home</span>
-				<span className="opacity-40">/</span>
-				<span className="font-medium text-foreground">Drug Interaction</span>
-			</div>
-
 			{/* Page Header */}
 			<div className="mb-6 animate-in slide-in-from-bottom-2 fade-in duration-500">
 				<h1 className="mb-3 flex items-center gap-3 font-heading text-3xl text-foreground">
@@ -322,7 +314,7 @@ export function DrugInteractionClient() {
 
 						<div ref={researchSectionRef}>
 							<ResearchPanel
-								query={medicines.filter((m) => m.trim()).join(" ")}
+								query={medicines.filter((m) => m.trim()).join(" + ")}
 								hideTriggerButton
 								isExternallyOpen={isResearchOpen}
 							/>

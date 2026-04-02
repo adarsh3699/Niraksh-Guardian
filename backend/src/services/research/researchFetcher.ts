@@ -109,6 +109,120 @@ const STOP_WORDS = new Set([
 	"need",
 ]);
 
+function splitMedicinePhrases(query: string): string[] {
+	if (!query.trim()) return [];
+
+	// Support stringified arrays from payloads like ["Azithromycin","dolo 500"].
+	try {
+		const parsed = JSON.parse(query);
+		if (Array.isArray(parsed)) {
+			const items = parsed
+				.filter((v): v is string => typeof v === "string")
+				.map((v) => v.trim())
+				.filter(Boolean);
+			if (items.length) return items;
+		}
+	} catch {
+		// ignore and continue with text parsing
+	}
+
+	const pieces = query
+		.split(/\s*\+\s*|\s*,\s*|\s+vs\.?\s+|\s+and\s+/i)
+		.map((part) => part.trim())
+		.filter(Boolean);
+
+	if (pieces.length >= 2) return pieces;
+
+	// Fallback when separators are missing: try grouping common "name + strength" patterns.
+	const compact = query
+		.replace(/[^a-z0-9\s]/gi, " ")
+		.toLowerCase()
+		.split(/\s+/)
+		.filter(Boolean);
+
+	if (compact.length <= 1) return compact;
+
+	const grouped: string[] = [];
+	for (let i = 0; i < compact.length; i += 1) {
+		const current = compact[i];
+		const next = compact[i + 1];
+		if (next && /\d+/.test(next) && !/\d+/.test(current)) {
+			grouped.push(`${current} ${next}`);
+			i += 1;
+		} else {
+			grouped.push(current);
+		}
+	}
+
+	return grouped;
+}
+
+function normaliseMedicineText(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[[\]"']/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function buildMedicineVariants(medicine: string): string[] {
+	const normalized = normaliseMedicineText(medicine);
+	if (!normalized) return [];
+
+	const variants = new Set<string>([normalized]);
+
+	// Remove dosage/unit tokens for broader recall (e.g. "dolo 500 mg" -> "dolo").
+	const withoutDose = normalized
+		.replace(/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|iu)\b/gi, " ")
+		.replace(/\b\d+\b/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	if (withoutDose && withoutDose !== normalized) variants.add(withoutDose);
+
+	// Include first token fallback when phrase has brand + strength pattern.
+	const tokens = normalized.split(/\s+/).filter(Boolean);
+	if (tokens.length >= 2 && /^[a-z]/i.test(tokens[0])) {
+		variants.add(tokens[0]);
+	}
+
+	return Array.from(variants).slice(0, 4);
+}
+
+function buildMedicineVariantGroups(medicines: string[]): string[][] {
+	return medicines.map((m) => buildMedicineVariants(m)).filter((group) => group.length > 0);
+}
+
+function buildInteractionPubMedTerm(medicines: string[]): string | null {
+	if (medicines.length < 2) return null;
+	const groups = buildMedicineVariantGroups(medicines);
+	if (groups.length < 2) return null;
+
+	const medicineClause = groups
+		.slice(0, 4)
+		.map((group) => {
+			const groupClause = group.map((name) => `"${name}"[Title/Abstract]`).join(" OR ");
+			return `(${groupClause})`;
+		})
+		.join(" AND ");
+
+	const interactionClause =
+		'("drug interaction"[Title/Abstract] OR interaction*[Title/Abstract] OR pharmacokinetic*[Title/Abstract] OR contraindication*[Title/Abstract])';
+
+	return `${medicineClause} AND ${interactionClause}`;
+}
+
+function paperMentionsMedicineGroup(paper: ResearchPaper, group: string[]): boolean {
+	if (!group.length) return false;
+	const text = `${paper.title} ${paper.abstract}`.toLowerCase();
+	return group.some((variant) => text.includes(variant.toLowerCase()));
+}
+
+function interactionCoverageScore(paper: ResearchPaper, medicineGroups: string[][]): number {
+	if (medicineGroups.length < 2) return 0;
+	const matchedGroups = medicineGroups.filter((group) => paperMentionsMedicineGroup(paper, group)).length;
+	return matchedGroups / medicineGroups.length;
+}
+
 export function extractKeywords(query: string): string[] {
 	const cleaned = query
 		.toLowerCase()
@@ -323,7 +437,8 @@ ${papers
 
 async function rankPapersByRag(
 	query: string,
-	papers: ResearchPaper[]
+	papers: ResearchPaper[],
+	medicineGroups: string[][] = []
 ): Promise<{ ranked: ResearchPaper[]; embeddingsUsed: boolean }> {
 	if (!papers.length) return { ranked: [], embeddingsUsed: false };
 
@@ -336,15 +451,20 @@ async function rankPapersByRag(
 		const rankedLexical = papers
 			.map((paper, idx) => ({
 				llm: llmScores.get(paper.id),
+				coverage: interactionCoverageScore(paper, medicineGroups),
 				...paper,
 				retrievalScore: Number(
 					(
-						(llmScores.get(paper.id)?.score ?? lexicalScores[idx].score) * 0.7 +
-						lexicalScores[idx].score * 0.3
+						(llmScores.get(paper.id)?.score ?? lexicalScores[idx].score) * 0.62 +
+						lexicalScores[idx].score * 0.28 +
+						interactionCoverageScore(paper, medicineGroups) * 0.1
 					).toFixed(4)
 				),
 				retrievalSignals: [
 					...(lexicalScores[idx].signals ?? []),
+					...(medicineGroups.length > 1
+						? [`interaction-coverage:${Math.round(interactionCoverageScore(paper, medicineGroups) * 100)}%`]
+						: []),
 					...(llmScores.get(paper.id)?.reason ? [`semantic:${llmScores.get(paper.id)?.reason}`] : []),
 				].slice(0, 6),
 			}))
@@ -363,12 +483,16 @@ async function rankPapersByRag(
 				: 0;
 			const semanticNormalised = Math.max(0, Math.min(1, (semanticRaw + 1) / 2));
 			const lexical = lexicalScores[idx].score;
-			const blended = semanticNormalised * 0.75 + lexical * 0.25;
+			const coverage = interactionCoverageScore(paper, medicineGroups);
+			const blended = semanticNormalised * 0.7 + lexical * 0.2 + coverage * 0.1;
 
 			return {
 				...paper,
 				retrievalScore: Number(blended.toFixed(4)),
-				retrievalSignals: lexicalScores[idx].signals,
+				retrievalSignals: [
+					...lexicalScores[idx].signals,
+					...(medicineGroups.length > 1 ? [`interaction-coverage:${Math.round(coverage * 100)}%`] : []),
+				],
 			};
 		})
 		.sort((a, b) => (b.retrievalScore ?? 0) - (a.retrievalScore ?? 0));
@@ -445,9 +569,14 @@ ${contextBlock}
 	}
 }
 
-async function fetchPubMed(keywords: string[], max = 4, joiner = " AND "): Promise<ResearchPaper[]> {
+async function fetchPubMed(
+	keywords: string[],
+	max = 4,
+	joiner = " AND ",
+	overrideTerm?: string
+): Promise<ResearchPaper[]> {
 	if (!keywords.length) return [];
-	const query = keywords.join(joiner);
+	const query = overrideTerm?.trim() || keywords.join(joiner);
 	try {
 		const searchRes = await fetch(
 			`${PUBMED_BASE}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${max}&retmode=json&sort=relevance`,
@@ -552,7 +681,14 @@ async function fetchSemanticScholar(keywords: string[], max = 4): Promise<Resear
 }
 
 export async function fetchResearchPapers(query: string, maxPerSource = 4): Promise<FetchResearchResponse> {
-	const keywords = extractKeywords(query);
+	const medicinePhrases = splitMedicinePhrases(query);
+	const medicineGroups = buildMedicineVariantGroups(medicinePhrases);
+	const interactionPubMedTerm = buildInteractionPubMedTerm(medicinePhrases);
+	const interactionMode = Boolean(interactionPubMedTerm);
+
+	const keywords = extractKeywords(
+		interactionMode ? `${query} drug interaction pharmacokinetic contraindication` : query
+	);
 	if (!keywords.length) {
 		return {
 			papers: [],
@@ -574,10 +710,19 @@ export async function fetchResearchPapers(query: string, maxPerSource = 4): Prom
 	}
 
 	const candidateLimit = Math.max(8, maxPerSource * 3);
+	const semanticKeywords = interactionMode
+		? [
+				...keywords,
+				...medicinePhrases.map((m) => normaliseMedicineText(m)),
+				"drug",
+				"interaction",
+				"pharmacokinetic",
+			]
+		: keywords;
 
 	const [pubmedResult, ssResult] = await Promise.allSettled([
-		fetchPubMed(keywords, candidateLimit, " AND "),
-		fetchSemanticScholar(keywords, candidateLimit),
+		fetchPubMed(keywords, candidateLimit, " AND ", interactionPubMedTerm ?? undefined),
+		fetchSemanticScholar(semanticKeywords, candidateLimit),
 	]);
 
 	let all = [
@@ -588,7 +733,7 @@ export async function fetchResearchPapers(query: string, maxPerSource = 4): Prom
 	let joinerUsed: "AND" | "OR" = "AND";
 
 	if (all.length === 0 && keywords.length > 1) {
-		all = await fetchPubMed(keywords, candidateLimit, " OR ");
+		all = await fetchPubMed(keywords, candidateLimit, " OR ", interactionPubMedTerm ?? undefined);
 		joinerUsed = "OR";
 	}
 
@@ -600,7 +745,14 @@ export async function fetchResearchPapers(query: string, maxPerSource = 4): Prom
 		return true;
 	});
 
-	const { ranked, embeddingsUsed } = await rankPapersByRag(query, unique);
+	const interactionFiltered =
+		interactionMode && medicineGroups.length >= 2
+			? unique.filter((paper) => interactionCoverageScore(paper, medicineGroups) >= 0.5)
+			: unique;
+
+	const rankInput = interactionFiltered.length > 0 ? interactionFiltered : unique;
+
+	const { ranked, embeddingsUsed } = await rankPapersByRag(query, rankInput, medicineGroups);
 	const finalPapers = ranked.slice(0, maxPerSource);
 	const rag = await generateGroundedSummary(query, finalPapers);
 
