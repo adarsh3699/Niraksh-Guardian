@@ -63,15 +63,28 @@ app.use(
 );
 
 // CORS
-const allowedOrigins = env.CORS_ORIGINS
-	? env.CORS_ORIGINS.split(",").map((o) => o.trim())
-	: ["http://localhost:3000", "http://localhost:5173", "https://niraksh.bhemu.in", "https://niraksh.vercel.app"];
+const defaultAllowedOrigins = [
+	"http://localhost:3000",
+	"http://localhost:5173",
+	"https://niraksh.bhemu.in",
+	"https://niraksh.vercel.app",
+];
+
+const normalizeOrigin = (value: string) => value.trim().replace(/\/$/, "");
+
+const envAllowedOrigins = env.CORS_ORIGINS
+	? env.CORS_ORIGINS.split(",")
+			.map((o) => normalizeOrigin(o))
+			.filter(Boolean)
+	: [];
+
+const allowedOrigins = new Set([...defaultAllowedOrigins.map((o) => normalizeOrigin(o)), ...envAllowedOrigins]);
 
 app.use(
 	cors({
 		origin: (origin, callback) => {
 			if (!origin) return callback(null, true);
-			if (allowedOrigins.includes(origin)) {
+			if (allowedOrigins.has(normalizeOrigin(origin))) {
 				return callback(null, true);
 			}
 			callback(new Error(`Origin ${origin} not allowed by CORS`));
