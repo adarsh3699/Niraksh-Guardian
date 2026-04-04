@@ -67,10 +67,6 @@
 		"zod": "^4.3.6"
 	},
 	"pnpm": {
-		"publicHoistPattern": [
-			"@types/*",
-			"@prisma/*"
-		],
 		"onlyBuiltDependencies": [
 			"@prisma/client",
 			"@prisma/engines",
