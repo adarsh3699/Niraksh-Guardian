@@ -1,17 +1,78 @@
-import { GoogleGenAI } from "@google/genai";
 import env from "../../config/env";
 import logger from "../../config/logger";
 
 const API_KEY = env.GEMINI_API_KEY || "";
 
-// Initialize Gemini (New SDK)
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+let aiClientPromise: Promise<any> | null = null;
+
+async function getAiClient() {
+	if (!aiClientPromise) {
+		aiClientPromise = import("@google/genai").then(({ GoogleGenAI }) => new GoogleGenAI({ apiKey: API_KEY }));
+	}
+	return aiClientPromise;
+}
+
+const ai = {
+	models: {
+		generateContent: async (params: any) => {
+			const client = await getAiClient();
+			return client.models.generateContent(params);
+		},
+		generateContentStream: async (params: any) => {
+			const client = await getAiClient();
+			const streamFn = client?.models?.generateContentStream;
+			if (typeof streamFn === "function") {
+				return streamFn.call(client.models, params);
+			}
+			throw new Error("Gemini streaming is not supported by the current SDK/runtime");
+		},
+	},
+};
 
 // Constants
 const MODEL_NAME = "gemini-2.5-flash"; // Explicitly using models/ prefix
+const CHAT_SYSTEM_INSTRUCTION =
+	"You are Niraksh AI, an empathetic and highly knowledgeable Smart Healthcare Assistant. Your primary goal is to quickly pinpoint the user's actual medical issue.\nWhen a user describes a symptom, DO NOT overwhelm them with multiple questions. Ask only 1 short, highly targeted, solution-based question at a time to narrow down the main cause (e.g., 'Does the pain worsen after eating?').\nOnce you clearly understand the specific issue, stop asking questions and provide a structured, easy-to-read guide with detailed clinical insights and recommendations.\nOnly discuss topics related to healthcare and medicine. If a user asks a non-medical question, politely decline by saying: 'As a Smart Healthcare Assistant, I can only discuss topics related to healthcare and medicine.'";
+
+type ConversationMessage = { role: string; content: string };
+
+const buildChatContents = (
+	history: ConversationMessage[],
+	newMessage: string,
+	language: string,
+	imageBuffer?: Buffer,
+	mimeType?: string
+) => {
+	const contents: any[] = history.map((msg) => ({
+		role: msg.role === "user" ? "user" : "model",
+		parts: [{ text: msg.content }],
+	}));
+
+	const currentParts: any[] = [
+		{
+			text: language && language !== "en" ? `[Respond in ${language}] ${newMessage}` : newMessage,
+		},
+	];
+
+	if (imageBuffer && mimeType) {
+		currentParts.push({
+			inlineData: {
+				data: imageBuffer.toString("base64"),
+				mimeType,
+			},
+		});
+	}
+
+	contents.push({
+		role: "user",
+		parts: currentParts,
+	});
+
+	return contents;
+};
 
 export const generateAIResponse = async (
-	history: { role: string; content: string }[],
+	history: ConversationMessage[],
 	newMessage: string,
 	language: string = "en",
 	imageBuffer?: Buffer,
@@ -22,42 +83,14 @@ export const generateAIResponse = async (
 			throw new Error("GEMINI_API_KEY is not configured");
 		}
 
-		// Convert DB history to Gemini format
-		const contents: any[] = history.map((msg) => ({
-			role: msg.role === "user" ? "user" : "model",
-			parts: [{ text: msg.content }],
-		}));
-
-		// Construct current message parts
-		const currentParts: any[] = [
-			{
-				text: language && language !== "en" ? `[Respond in ${language}] ${newMessage}` : newMessage,
-			},
-		];
-
-		// Add image if provided
-		if (imageBuffer && mimeType) {
-			currentParts.push({
-				inlineData: {
-					data: imageBuffer.toString("base64"),
-					mimeType: mimeType,
-				},
-			});
-		}
-
-		// Add the new message
-		contents.push({
-			role: "user",
-			parts: currentParts,
-		});
+		const contents = buildChatContents(history, newMessage, language, imageBuffer, mimeType);
 
 		const result = await ai.models.generateContent({
 			model: MODEL_NAME,
 			config: {
-				systemInstruction:
-					"You are Niraksh AI, an empathetic and highly knowledgeable Smart Healthcare Assistant. Your primary goal is to quickly pinpoint the user's actual medical issue.\nWhen a user describes a symptom, DO NOT overwhelm them with multiple questions. Ask only 1 short, highly targeted, solution-based question at a time to narrow down the main cause (e.g., 'Does the pain worsen after eating?').\nOnce you clearly understand the specific issue, stop asking questions and provide a structured, easy-to-read guide with detailed clinical insights and recommendations.\nOnly discuss topics related to healthcare and medicine. If a user asks a non-medical question, politely decline by saying: 'As a Smart Healthcare Assistant, I can only discuss topics related to healthcare and medicine.'",
+				systemInstruction: CHAT_SYSTEM_INSTRUCTION,
 			},
-			contents: contents,
+			contents,
 		});
 
 		return result.text || "";
@@ -66,6 +99,53 @@ export const generateAIResponse = async (
 		throw new Error("Failed to generate AI response");
 	}
 };
+
+export async function* generateAIResponseStream(
+	history: ConversationMessage[],
+	newMessage: string,
+	language: string = "en",
+	imageBuffer?: Buffer,
+	mimeType?: string
+): AsyncGenerator<string> {
+	if (!API_KEY) {
+		throw new Error("GEMINI_API_KEY is not configured");
+	}
+
+	const contents = buildChatContents(history, newMessage, language, imageBuffer, mimeType);
+
+	const stream = await ai.models.generateContentStream({
+		model: MODEL_NAME,
+		config: {
+			systemInstruction: CHAT_SYSTEM_INSTRUCTION,
+		},
+		contents,
+	});
+
+	let emittedText = "";
+	for await (const chunk of stream) {
+		const text = typeof chunk?.text === "string" ? chunk.text : "";
+		if (!text) {
+			continue;
+		}
+
+		if (text.startsWith(emittedText)) {
+			const delta = text.slice(emittedText.length);
+			emittedText = text;
+			if (delta) {
+				yield delta;
+			}
+			continue;
+		}
+
+		// Some SDK versions emit already-delta chunks; keep behavior robust.
+		emittedText += text;
+		yield text;
+	}
+
+	if (!emittedText.trim()) {
+		throw new Error("Gemini stream returned no text");
+	}
+}
 
 export const diagnoseSymptoms = async (
 	symptoms: string[],
@@ -448,7 +528,7 @@ MEDICINES_JSON:[{"name":"Medicine Name 1", "dosage":"Dosage 1"},{"name":"Medicin
 				const nameMatches = rawText.match(
 					/\b[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*\b\s*(?:\d+\s*(?:mg|mcg|g|ml|IU))?/g
 				);
-				if (nameMatches) medicines = [...new Set(nameMatches)].slice(0, 20);
+				if (nameMatches) medicines = Array.from(new Set<string>(nameMatches)).slice(0, 20);
 			}
 		}
 

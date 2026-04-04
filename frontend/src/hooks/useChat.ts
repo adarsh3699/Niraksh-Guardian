@@ -3,6 +3,7 @@
 import useSWR, { mutate as globalMutate, type KeyedMutator } from "swr";
 import { useCallback, useState, useEffect } from "react";
 import { apiClient, swrFetcher } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import { API_ROUTES } from "@/lib/constants";
 import type {
 	Chat,
@@ -11,6 +12,55 @@ import type {
 	SendMessageResponse,
 	ChatLanguage,
 } from "@/types/chat";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+interface ChatStreamAckEvent {
+	type: "ack";
+	userMessage: Message;
+	aiMessage: Message;
+}
+
+interface ChatStreamChunkEvent {
+	type: "chunk";
+	delta: string;
+}
+
+interface ChatStreamDoneEvent {
+	type: "done";
+	aiMessage: Message;
+}
+
+interface ChatStreamErrorEvent {
+	type: "error";
+	error: string;
+}
+
+type ChatStreamEvent =
+	| ChatStreamAckEvent
+	| ChatStreamChunkEvent
+	| ChatStreamDoneEvent
+	| ChatStreamErrorEvent;
+
+function upsertMessages(
+	prev: Message[] | undefined,
+	messages: Message[],
+	removeIds: string[] = [],
+): Message[] {
+	const removeSet = new Set(removeIds);
+	const map = new Map<string, Message>();
+
+	for (const msg of prev ?? []) {
+		if (removeSet.has(msg.id)) continue;
+		map.set(msg.id, msg);
+	}
+
+	for (const msg of messages) {
+		map.set(msg.id, msg);
+	}
+
+	return Array.from(map.values());
+}
 
 /* ------------------------------------------------------------------ */
 /*  useChatList — fetches all chats for the sidebar                   */
@@ -200,11 +250,19 @@ export function useChat() {
 				revalidate: false,
 			});
 
+			const upsertServerMessages = async (...serverMessages: Message[]) => {
+				await globalMutate<Message[]>(
+					cacheKey,
+					(prev) => upsertMessages(prev, serverMessages, [tempId]),
+					{ revalidate: false },
+				);
+			};
+
 			// 2. Show typing indicator
 			setIsSending(true);
 
 			try {
-				let response: SendMessageResponse;
+				let response: SendMessageResponse | null = null;
 
 				if (image) {
 					const formData = new FormData();
@@ -218,28 +276,100 @@ export function useChat() {
 						isFile: true,
 					});
 				} else {
-					response = await apiClient<SendMessageResponse>(API_ROUTES.CHAT_MESSAGES(chatId), {
-						method: "POST",
-						body: { content, language },
-					});
+					const accessToken = getAccessToken();
+					if (!accessToken) {
+						throw new Error("Session expired. Please log in again.");
+					}
+
+					const streamRes = await fetch(
+						`${API_BASE_URL}${API_ROUTES.CHAT_MESSAGES_STREAM(chatId)}`,
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								Authorization: `Bearer ${accessToken}`,
+							},
+							credentials: "include",
+							body: JSON.stringify({ content, language }),
+						},
+					);
+
+					if (!streamRes.ok || !streamRes.body) {
+						throw new Error("Failed to stream AI response");
+					}
+
+					const reader = streamRes.body.getReader();
+					const decoder = new TextDecoder();
+					let buffer = "";
+					let ackEvent: ChatStreamAckEvent | null = null;
+					let aiMessageId: string | null = null;
+					let streamedAiText = "";
+
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+
+						buffer += decoder.decode(value, { stream: true });
+						const lines = buffer.split("\n");
+						buffer = lines.pop() ?? "";
+
+						for (const line of lines) {
+							const trimmed = line.trim();
+							if (!trimmed || trimmed.startsWith(":")) continue;
+							if (!trimmed.startsWith("data:")) continue;
+
+							const jsonPayload = trimmed.slice(5).trim();
+							if (!jsonPayload) continue;
+
+							const event = JSON.parse(jsonPayload) as ChatStreamEvent;
+							if (event.type === "ack") {
+								ackEvent = event;
+								aiMessageId = event.aiMessage.id;
+								await upsertServerMessages(event.userMessage, event.aiMessage);
+								continue;
+							}
+
+							if (event.type === "chunk") {
+								if (!ackEvent || !aiMessageId) continue;
+								streamedAiText += event.delta;
+								void globalMutate<Message[]>(
+									cacheKey,
+									(prev) =>
+										(prev ?? []).map((m) =>
+											m.id === aiMessageId ? { ...m, content: streamedAiText } : m,
+										),
+									{ revalidate: false },
+								);
+								continue;
+							}
+
+							if (event.type === "done") {
+								const finalResponse: SendMessageResponse = {
+									userMessage: ackEvent?.userMessage ?? optimisticUserMsg,
+									aiMessage: event.aiMessage,
+								};
+								response = finalResponse;
+								await upsertServerMessages(finalResponse.userMessage, finalResponse.aiMessage);
+								continue;
+							}
+
+							if (event.type === "error") {
+								throw new Error(event.error || "Failed to stream AI response");
+							}
+						}
+					}
+
+					if (!response) {
+						throw new Error("Incomplete AI stream response");
+					}
+				}
+
+				if (!response) {
+					throw new Error("No response generated");
 				}
 
 				// 3. Replace optimistic message with real data + add AI response
-				await globalMutate<Message[]>(
-					cacheKey,
-					(prev) => {
-						const map = new Map<string, Message>();
-						for (const m of prev ?? []) {
-							// Skip the optimistic placeholder
-							if (m.id === tempId) continue;
-							map.set(m.id, m);
-						}
-						map.set(response.userMessage.id, response.userMessage);
-						map.set(response.aiMessage.id, response.aiMessage);
-						return Array.from(map.values());
-					},
-					{ revalidate: false },
-				);
+				await upsertServerMessages(response.userMessage, response.aiMessage);
 
 				// Background refresh sidebar (title / updatedAt may have changed)
 				mutateChats();

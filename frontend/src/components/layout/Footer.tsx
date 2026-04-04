@@ -18,7 +18,7 @@ const SERVICES = [
 	{ label: "Symptom Analysis", href: "/symptom-analysis" },
 	{ label: "Medicine Info", href: "/medicine" },
 	{ label: "Health Assistant", href: "/niraksh-ai" },
-	{ label: "Prescription", href: "/prescription" },
+	{ label: "Prescription & Lab", href: "/prescription" },
 ];
 
 const SOCIALS = [

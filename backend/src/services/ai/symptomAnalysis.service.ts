@@ -1,8 +1,25 @@
-import { GoogleGenAI } from "@google/genai";
 import env from "../../config/env";
 import logger from "../../config/logger";
 
-const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
+let aiClientPromise: Promise<any> | null = null;
+
+async function getAiClient() {
+	if (!aiClientPromise) {
+		aiClientPromise = import("@google/genai").then(
+			({ GoogleGenAI }) => new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" })
+		);
+	}
+	return aiClientPromise;
+}
+
+const ai = {
+	models: {
+		generateContent: async (params: any) => {
+			const client = await getAiClient();
+			return client.models.generateContent(params);
+		},
+	},
+};
 const MODEL_NAME = "gemini-2.5-flash";
 
 const KNOWN_SPECIALISTS = [

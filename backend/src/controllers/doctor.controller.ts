@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "../generated/prisma/client";
 import prisma from "../db/prisma";
 import { getDoctorsSchema } from "../validators/doctor.schema";
 import { ZodError } from "zod";

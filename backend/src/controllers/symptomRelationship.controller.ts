@@ -9,7 +9,7 @@ import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "../generated/prisma/client";
 
 interface AuthenticatedRequest extends Request {
 	user?: {

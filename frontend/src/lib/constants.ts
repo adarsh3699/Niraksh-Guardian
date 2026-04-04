@@ -31,6 +31,7 @@ export const API_ROUTES = {
 	CHATS: "/api/chats",
 	CHAT: (chatId: string) => `/api/chats/${chatId}`,
 	CHAT_MESSAGES: (chatId: string) => `/api/chats/${chatId}/messages`,
+	CHAT_MESSAGES_STREAM: (chatId: string) => `/api/chats/${chatId}/messages/stream`,
 
 	// Doctor
 	DOCTORS: "/api/doctors",
@@ -59,6 +60,12 @@ export const API_ROUTES = {
 	// Reports
 	REPORTS: "/api/reports",
 	GENERATE_REPORT: "/api/reports/health-summary",
+	LAB_REPORTS: "/api/reports/lab",
+	LAB_REPORT_ANALYZE: "/api/reports/lab/analyze",
+	LAB_REPORT_JOB_STATUS: (jobId: string) => `/api/reports/lab/jobs/${jobId}`,
+	LAB_REPORT_JOB_STREAM: (jobId: string) => `/api/reports/lab/jobs/${jobId}/stream`,
+	LAB_REPORT_DETAIL: (id: string) => `/api/reports/lab/${id}`,
+	LAB_REPORT_DELETE: (id: string) => `/api/reports/lab/${id}`,
 
 	// Symptom Relationship Intelligence
 	SYMPTOM_RELATIONSHIP: "/api/symptoms/analyze",
@@ -181,8 +188,9 @@ export interface HealthToolCard {
 
 export const HEALTH_TOOL_CARDS: HealthToolCard[] = [
 	{
-		title: "Prescription Explainer",
-		description: "Upload a prescription image and get a detailed explanation of your medicines.",
+		title: "Prescription & Lab Analysis",
+		description:
+			"Upload prescriptions or lab reports and get medicine explanations with marker-level insights.",
 		icon: FileText,
 		href: "/prescription",
 		cta: "Try Now",

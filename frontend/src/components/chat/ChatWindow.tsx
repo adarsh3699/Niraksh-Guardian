@@ -132,6 +132,8 @@ export function ChatWindow({
 	};
 
 	const hasMessages = messages.length > 0;
+	const lastMessage = hasMessages ? messages[messages.length - 1] : null;
+	const hasStreamingModelBubble = !!(isSending && lastMessage && lastMessage.role === "model");
 
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
@@ -148,7 +150,7 @@ export function ChatWindow({
 						{messages.map((msg) => (
 							<ChatMessage key={msg.id} message={msg} />
 						))}
-						{isSending && <TypingIndicator />}
+						{isSending && !hasStreamingModelBubble && <TypingIndicator />}
 						<div ref={bottomRef} />
 					</div>
 				)}

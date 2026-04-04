@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  engineType = "client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -28,10 +28,54 @@ model User {
   prescriptionHistory      PrescriptionHistory[]
   refreshTokens            RefreshToken[]
   symptomAnalysisHistories SymptomAnalysisHistory[]
+  labReports               LabReport[]
   patientHealthProfile     PatientHealthProfile?
   healthReports            HealthReport[]
 
   @@map("users")
+}
+
+model LabReport {
+  id             String               @id @default(uuid())
+  userId         String               @map("user_id")
+  fileUrl        String               @map("file_url")
+  filePublicId   String?              @map("file_public_id")
+  fileName       String               @map("file_name")
+  mimeType       String               @map("mime_type")
+  extractedText  String?              @map("extracted_text") @db.Text
+  overallSummary String?              @map("overall_summary") @db.Text
+  overallRisk    String               @default("low") @map("overall_risk")
+  abnormalCount  Int                  @default(0) @map("abnormal_count")
+  totalCount     Int                  @default(0) @map("total_count")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  components     LabReportComponent[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("lab_reports")
+}
+
+model LabReportComponent {
+  id            String    @id @default(uuid())
+  reportId      String    @map("report_id")
+  componentName String    @map("component_name")
+  observedValue Float?    @map("observed_value")
+  observedRaw   String?   @map("observed_raw")
+  unit          String?
+  referenceMin  Float?    @map("reference_min")
+  referenceMax  Float?    @map("reference_max")
+  status        String
+  effectSummary String?   @map("effect_summary") @db.Text
+  riskTag       String?   @map("risk_tag")
+  confidence    Float?
+  sourceSnippet String?   @map("source_snippet") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  report        LabReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([status])
+  @@map("lab_report_components")
 }
 
 model HealthReport {

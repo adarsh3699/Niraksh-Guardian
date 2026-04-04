@@ -281,7 +281,7 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 			try {
 				// Import dynamically to avoid circular dependency if any, or just import at top if clean.
 				// Using valid import from service.
-				const { uploadFile, deleteImage } = await import("../services/cloudinary/cloudinary");
+				const { uploadFile, deleteImage } = await import("../services/cloudinary/cloudinary.js");
 
 				const timestamp = Date.now();
 				const filename = `health_report_${userId}_${timestamp}`;

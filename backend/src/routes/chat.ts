@@ -7,6 +7,7 @@ import {
 	updateChat,
 	deleteChat,
 	sendMessage,
+	sendMessageStream,
 } from "../controllers/chat.controller";
 import upload from "../middlewares/upload";
 
@@ -22,6 +23,7 @@ router.put("/:chatId", updateChat);
 router.delete("/:chatId", deleteChat);
 
 // Message handling
+router.post("/:chatId/messages/stream", upload.single("image"), sendMessageStream);
 router.post("/:chatId/messages", upload.single("image"), sendMessage);
 
 export default router;

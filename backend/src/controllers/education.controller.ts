@@ -44,13 +44,13 @@ export const getEducationController = async (req: Request, res: Response) => {
 				},
 			},
 			update: {
-				response: info as import("../generated/prisma").Prisma.InputJsonValue,
+				response: info as import("../generated/prisma/client").Prisma.InputJsonValue,
 				expiresAt,
 			},
 			create: {
 				topic: normalizedTopic,
 				language,
-				response: info as import("../generated/prisma").Prisma.InputJsonValue,
+				response: info as import("../generated/prisma/client").Prisma.InputJsonValue,
 				expiresAt,
 			},
 		});

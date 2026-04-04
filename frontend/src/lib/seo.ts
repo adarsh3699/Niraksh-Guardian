@@ -35,14 +35,14 @@ export const SITE_CONFIG = {
 		locale: "en_US",
 		title: "Niraksh Guardian — AI-Powered Health Assistant",
 		description:
-			"AI symptom analysis, doctor suggestions, prescription explainer, drug interaction checker, and medicine search.",
+			"AI symptom analysis, doctor suggestions, prescription and lab analysis, drug interaction checker, and medicine search.",
 		siteName: "Niraksh Guardian",
 	},
 	twitter: {
 		card: "summary_large_image" as const,
 		title: "Niraksh Guardian — AI-Powered Health Assistant",
 		description:
-			"AI-powered symptom analysis, doctor suggestions, prescription explainer, and drug interaction checker.",
+			"AI-powered symptom analysis, doctor suggestions, prescription and lab analysis, and drug interaction checker.",
 	},
 	themeColor: "#448e94",
 };
@@ -142,7 +142,7 @@ export function generateMedicalOrgJsonLd() {
 		name: SITE_CONFIG.name,
 		url: SITE_CONFIG.url,
 		description:
-			"AI-powered health tools — symptom analysis, doctor matching, prescription explainer, drug interaction checks, and health reports.",
+			"AI-powered health tools — symptom analysis, doctor matching, prescription and lab analysis, drug interaction checks, and health reports.",
 		medicalSpecialty: "General Practice",
 		areaServed: {
 			"@type": "Country",
@@ -157,8 +157,9 @@ export function generateMedicalOrgJsonLd() {
 			},
 			{
 				"@type": "MedicalTherapy",
-				name: "Prescription Explainer",
-				description: "Upload prescriptions for plain-language explanations and dosage information.",
+				name: "Prescription & Lab Analysis",
+				description:
+					"Upload prescriptions or lab reports for plain-language explanations and marker-level risk interpretation.",
 			},
 			{
 				"@type": "MedicalTherapy",

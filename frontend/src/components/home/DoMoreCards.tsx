@@ -24,9 +24,9 @@ const TOOLS = [
 				/>
 			</svg>
 		),
-		label: "Prescription Explainer",
-		desc: "Upload or describe your prescription and get plain-language explanations, dosage schedules, and side-effect summaries in seconds.",
-		cta: "Explain Now",
+		label: "Prescription & Lab Analysis",
+		desc: "Upload prescriptions or lab reports and get clear medicine guidance, dosage context, and marker-level interpretation in seconds.",
+		cta: "Analyze Now",
 	},
 	{
 		href: "/drug-interaction",

@@ -106,14 +106,28 @@ export const extractPublicId = (url: string): string | null => {
  * Deletes an image from Cloudinary using its public ID.
  */
 export const deleteImage = async (publicId: string): Promise<void> => {
+	await deleteFile(publicId);
+};
+
+/**
+ * Deletes a file from Cloudinary. Tries both image and raw resource types.
+ */
+export const deleteFile = async (publicId: string): Promise<void> => {
 	return new Promise((resolve, reject) => {
-		cloudinary.uploader.destroy(publicId, (error, result) => {
-			if (error) {
-				logger.error({ err: error, publicId }, "Cloudinary Delete Error");
-				return reject(error);
+		cloudinary.uploader.destroy(publicId, { resource_type: "image" }, (imageError, imageResult) => {
+			if (!imageError && imageResult?.result !== "not found") {
+				logger.info({ publicId, result: imageResult }, "Cloudinary image deleted");
+				return resolve();
 			}
-			logger.info({ publicId, result }, "Cloudinary Image Deleted");
-			resolve();
+
+			cloudinary.uploader.destroy(publicId, { resource_type: "raw" }, (rawError, rawResult) => {
+				if (rawError) {
+					logger.error({ err: rawError, publicId }, "Cloudinary file delete error");
+					return reject(rawError);
+				}
+				logger.info({ publicId, result: rawResult }, "Cloudinary raw file delete result");
+				resolve();
+			});
 		});
 	});
 };

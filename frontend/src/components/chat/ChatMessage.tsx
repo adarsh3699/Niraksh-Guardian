@@ -20,6 +20,7 @@ interface ChatMessageProps {
 
 export const ChatMessage = memo(function ChatMessage({ message }: ChatMessageProps) {
 	const isUser = message.role === "user";
+	const isEmptyModelMessage = !isUser && !message.content.trim();
 
 	// Backend prefixes image uploads with "[Image Uploaded] "
 	const hasImage = isUser && message.content.startsWith("[Image Uploaded]");
@@ -60,6 +61,12 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
 							</span>
 						)}
 						<p className="whitespace-pre-wrap">{displayContent}</p>
+					</div>
+				) : isEmptyModelMessage ? (
+					<div className="flex items-center gap-1" aria-label="AI is typing">
+						<span className="size-2 animate-bounce rounded-full bg-muted [animation-delay:0ms]" />
+						<span className="size-2 animate-bounce rounded-full bg-muted [animation-delay:150ms]" />
+						<span className="size-2 animate-bounce rounded-full bg-muted [animation-delay:300ms]" />
 					</div>
 				) : (
 					<div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:mb-2 prose-headings:mt-3 prose-pre:my-2 prose-code:rounded prose-code:bg-border/50 prose-code:px-1 prose-code:py-0.5 prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none">

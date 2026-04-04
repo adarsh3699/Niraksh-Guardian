@@ -15,14 +15,16 @@ const PrescriptionClient = dynamic(
 );
 
 export const metadata: Metadata = generatePageMetadata({
-	title: "Prescription Explainer",
+	title: "Prescription & Lab Analysis",
 	description:
-		"Upload your prescription images and get a clear, detailed explanation of your medicines, dosages, and instructions powered by AI.",
+		"Analyze prescriptions and lab reports in one place with AI-powered medicine explanations, marker classification, and risk insights.",
 	path: "/prescription",
 	keywords: [
-		"prescription explainer",
+		"prescription and lab analysis",
 		"medicine analysis",
 		"prescription reader",
+		"lab report analysis",
+		"blood test interpretation",
 		"medication details",
 		"AI prescription",
 	],

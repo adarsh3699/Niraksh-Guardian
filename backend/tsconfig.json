@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {
 		"target": "es2020",
-		"module": "commonjs",
-		"moduleResolution": "node",
+		"module": "Node16",
+		"moduleResolution": "node16",
 		"rootDir": "./src",
 		"outDir": "./dist",
 		"esModuleInterop": true,
@@ -11,11 +11,5 @@
 		"skipLibCheck": true
 	},
 	"include": ["src/**/*"],
-	"exclude": ["node_modules", "src/tests", "**/*.test.ts"],
-	"ts-node": {
-		"transpileOnly": true,
-		"compilerOptions": {
-			"module": "commonjs"
-		}
-	}
+	"exclude": ["node_modules", "src/tests", "**/*.test.ts"]
 }

@@ -87,18 +87,22 @@ export const chatSummaryController = async (req: Request, res: Response) => {
 		// Verify chat exists and belongs to user
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
-			include: { messages: { orderBy: { createdAt: "asc" } } },
 		});
 
 		if (!chat || chat.userId !== userId) {
 			return res.status(404).json({ error: "Chat not found" });
 		}
 
-		if (chat.messages.length === 0) {
+		const messagesInChat = await prisma.message.findMany({
+			where: { chatId },
+			orderBy: { createdAt: "asc" },
+		});
+
+		if (messagesInChat.length === 0) {
 			return res.status(400).json({ error: "Chat has no messages to summarize" });
 		}
 
-		const messages = chat.messages.map((m) => ({ role: m.role, content: m.content }));
+		const messages = messagesInChat.map((m) => ({ role: m.role, content: m.content }));
 		const result = await summarizeChatForDoctor(messages);
 
 		res.json(result);

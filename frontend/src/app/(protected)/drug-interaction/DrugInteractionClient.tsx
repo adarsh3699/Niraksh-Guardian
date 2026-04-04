@@ -12,7 +12,6 @@ import {
 	Activity,
 	ShieldCheck,
 	ArrowRight,
-	Home,
 	Info,
 	AlertTriangle,
 } from "lucide-react";
