@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
 import redisClient from "../config/redis";
-
-interface AuthenticatedRequest extends Request {
-	user?: { userId: string };
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 const ONE_MG_AUTOCOMPLETE = "https://www.1mg.com/pwa-dweb-api/api/v4/search/autocomplete";
 const DEFAULT_CITY = "New Delhi";
@@ -23,8 +20,8 @@ interface MedicineSuggestion {
 
 export const medicineAutocompleteController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const q = (req.query.q as string | undefined)?.trim();
 		if (!q) return res.json({ suggestions: [] });
@@ -105,8 +102,8 @@ export const medicineAutocompleteController = async (req: Request, res: Response
 // --- Image proxy (avoids 1mg hotlink blocking) ---
 export const medicineImageProxyController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const imageUrl = (req.query.url as string | undefined)?.trim();
 		if (!imageUrl) return res.status(400).json({ error: "url param required" });

@@ -10,17 +10,12 @@ import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
 import { Prisma } from "../generated/prisma/client";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 export const symptomRelationshipController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { input } = symptomRelationshipSchema.parse(req.body);
 
@@ -122,7 +117,7 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Symptom Analysis Failed");
 		return res.status(500).json({ error: "Internal Server Error" });

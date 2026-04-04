@@ -5,17 +5,12 @@ import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 export const symptomDiagnosisController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		// Handle multipart/form-data where symptoms might be a JSON string
 		if (typeof req.body.symptoms === "string") {
@@ -70,7 +65,7 @@ export const symptomDiagnosisController = async (req: Request, res: Response) =>
 		res.json(analysis);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Symptom Analysis Failed");
 		res.status(500).json({ error: "Internal Server Error" });
@@ -79,8 +74,8 @@ export const symptomDiagnosisController = async (req: Request, res: Response) =>
 
 export const chatSummaryController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { chatId } = chatSummarySchema.parse(req.body);
 
@@ -108,7 +103,7 @@ export const chatSummaryController = async (req: Request, res: Response) => {
 		res.json(result);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Summarize Symptoms Failed");
 		res.status(500).json({ error: "Internal Server Error" });

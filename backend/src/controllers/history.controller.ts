@@ -2,19 +2,14 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
 import { deleteImage, extractPublicId } from "../services/cloudinary/cloudinary";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 // --- Fetch History ---
 
 export const getMedicineHistory = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const history = await prisma.medicineHistory.findMany({
 			where: { userId },
@@ -29,8 +24,8 @@ export const getMedicineHistory = async (req: Request, res: Response) => {
 
 export const getPrescriptionHistory = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const history = await prisma.prescriptionHistory.findMany({
 			where: { userId },
@@ -45,8 +40,8 @@ export const getPrescriptionHistory = async (req: Request, res: Response) => {
 
 export const getDrugInteractionHistory = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const history = await prisma.drugInteractionHistory.findMany({
 			where: { userId },
@@ -61,8 +56,8 @@ export const getDrugInteractionHistory = async (req: Request, res: Response) => 
 
 export const getSymptomHistory = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const history = await prisma.symptomAnalysisHistory.findMany({
 			where: { userId },
@@ -79,8 +74,8 @@ export const getSymptomHistory = async (req: Request, res: Response) => {
 
 export const deleteHistoryItem = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { type, id } = req.params;
 

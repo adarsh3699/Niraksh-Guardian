@@ -2,12 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
 import redisClient from "../config/redis";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 const PROFILE_CACHE_TTL_SECONDS = 15 * 60;
 
@@ -179,8 +174,8 @@ const calculateRiskScore = (chronicConditions: string[]): number => {
 
 export const getProfile = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 		const cacheKeys = getProfileCacheKeys(userId);
 
 		if (redisClient.isOpen) {
@@ -229,8 +224,8 @@ export const getProfile = async (req: Request, res: Response) => {
 
 export const updateProfile = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const {
 			// User-level fields

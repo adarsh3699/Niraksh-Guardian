@@ -3,12 +3,7 @@ import PDFDocument from "pdfkit";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
 import { generateContent } from "../services/ai/gemini"; // Reusing existing AI service
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 /**
  * Render markdown-formatted text into a PDFKit document with proper formatting.
@@ -107,8 +102,8 @@ function renderInlineMarkdown(doc: any, text: string, x: number, width: number, 
 
 export const generateHealthReport = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		// Parse selected data sources (default: all enabled)
 		const validSources = ["symptoms", "prescriptions", "medicines", "drugInteractions", "chatHistory"] as const;
@@ -651,8 +646,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 export const listHealthReports = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const reports = await prisma.healthReport.findMany({
 			where: { userId },

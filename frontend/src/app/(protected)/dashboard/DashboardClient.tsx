@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import useSWR from "swr";
 import {
 	MessageSquare,
 	Stethoscope,
@@ -19,19 +18,10 @@ import {
 	FileBarChart,
 	UserCircle,
 } from "lucide-react";
-import { swrFetcher } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthProvider";
 import { cn, formatDate } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
-import type {
-	ProfileResponse,
-	MedicineHistory,
-	PrescriptionHistory,
-	DrugInteractionHistory,
-	SymptomAnalysisHistory,
-} from "@/types/health";
-import type { HealthReport } from "@/types/report";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 /* ------------------------------------------------------------------ */
 /*  Quick action items                                                 */
@@ -148,42 +138,8 @@ function ScoreGauge({ score }: { score: number }) {
 
 export function DashboardClient() {
 	const { user } = useAuth();
-
-	// Fetch all dashboard data in parallel
-	const { data: profile, isLoading: profileLoading } = useSWR<ProfileResponse>(
-		API_ROUTES.PROFILE,
-		swrFetcher,
-		{
-			revalidateOnFocus: false,
-		},
-	);
-	const { data: medHistory } = useSWR<MedicineHistory[]>(API_ROUTES.HISTORY_MEDICINE, swrFetcher, {
-		revalidateOnFocus: false,
-	});
-	const { data: rxHistory } = useSWR<PrescriptionHistory[]>(
-		API_ROUTES.HISTORY_PRESCRIPTION,
-		swrFetcher,
-		{
-			revalidateOnFocus: false,
-		},
-	);
-	const { data: intHistory } = useSWR<DrugInteractionHistory[]>(
-		API_ROUTES.HISTORY_INTERACTION,
-		swrFetcher,
-		{
-			revalidateOnFocus: false,
-		},
-	);
-	const { data: symHistory } = useSWR<SymptomAnalysisHistory[]>(
-		API_ROUTES.HISTORY_SYMPTOM,
-		swrFetcher,
-		{
-			revalidateOnFocus: false,
-		},
-	);
-	const { data: reports } = useSWR<HealthReport[]>(API_ROUTES.REPORTS, swrFetcher, {
-		revalidateOnFocus: false,
-	});
+	const { profile, profileLoading, medHistory, rxHistory, intHistory, symHistory, reports } =
+		useDashboardData();
 
 	// Compute stats
 	const healthScore = profile?.healthProfile?.healthRiskScore ?? 0;

@@ -77,7 +77,7 @@ export const signup = async (req: express.Request, res: express.Response) => {
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		const message = error instanceof Error ? error.message : "Unknown error";
 		res.status(500).json({ error: "Internal Server Error", details: message });
@@ -131,7 +131,7 @@ export const login = async (req: express.Request, res: express.Response) => {
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		const message = error instanceof Error ? error.message : "Unknown error";
 		res.status(500).json({ error: "Internal Server Error", details: message });
@@ -386,7 +386,7 @@ export const forgotPassword = async (req: express.Request, res: express.Response
 		res.status(200).json({ message: "If an account exists, a reset link has been sent." });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		console.error("Forgot Password Error:", error);
 		res.status(500).json({ error: "Internal Server Error" });
@@ -421,7 +421,7 @@ export const resetPassword = async (req: express.Request, res: express.Response)
 		res.status(200).json({ message: "Password reset successfully" });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		console.error("Reset Password Error:", error);
 		res.status(500).json({ error: "Internal Server Error" });

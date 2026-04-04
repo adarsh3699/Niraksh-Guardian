@@ -58,7 +58,7 @@ export const getEducationController = async (req: Request, res: Response) => {
 		res.json(info);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Education Info Failed");
 		res.status(500).json({ error: "Internal Server Error" });

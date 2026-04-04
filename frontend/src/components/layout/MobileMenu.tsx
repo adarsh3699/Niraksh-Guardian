@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X, LogOut, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthProvider";
 import { NAV_ITEMS } from "@/lib/constants";
+import { useLogout } from "@/hooks/useLogout";
 
 /* ------------------------------------------------------------------ */
 /*  Mobile Menu — slides in from left (matching old frontend)         */
@@ -20,7 +21,7 @@ interface MobileMenuProps {
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
 	const pathname = usePathname();
-	const { isAuthenticated, user, logout } = useAuth();
+	const { isAuthenticated, user } = useAuth();
 	const menuRef = useRef<HTMLDivElement>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -78,10 +79,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
 
 	const filteredItems = NAV_ITEMS.filter((item) => !item.requiresAuth || isAuthenticated);
 
-	const handleLogout = useCallback(async () => {
-		await logout();
-		onClose();
-	}, [logout, onClose]);
+	const handleLogout = useLogout(onClose);
 
 	return (
 		<>

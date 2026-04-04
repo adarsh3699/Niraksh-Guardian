@@ -4,12 +4,7 @@ import prisma from "../db/prisma";
 import logger from "../config/logger";
 import { deleteFile, uploadFile } from "../services/cloudinary/cloudinary";
 import { analyzeLabReportFile } from "../services/ai/labReportAnalysis";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { requireAuthenticatedUserId } from "../types/auth";
 
 type LabAnalysisJobStatus = "queued" | "processing" | "completed" | "failed";
 
@@ -111,8 +106,8 @@ export const analyzeLabReportController = async (req: Request, res: Response) =>
 	try {
 		cleanupExpiredJobs();
 
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const file = req.file;
 		if (!file) {
@@ -154,8 +149,8 @@ export const getLabReportJobStatusController = async (req: Request, res: Respons
 	try {
 		cleanupExpiredJobs();
 
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
 		if (!jobId) return res.status(400).json({ error: "Invalid job id" });
@@ -183,10 +178,8 @@ export const streamLabReportJobStatusController = async (req: Request, res: Resp
 	try {
 		cleanupExpiredJobs();
 
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) {
-			return res.status(401).json({ error: "Unauthorized" });
-		}
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
 		if (!jobId) {
@@ -259,8 +252,8 @@ export const streamLabReportJobStatusController = async (req: Request, res: Resp
 
 export const listLabReportsController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const reports = await prisma.labReport.findMany({
 			where: { userId },
@@ -285,8 +278,8 @@ export const listLabReportsController = async (req: Request, res: Response) => {
 
 export const getLabReportController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 		if (!id) return res.status(400).json({ error: "Invalid report id" });
@@ -309,8 +302,8 @@ export const getLabReportController = async (req: Request, res: Response) => {
 
 export const deleteLabReportController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 		if (!id) return res.status(400).json({ error: "Invalid report id" });

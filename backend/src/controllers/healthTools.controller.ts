@@ -10,12 +10,7 @@ import prisma from "../db/prisma";
 import logger from "../config/logger";
 import { ZodError } from "zod";
 import { medicineAnalysisSchema, drugInteractionSchema } from "../validators/healthTools.schema";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 
 const HISTORY_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -61,8 +56,8 @@ const extractStringsDeep = (value: unknown, out: Set<string>) => {
 // --- Medicine Analysis ---
 export const analyzeMedicineController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { name } = medicineAnalysisSchema.parse(req.body);
 		const file = (req as AuthenticatedRequest).file;
@@ -93,7 +88,7 @@ export const analyzeMedicineController = async (req: Request, res: Response) => 
 		res.json({ description });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Medicine Analysis Failed");
 		res.status(500).json({ error: "Internal Server Error" });
@@ -103,8 +98,8 @@ export const analyzeMedicineController = async (req: Request, res: Response) => 
 // --- Prescription Analysis ---
 export const analyzePrescriptionController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const files = (req as any).files as Express.Multer.File[];
@@ -147,8 +142,8 @@ export const analyzePrescriptionController = async (req: Request, res: Response)
 // --- Drug Interaction Check ---
 export const checkDrugInteractionController = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) return res.status(401).json({ error: "Unauthorized" });
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { medicines } = drugInteractionSchema.parse(req.body);
 		const cleanedMedicines = normalizeMedicineSet(medicines);
@@ -295,7 +290,7 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Drug Interaction Check Failed");
 		res.status(500).json({ error: "Internal Server Error" });

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthProvider";
 import { NAV_ITEMS } from "@/lib/constants";
 import { MobileMenu } from "./MobileMenu";
+import { useLogout } from "@/hooks/useLogout";
 
 /* ------------------------------------------------------------------ */
 /*  Navbar — white bg, sticky top, teal accent, pill links            */
@@ -17,17 +18,14 @@ import { MobileMenu } from "./MobileMenu";
 
 export function Navbar() {
 	const pathname = usePathname();
-	const { isAuthenticated, user, logout } = useAuth();
+	const { isAuthenticated, user } = useAuth();
 	const [menuOpen, setMenuOpen] = useState(false);
 
 	const toggleMenu = useCallback(() => setMenuOpen((o) => !o), []);
 	const closeMenu = useCallback(() => setMenuOpen(false), []);
 
 	const filteredItems = NAV_ITEMS.filter((item) => !item.requiresAuth || isAuthenticated);
-
-	const handleLogout = useCallback(async () => {
-		await logout();
-	}, [logout]);
+	const handleLogout = useLogout();
 
 	return (
 		<>

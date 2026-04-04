@@ -246,7 +246,7 @@ export const getDoctors = async (req: Request, res: Response) => {
 		});
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Failed to get doctors");
 		res.status(500).json({ error: "Internal Server Error" });

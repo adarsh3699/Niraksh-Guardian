@@ -5,12 +5,7 @@ import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { generateAIResponse, generateAIResponseStream } from "../services/ai/gemini";
-
-interface AuthenticatedRequest extends Request {
-	user?: {
-		userId: string;
-	};
-}
+import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 
 const mapHistoryForAI = (messages: Message[]) => messages.map((m) => ({ role: m.role, content: m.content }));
 
@@ -33,12 +28,8 @@ const resolveTargetLanguage = async (userId: string, language?: string) => {
 
 export const createChat = async (req: Request, res: Response) => {
 	try {
-		// Explicitly cast req to AuthenticatedRequest
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const { title, language } = createChatSchema.parse(req.body);
 
@@ -62,7 +53,7 @@ export const createChat = async (req: Request, res: Response) => {
 		res.status(201).json(chat);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			res.status(400).json({ error: error.issues });
+			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 			return;
 		}
 		logger.error({ err: error }, "Failed to create chat");
@@ -72,11 +63,8 @@ export const createChat = async (req: Request, res: Response) => {
 
 export const getChats = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
 
 		const chats = await prisma.chat.findMany({
 			where: { userId },
@@ -98,12 +86,9 @@ export const getChats = async (req: Request, res: Response) => {
 
 export const getChatHistory = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
+		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		if (!userId) return;
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
@@ -128,13 +113,10 @@ export const getChatHistory = async (req: Request, res: Response) => {
 
 export const deleteChat = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
+		const userId = requireAuthenticatedUserId(req, res);
 		// Fix chatId typing
 		const chatId = req.params.chatId as string;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		if (!userId) return;
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
@@ -160,12 +142,9 @@ export const deleteChat = async (req: Request, res: Response) => {
 
 export const updateChat = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
+		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		if (!userId) return;
 
 		const { title } = updateChatSchema.parse(req.body);
 
@@ -186,7 +165,7 @@ export const updateChat = async (req: Request, res: Response) => {
 		res.json(updatedChat);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			res.status(400).json({ error: error.issues });
+			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 			return;
 		}
 		logger.error({ err: error }, "Failed to update chat");
@@ -196,12 +175,9 @@ export const updateChat = async (req: Request, res: Response) => {
 
 export const sendMessage = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
+		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		if (!userId) return;
 
 		// Handle optional image file
 		// Safe access to file, assuming multer middleware usage
@@ -258,7 +234,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 		res.json({ userMessage, aiMessage });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return res.status(400).json({ error: error.issues });
+			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 		}
 		logger.error({ err: error }, "Failed to send message");
 		res.status(500).json({ error: "Internal Server Error" });
@@ -267,12 +243,9 @@ export const sendMessage = async (req: Request, res: Response) => {
 
 export const sendMessageStream = async (req: Request, res: Response) => {
 	try {
-		const userId = (req as AuthenticatedRequest).user?.userId;
+		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
-		if (!userId) {
-			res.status(401).json({ error: "Unauthorized" });
-			return;
-		}
+		if (!userId) return;
 
 		const file = (req as AuthenticatedRequest).file;
 		const { content, language } = sendMessageSchema.parse(req.body);
@@ -345,7 +318,7 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		res.end();
 	} catch (error) {
 		if (error instanceof ZodError) {
-			res.status(400).json({ error: error.issues });
+			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
 			return;
 		}
 		logger.error({ err: error }, "Failed to stream message");

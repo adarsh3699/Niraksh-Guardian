@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthProvider";
+import { useLogout } from "@/hooks/useLogout";
 
 /* ------------------------------------------------------------------ */
 /*  Sidebar nav config                                                 */
@@ -47,11 +47,8 @@ const accountNavItems = [
 
 export function AppSidebar() {
 	const pathname = usePathname();
-	const { user, logout } = useAuth();
-
-	const handleLogout = useCallback(async () => {
-		await logout();
-	}, [logout]);
+	const { user } = useAuth();
+	const handleLogout = useLogout();
 
 	return (
 		<aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
@@ -168,12 +165,8 @@ interface MobileSidebarProps {
 
 export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
 	const pathname = usePathname();
-	const { user, logout } = useAuth();
-
-	const handleLogout = useCallback(async () => {
-		await logout();
-		onClose();
-	}, [logout, onClose]);
+	const { user } = useAuth();
+	const handleLogout = useLogout(onClose);
 
 	return (
 		<>

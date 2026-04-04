@@ -11,42 +11,34 @@ import type {
 	DiseaseInfo,
 } from "@/types/health";
 
-/* ------------------------------------------------------------------ */
-/*  Medicine Analysis                                                  */
-/* ------------------------------------------------------------------ */
+interface AsyncToolOptions {
+	clearResultBeforeRun?: boolean;
+}
 
-export function useMedicineAnalysis() {
-	const [result, setResult] = useSessionState<MedicineAnalysisResponse | null>(
-		"ng:medicine:result",
-		null,
-	);
+function useAsyncToolResult<T>(sessionKey: string) {
+	const [result, setResult] = useSessionState<T | null>(sessionKey, null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const analyze = useCallback(
-		async (name?: string, image?: File) => {
-			if (!name?.trim() && !image) return null;
+	const run = useCallback(
+		async (
+			operation: () => Promise<T>,
+			defaultErrorMessage: string,
+			options: AsyncToolOptions = {},
+		): Promise<T | null> => {
+			if (options.clearResultBeforeRun) {
+				setResult(null);
+			}
 
-			// Clear stale result before running a new medicine analysis.
-			setResult(null);
 			setIsLoading(true);
 			setError(null);
 
 			try {
-				const formData = new FormData();
-				if (name?.trim()) formData.append("name", name.trim());
-				if (image) formData.append("image", image);
-
-				const response = await apiClient<MedicineAnalysisResponse>(API_ROUTES.MEDICINE, {
-					method: "POST",
-					body: formData,
-					isFile: true,
-				});
-
+				const response = await operation();
 				setResult(response);
 				return response;
 			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to analyze medicine";
+				const message = err instanceof Error ? err.message : defaultErrorMessage;
 				setError(message);
 				return null;
 			} finally {
@@ -60,6 +52,40 @@ export function useMedicineAnalysis() {
 		setResult(null);
 		setError(null);
 	}, [setResult]);
+
+	return { result, isLoading, error, run, reset };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Medicine Analysis                                                  */
+/* ------------------------------------------------------------------ */
+
+export function useMedicineAnalysis() {
+	const { result, isLoading, error, run, reset } =
+		useAsyncToolResult<MedicineAnalysisResponse>("ng:medicine:result");
+
+	const analyze = useCallback(
+		async (name?: string, image?: File) => {
+			if (!name?.trim() && !image) return null;
+
+			return run(
+				async () => {
+					const formData = new FormData();
+					if (name?.trim()) formData.append("name", name.trim());
+					if (image) formData.append("image", image);
+
+					return apiClient<MedicineAnalysisResponse>(API_ROUTES.MEDICINE, {
+						method: "POST",
+						body: formData,
+						isFile: true,
+					});
+				},
+				"Failed to analyze medicine",
+				{ clearResultBeforeRun: true },
+			);
+		},
+		[run],
+	);
 
 	return { result, isLoading, error, analyze, reset };
 }
@@ -69,47 +95,26 @@ export function useMedicineAnalysis() {
 /* ------------------------------------------------------------------ */
 
 export function usePrescriptionAnalysis() {
-	const [result, setResult] = useSessionState<PrescriptionAnalysisResponse | null>(
-		"ng:prescription:result",
-		null,
-	);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { result, isLoading, error, run, reset } =
+		useAsyncToolResult<PrescriptionAnalysisResponse>("ng:prescription:result");
 
 	const analyze = useCallback(
 		async (files: File[]) => {
 			if (files.length === 0) return null;
 
-			setIsLoading(true);
-			setError(null);
-
-			try {
+			return run(async () => {
 				const formData = new FormData();
 				files.forEach((file) => formData.append("files", file));
 
-				const response = await apiClient<PrescriptionAnalysisResponse>(API_ROUTES.PRESCRIPTION, {
+				return apiClient<PrescriptionAnalysisResponse>(API_ROUTES.PRESCRIPTION, {
 					method: "POST",
 					body: formData,
 					isFile: true,
 				});
-
-				setResult(response);
-				return response;
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to analyze prescription";
-				setError(message);
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
+			}, "Failed to analyze prescription");
 		},
-		[setResult],
+		[run],
 	);
-
-	const reset = useCallback(() => {
-		setResult(null);
-		setError(null);
-	}, [setResult]);
 
 	return { result, isLoading, error, analyze, reset };
 }
@@ -119,45 +124,26 @@ export function usePrescriptionAnalysis() {
 /* ------------------------------------------------------------------ */
 
 export function useDrugInteraction() {
-	const [result, setResult] = useSessionState<DrugInteractionResponse | null>(
+	const { result, isLoading, error, run, reset } = useAsyncToolResult<DrugInteractionResponse>(
 		"ng:drug-interaction:result",
-		null,
 	);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
 	const checkInteraction = useCallback(
 		async (medicines: string[]) => {
 			if (medicines.length < 1) return null;
 
-			// Always clear stale result before running a new interaction check.
-			setResult(null);
-			setIsLoading(true);
-			setError(null);
-
-			try {
-				const response = await apiClient<DrugInteractionResponse>(API_ROUTES.DRUG_INTERACTION, {
-					method: "POST",
-					body: { medicines },
-				});
-
-				setResult(response);
-				return response;
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to check drug interaction";
-				setError(message);
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
+			return run(
+				() =>
+					apiClient<DrugInteractionResponse>(API_ROUTES.DRUG_INTERACTION, {
+						method: "POST",
+						body: { medicines },
+					}),
+				"Failed to check drug interaction",
+				{ clearResultBeforeRun: true },
+			);
 		},
-		[setResult],
+		[run],
 	);
-
-	const reset = useCallback(() => {
-		setResult(null);
-		setError(null);
-	}, [setResult]);
 
 	return { result, isLoading, error, checkInteraction, reset };
 }
@@ -167,40 +153,20 @@ export function useDrugInteraction() {
 /* ------------------------------------------------------------------ */
 
 export function useDiseaseInfo() {
-	const [result, setResult] = useSessionState<DiseaseInfo | null>("ng:disease:result", null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { result, isLoading, error, run, reset } =
+		useAsyncToolResult<DiseaseInfo>("ng:disease:result");
 
 	const fetchInfo = useCallback(
 		async (topic: string, language: string = "en") => {
 			if (!topic.trim()) return null;
 
-			setIsLoading(true);
-			setError(null);
-
-			try {
+			return run(async () => {
 				const params = new URLSearchParams({ topic: topic.trim(), language });
-				const response = await apiClient<DiseaseInfo>(
-					`${API_ROUTES.DISEASE_INFO}?${params.toString()}`,
-				);
-
-				setResult(response);
-				return response;
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to fetch disease information";
-				setError(message);
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
+				return apiClient<DiseaseInfo>(`${API_ROUTES.DISEASE_INFO}?${params.toString()}`);
+			}, "Failed to fetch disease information");
 		},
-		[setResult],
+		[run],
 	);
-
-	const reset = useCallback(() => {
-		setResult(null);
-		setError(null);
-	}, [setResult]);
 
 	return { result, isLoading, error, fetchInfo, reset };
 }

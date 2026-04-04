@@ -38,17 +38,3 @@ export function truncateText(text: string, maxLength: number): string {
 	if (text.length <= maxLength) return text;
 	return text.slice(0, maxLength).trimEnd() + "…";
 }
-
-/**
- * Debounce a function — returns a new function that delays invocation.
- */
-export function debounce<T extends (...args: Parameters<T>) => void>(
-	fn: T,
-	delay: number,
-): (...args: Parameters<T>) => void {
-	let timer: ReturnType<typeof setTimeout>;
-	return (...args: Parameters<T>) => {
-		clearTimeout(timer);
-		timer = setTimeout(() => fn(...args), delay);
-	};
-}
