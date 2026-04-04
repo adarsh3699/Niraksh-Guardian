@@ -2,12 +2,26 @@ import { v2 as cloudinary } from "cloudinary";
 import env from "../../config/env";
 import logger from "../../config/logger";
 
+const isCloudinaryConfigured = Boolean(
+	env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
+);
+
 // Configure Cloudinary
-cloudinary.config({
-	cloud_name: env.CLOUDINARY_CLOUD_NAME,
-	api_key: env.CLOUDINARY_API_KEY,
-	api_secret: env.CLOUDINARY_API_SECRET,
-});
+if (isCloudinaryConfigured) {
+	cloudinary.config({
+		cloud_name: env.CLOUDINARY_CLOUD_NAME,
+		api_key: env.CLOUDINARY_API_KEY,
+		api_secret: env.CLOUDINARY_API_SECRET,
+	});
+} else {
+	logger.warn("Cloudinary environment variables are missing. Upload features are disabled.");
+}
+
+const ensureCloudinaryConfigured = () => {
+	if (!isCloudinaryConfigured) {
+		throw new Error("Cloudinary is not configured");
+	}
+};
 
 /**
  * Uploads an image buffer to Cloudinary.
@@ -16,6 +30,7 @@ cloudinary.config({
  * @returns The secure URL of the uploaded image.
  */
 export const uploadImage = async (fileBuffer: Buffer, folder: string = "niraksh_uploads"): Promise<string> => {
+	ensureCloudinaryConfigured();
 	return new Promise((resolve, reject) => {
 		const uploadStream = cloudinary.uploader.upload_stream({ folder: folder }, (error, result) => {
 			if (error) {
@@ -44,6 +59,7 @@ export const uploadFile = async (
 	resourceType: "auto" | "image" | "raw" = "auto",
 	filename?: string
 ): Promise<{ url: string; publicId: string }> => {
+	ensureCloudinaryConfigured();
 	return new Promise((resolve, reject) => {
 		const options: any = { folder: folder, resource_type: resourceType };
 		if (filename) {
@@ -113,6 +129,7 @@ export const deleteImage = async (publicId: string): Promise<void> => {
  * Deletes a file from Cloudinary. Tries both image and raw resource types.
  */
 export const deleteFile = async (publicId: string): Promise<void> => {
+	ensureCloudinaryConfigured();
 	return new Promise((resolve, reject) => {
 		cloudinary.uploader.destroy(publicId, { resource_type: "image" }, (imageError, imageResult) => {
 			if (!imageError && imageResult?.result !== "not found") {

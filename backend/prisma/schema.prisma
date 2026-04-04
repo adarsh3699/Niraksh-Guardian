@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-clien-js"
+  provider = "prisma-client"
   engineType = "client"
   output   = "../src/generated/prisma"
 }

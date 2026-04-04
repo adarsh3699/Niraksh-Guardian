@@ -21,9 +21,9 @@ const envSchema = z.object({
 	CORS_ORIGINS: z.string().optional(),
 	FRONTEND_URL: z.string().default("http://localhost:3000"),
 	// Cloudinary
-	CLOUDINARY_CLOUD_NAME: z.string().min(1, "Cloudinary Cloud Name is required"),
-	CLOUDINARY_API_KEY: z.string().min(1, "Cloudinary API Key is required"),
-	CLOUDINARY_API_SECRET: z.string().min(1, "Cloudinary API Secret is required"),
+	CLOUDINARY_CLOUD_NAME: z.string().optional(),
+	CLOUDINARY_API_KEY: z.string().optional(),
+	CLOUDINARY_API_SECRET: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
