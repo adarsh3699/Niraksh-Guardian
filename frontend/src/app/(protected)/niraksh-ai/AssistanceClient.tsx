@@ -77,6 +77,27 @@ export function AssistanceClient() {
 			try {
 				await sendMessage(content, image, language);
 			} catch (err) {
+				const streamError = err as {
+					code?: string;
+					retryAfterSeconds?: number;
+					message?: string;
+				};
+
+				if (streamError?.code === "RESOURCE_EXHAUSTED") {
+					const retryAfterSeconds =
+						typeof streamError.retryAfterSeconds === "number" && streamError.retryAfterSeconds > 0
+							? Math.ceil(streamError.retryAfterSeconds)
+							: undefined;
+
+					addToast(
+						"error",
+						retryAfterSeconds
+							? `AI quota exceeded. Please retry in ${retryAfterSeconds}s.`
+							: "AI quota exceeded. Please try again shortly.",
+					);
+					return;
+				}
+
 				addToast("error", err instanceof ApiError ? err.message : "Failed to send message");
 			}
 		},
@@ -201,9 +222,7 @@ export function AssistanceClient() {
 						>
 							<PanelLeft className="size-5" />
 						</button>
-						<h1 className="font-heading text-sm font-semibold text-foreground">
-							Niraksh AI
-						</h1>
+						<h1 className="font-heading text-sm font-semibold text-foreground">Niraksh AI</h1>
 					</div>
 				)}
 

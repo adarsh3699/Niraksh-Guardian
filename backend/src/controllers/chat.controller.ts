@@ -3,7 +3,7 @@ import { Message } from "../generated/prisma/client";
 import { createChatSchema, sendMessageSchema, updateChatSchema } from "../validators/chat.schema";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
-import { generateAIResponse, generateAIResponseStream } from "../services/ai/gemini";
+import { GeminiStreamError, generateAIResponse, generateAIResponseStream } from "../services/ai/gemini";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 import { handleControllerError } from "../utils/controllerError";
 
@@ -32,6 +32,36 @@ const hasSufficientStreamTokenTtl = (req: Request): boolean => {
 	if (!exp) return true;
 	const nowSeconds = Math.floor(Date.now() / 1000);
 	return exp - nowSeconds > STREAM_MIN_TOKEN_TTL_SECONDS;
+};
+
+type StreamErrorPayload = {
+	type: "error";
+	error: string;
+	code: "RESOURCE_EXHAUSTED" | "INTERNAL_STREAM_ERROR";
+	retryable: boolean;
+	retryAfterSeconds?: number;
+	statusCode: number;
+};
+
+const toStreamErrorPayload = (error: unknown): StreamErrorPayload => {
+	if (error instanceof GeminiStreamError) {
+		return {
+			type: "error",
+			error: error.message,
+			code: error.code === "RESOURCE_EXHAUSTED" ? "RESOURCE_EXHAUSTED" : "INTERNAL_STREAM_ERROR",
+			retryable: error.retryable,
+			retryAfterSeconds: error.retryAfterSeconds,
+			statusCode: error.code === "RESOURCE_EXHAUSTED" ? 429 : 500,
+		};
+	}
+
+	return {
+		type: "error",
+		error: "Internal Server Error",
+		code: "INTERNAL_STREAM_ERROR",
+		retryable: false,
+		statusCode: 500,
+	};
 };
 
 // --- Chat Management ---
@@ -93,13 +123,6 @@ export const getChatHistory = async (req: Request, res: Response) => {
 		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
 		if (!userId) return;
-
-		if (!hasSufficientStreamTokenTtl(req)) {
-			res.status(401).json({
-				error: "Access token is expiring soon. Refresh and retry stream.",
-			});
-			return;
-		}
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
@@ -242,10 +265,37 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 export const sendMessageStream = async (req: Request, res: Response) => {
+	let provisionalUserMessageId: string | null = null;
+	let provisionalAiMessageId: string | null = null;
+
+	const cleanupProvisionalMessages = async () => {
+		const messageIds = [provisionalUserMessageId, provisionalAiMessageId].filter(Boolean) as string[];
+		if (messageIds.length === 0) {
+			return;
+		}
+
+		try {
+			await prisma.message.deleteMany({
+				where: {
+					id: { in: messageIds },
+				},
+			});
+		} catch (cleanupError) {
+			logger.warn({ err: cleanupError, messageIds }, "Failed to cleanup provisional stream messages");
+		}
+	};
+
 	try {
 		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
 		if (!userId) return;
+
+		if (!hasSufficientStreamTokenTtl(req)) {
+			res.status(401).json({
+				error: "Access token is expiring soon. Refresh and retry stream.",
+			});
+			return;
+		}
 
 		const file = (req as AuthenticatedRequest).file;
 		const { content, language } = sendMessageSchema.parse(req.body);
@@ -269,6 +319,7 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 				content: getStoredMessageContent(content, file),
 			},
 		});
+		provisionalUserMessageId = userMessage.id;
 
 		const aiMessage = await prisma.message.create({
 			data: {
@@ -277,6 +328,7 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 				content: "",
 			},
 		});
+		provisionalAiMessageId = aiMessage.id;
 
 		const targetLanguage = await resolveTargetLanguage(userId, language);
 		const historyForAI = mapHistoryForAI(recentMessages);
@@ -313,16 +365,34 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			where: { id: aiMessage.id },
 			data: { content: aiResponseText },
 		});
+		provisionalUserMessageId = null;
+		provisionalAiMessageId = null;
 
 		writeEvent({ type: "done", aiMessage: updatedAiMessage });
 		res.end();
 	} catch (error) {
+		await cleanupProvisionalMessages();
+		const streamError = toStreamErrorPayload(error);
+
 		if (!res.headersSent) {
-			handleControllerError({ error, res, logger, context: "Failed to stream message" });
+			res.status(streamError.statusCode).json({
+				error: streamError.error,
+				code: streamError.code,
+				retryable: streamError.retryable,
+				...(streamError.retryAfterSeconds ? { retryAfterSeconds: streamError.retryAfterSeconds } : {}),
+			});
 			return;
 		}
 		logger.error({ err: error }, "Failed to stream message");
-		res.write(`data: ${JSON.stringify({ type: "error", error: "Internal Server Error" })}\n\n`);
+		res.write(
+			`data: ${JSON.stringify({
+				type: streamError.type,
+				error: streamError.error,
+				code: streamError.code,
+				retryable: streamError.retryable,
+				...(streamError.retryAfterSeconds ? { retryAfterSeconds: streamError.retryAfterSeconds } : {}),
+			})}\n\n`
+		);
 		res.end();
 	}
 };

@@ -3,6 +3,114 @@ import logger from "../../config/logger";
 
 const API_KEY = env.GEMINI_API_KEY || "";
 
+type GeminiApiErrorLike = {
+	status?: number;
+	code?: string | number;
+	message?: string;
+	retryAfter?: number | string;
+	retryAfterSeconds?: number | string;
+	retryDelay?: number | string;
+	error?: {
+		status?: number;
+		code?: string | number;
+		message?: string;
+		details?: Array<{ retryDelay?: string | number }>;
+	};
+};
+
+export class GeminiStreamError extends Error {
+	constructor(
+		public readonly code: string,
+		message: string,
+		public readonly retryable: boolean,
+		public readonly retryAfterSeconds?: number
+	) {
+		super(message);
+		this.name = "GeminiStreamError";
+	}
+}
+
+const parseRetryAfterSeconds = (value: unknown): number | undefined => {
+	if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+		return Math.ceil(value);
+	}
+
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return undefined;
+	}
+
+	if (/^\d+(\.\d+)?$/.test(trimmed)) {
+		const asNumber = Number(trimmed);
+		return Number.isFinite(asNumber) && asNumber > 0 ? Math.ceil(asNumber) : undefined;
+	}
+
+	const secondMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*s/i);
+	if (secondMatch) {
+		const seconds = Number(secondMatch[1]);
+		return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined;
+	}
+
+	const minuteMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*m/i);
+	if (minuteMatch) {
+		const minutes = Number(minuteMatch[1]);
+		if (Number.isFinite(minutes) && minutes > 0) {
+			return Math.ceil(minutes * 60);
+		}
+	}
+
+	const retryInMatch = trimmed.match(/retry in\s+(\d+)/i);
+	if (retryInMatch) {
+		const seconds = Number(retryInMatch[1]);
+		return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+	}
+
+	return undefined;
+};
+
+const normalizeStreamError = (error: unknown): GeminiStreamError => {
+	const geminiError = error as GeminiApiErrorLike;
+	const status =
+		typeof geminiError?.status === "number"
+			? geminiError.status
+			: typeof geminiError?.error?.status === "number"
+				? geminiError.error.status
+				: undefined;
+
+	const rawCode = geminiError?.code ?? geminiError?.error?.code ?? (status ? String(status) : undefined) ?? "";
+
+	const code = typeof rawCode === "number" ? String(rawCode) : String(rawCode || "");
+	const message =
+		geminiError?.message ??
+		geminiError?.error?.message ??
+		(error instanceof Error ? error.message : "Failed to stream AI response");
+
+	const retryAfterSeconds =
+		parseRetryAfterSeconds(geminiError?.retryAfterSeconds) ??
+		parseRetryAfterSeconds(geminiError?.retryAfter) ??
+		parseRetryAfterSeconds(geminiError?.retryDelay) ??
+		parseRetryAfterSeconds(geminiError?.error?.details?.[0]?.retryDelay) ??
+		parseRetryAfterSeconds(message);
+
+	const isRateLimited =
+		status === 429 || /resource_exhausted|quota|rate[-_ ]?limit|too many requests|429/i.test(`${code} ${message}`);
+
+	if (isRateLimited) {
+		return new GeminiStreamError(
+			"RESOURCE_EXHAUSTED",
+			"AI quota exceeded. Please try again shortly.",
+			true,
+			retryAfterSeconds
+		);
+	}
+
+	return new GeminiStreamError("INTERNAL_STREAM_ERROR", "Failed to stream AI response", false, retryAfterSeconds);
+};
+
 let aiClientPromise: Promise<any> | null = null;
 
 async function getAiClient() {
@@ -107,43 +215,49 @@ export async function* generateAIResponseStream(
 	imageBuffer?: Buffer,
 	mimeType?: string
 ): AsyncGenerator<string> {
-	if (!API_KEY) {
-		throw new Error("GEMINI_API_KEY is not configured");
-	}
-
-	const contents = buildChatContents(history, newMessage, language, imageBuffer, mimeType);
-
-	const stream = await ai.models.generateContentStream({
-		model: MODEL_NAME,
-		config: {
-			systemInstruction: CHAT_SYSTEM_INSTRUCTION,
-		},
-		contents,
-	});
-
-	let emittedText = "";
-	for await (const chunk of stream) {
-		const text = typeof chunk?.text === "string" ? chunk.text : "";
-		if (!text) {
-			continue;
+	try {
+		if (!API_KEY) {
+			throw new Error("GEMINI_API_KEY is not configured");
 		}
 
-		if (text.startsWith(emittedText)) {
-			const delta = text.slice(emittedText.length);
-			emittedText = text;
-			if (delta) {
-				yield delta;
+		const contents = buildChatContents(history, newMessage, language, imageBuffer, mimeType);
+
+		const stream = await ai.models.generateContentStream({
+			model: MODEL_NAME,
+			config: {
+				systemInstruction: CHAT_SYSTEM_INSTRUCTION,
+			},
+			contents,
+		});
+
+		let emittedText = "";
+		for await (const chunk of stream) {
+			const text = typeof chunk?.text === "string" ? chunk.text : "";
+			if (!text) {
+				continue;
 			}
-			continue;
+
+			if (text.startsWith(emittedText)) {
+				const delta = text.slice(emittedText.length);
+				emittedText = text;
+				if (delta) {
+					yield delta;
+				}
+				continue;
+			}
+
+			// Some SDK versions emit already-delta chunks; keep behavior robust.
+			emittedText += text;
+			yield text;
 		}
 
-		// Some SDK versions emit already-delta chunks; keep behavior robust.
-		emittedText += text;
-		yield text;
-	}
-
-	if (!emittedText.trim()) {
-		throw new Error("Gemini stream returned no text");
+		if (!emittedText.trim()) {
+			throw new Error("Gemini stream returned no text");
+		}
+	} catch (error) {
+		const normalizedError = normalizeStreamError(error);
+		logger.error({ err: error, normalizedError }, "Gemini stream error");
+		throw normalizedError;
 	}
 }
 

@@ -34,6 +34,9 @@ interface ChatStreamDoneEvent {
 interface ChatStreamErrorEvent {
 	type: "error";
 	error: string;
+	code?: "RESOURCE_EXHAUSTED" | "INTERNAL_STREAM_ERROR";
+	retryable?: boolean;
+	retryAfterSeconds?: number;
 }
 
 type ChatStreamEvent =
@@ -246,6 +249,7 @@ export function useChat() {
 			};
 
 			const cacheKey = API_ROUTES.CHAT(chatId);
+			let provisionalAiMessageId: string | null = null;
 			globalMutate<Message[]>(cacheKey, (prev) => [...(prev ?? []), optimisticUserMsg], {
 				revalidate: false,
 			});
@@ -311,6 +315,33 @@ export function useChat() {
 						if (streamRes.status === 401) {
 							throw new Error("Session expired. Please log in again.");
 						}
+						if (streamRes.status === 429) {
+							let retryAfterSeconds: number | undefined;
+							let streamErrorMessage = "AI quota exceeded. Please try again shortly.";
+							try {
+								const body = (await streamRes.json()) as {
+									error?: string;
+									retryAfterSeconds?: number;
+								};
+								if (body?.error) {
+									streamErrorMessage = body.error;
+								}
+								retryAfterSeconds =
+									typeof body?.retryAfterSeconds === "number" && body.retryAfterSeconds > 0
+										? Math.ceil(body.retryAfterSeconds)
+										: undefined;
+							} catch {
+								// Keep fallback text for malformed/non-JSON errors.
+							}
+
+							const streamError = new Error(streamErrorMessage) as Error & {
+								code?: string;
+								retryAfterSeconds?: number;
+							};
+							streamError.code = "RESOURCE_EXHAUSTED";
+							streamError.retryAfterSeconds = retryAfterSeconds;
+							throw streamError;
+						}
 						throw new Error("Failed to stream AI response");
 					}
 
@@ -318,7 +349,6 @@ export function useChat() {
 					const decoder = new TextDecoder();
 					let buffer = "";
 					let ackEvent: ChatStreamAckEvent | null = null;
-					let aiMessageId: string | null = null;
 					let streamedAiText = "";
 
 					while (true) {
@@ -345,19 +375,19 @@ export function useChat() {
 							}
 							if (event.type === "ack") {
 								ackEvent = event;
-								aiMessageId = event.aiMessage.id;
+								provisionalAiMessageId = event.aiMessage.id;
 								await upsertServerMessages(event.userMessage, event.aiMessage);
 								continue;
 							}
 
 							if (event.type === "chunk") {
-								if (!ackEvent || !aiMessageId) continue;
+								if (!ackEvent || !provisionalAiMessageId) continue;
 								streamedAiText += event.delta;
 								void globalMutate<Message[]>(
 									cacheKey,
 									(prev) =>
 										(prev ?? []).map((m) =>
-											m.id === aiMessageId ? { ...m, content: streamedAiText } : m,
+											m.id === provisionalAiMessageId ? { ...m, content: streamedAiText } : m,
 										),
 									{ revalidate: false },
 								);
@@ -375,7 +405,17 @@ export function useChat() {
 							}
 
 							if (event.type === "error") {
-								throw new Error(event.error || "Failed to stream AI response");
+								const streamError = new Error(
+									event.error || "Failed to stream AI response",
+								) as Error & {
+									code?: string;
+									retryable?: boolean;
+									retryAfterSeconds?: number;
+								};
+								streamError.code = event.code;
+								streamError.retryable = event.retryable;
+								streamError.retryAfterSeconds = event.retryAfterSeconds;
+								throw streamError;
 							}
 
 							// Ignore forward-compatible unknown events.
@@ -403,7 +443,7 @@ export function useChat() {
 				// Rollback: remove the optimistic message on failure
 				await globalMutate<Message[]>(
 					cacheKey,
-					(prev) => (prev ?? []).filter((m) => m.id !== tempId),
+					(prev) => (prev ?? []).filter((m) => m.id !== tempId && m.id !== provisionalAiMessageId),
 					{ revalidate: false },
 				);
 				throw error;
