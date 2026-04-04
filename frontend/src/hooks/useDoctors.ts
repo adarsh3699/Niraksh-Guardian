@@ -62,25 +62,32 @@ export function useDoctorSearch(params: DoctorSearchParams) {
 
 export function useChatSummary() {
 	const [summary, setSummary] = useState<SymptomSummaryResponse | null>(null);
-	const { isLoading: isSummarizing, error, run, resetError } =
-		useAsyncToolRunner<SymptomSummaryResponse>(setSummary);
+	const {
+		isLoading: isSummarizing,
+		error,
+		run,
+		resetError,
+	} = useAsyncToolRunner<SymptomSummaryResponse>(setSummary);
 
-	const summarize = useCallback(async (chatId: string) => {
-		const data = await run(
-			() =>
-				apiClient<SymptomSummaryResponse>(API_ROUTES.SUMMARIZE_SYMPTOMS, {
-				method: "POST",
-				body: { chatId },
-				}),
-			"Summarization failed",
-		);
+	const summarize = useCallback(
+		async (chatId: string) => {
+			const data = await run(
+				() =>
+					apiClient<SymptomSummaryResponse>(API_ROUTES.SUMMARIZE_SYMPTOMS, {
+						method: "POST",
+						body: { chatId },
+					}),
+				"Summarization failed",
+			);
 
-		if (!data) {
-			throw new Error("Summarization failed");
-		}
+			if (!data) {
+				throw new Error("Summarization failed");
+			}
 
-		return data;
-	}, [run]);
+			return data;
+		},
+		[run],
+	);
 
 	const reset = useCallback(() => {
 		setSummary(null);
@@ -115,32 +122,39 @@ export function useUserProfile() {
 
 export function useSymptomRelationship() {
 	const [result, setResult] = useState<SymptomRelationshipResponse | null>(null);
-	const { isLoading: isAnalyzing, error, run, resetError } =
-		useAsyncToolRunner<SymptomRelationshipResponse>(setResult);
+	const {
+		isLoading: isAnalyzing,
+		error,
+		run,
+		resetError,
+	} = useAsyncToolRunner<SymptomRelationshipResponse>(setResult);
 
-	const analyze = useCallback(async (input: string, image?: File) => {
-		const formData = new FormData();
-		formData.append("input", input);
-		if (image) {
-			formData.append("image", image);
-		}
+	const analyze = useCallback(
+		async (input: string, image?: File) => {
+			const formData = new FormData();
+			formData.append("input", input);
+			if (image) {
+				formData.append("image", image);
+			}
 
-		const data = await run(
-			() =>
-				apiClient<SymptomRelationshipResponse>(API_ROUTES.SYMPTOM_RELATIONSHIP, {
-					method: "POST",
-					body: formData,
-					isFile: true,
-				}),
-			"Analysis failed",
-		);
+			const data = await run(
+				() =>
+					apiClient<SymptomRelationshipResponse>(API_ROUTES.SYMPTOM_RELATIONSHIP, {
+						method: "POST",
+						body: formData,
+						isFile: true,
+					}),
+				"Analysis failed",
+			);
 
-		if (!data) {
-			throw new Error("Analysis failed");
-		}
+			if (!data) {
+				throw new Error("Analysis failed");
+			}
 
-		return data;
-	}, [run]);
+			return data;
+		},
+		[run],
+	);
 
 	const reset = useCallback(() => {
 		setResult(null);
