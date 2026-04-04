@@ -1,5 +1,6 @@
 import env from "../../config/env";
 import logger from "../../config/logger";
+import { extractJsonObjectString } from "./utils/jsonParser";
 
 let aiClientPromise: Promise<any> | null = null;
 
@@ -45,15 +46,6 @@ export interface LabReportAnalysisResult {
 	abnormalCount: number;
 	totalCount: number;
 	components: ParsedLabComponent[];
-}
-
-function extractJsonObject(raw: string): string | null {
-	const cleaned = raw
-		.replace(/```json/g, "")
-		.replace(/```/g, "")
-		.trim();
-	const match = cleaned.match(/\{[\s\S]*\}/);
-	return match ? match[0] : null;
 }
 
 function parseNumber(value: unknown): number | null {
@@ -225,7 +217,7 @@ Rules:
 		});
 
 		const raw = result.text || "";
-		const jsonStr = extractJsonObject(raw);
+		const jsonStr = extractJsonObjectString(raw);
 		if (!jsonStr) throw new Error("Failed to parse structured lab JSON");
 
 		const parsed = JSON.parse(jsonStr) as {

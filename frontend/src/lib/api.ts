@@ -49,7 +49,7 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 /** Acquire or wait for an in-flight refresh. */
-async function ensureFreshToken(): Promise<boolean> {
+export async function ensureFreshToken(): Promise<boolean> {
 	const token = getAccessToken();
 	if (token && !isTokenExpired(token)) return true;
 

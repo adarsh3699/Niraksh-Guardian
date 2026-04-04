@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useCallback, useMemo, useState } from "react";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
+import { useAsyncToolRunner } from "@/hooks/useAsyncToolRunner";
 import type {
 	Doctor,
 	DoctorSearchParams,
@@ -61,34 +62,30 @@ export function useDoctorSearch(params: DoctorSearchParams) {
 
 export function useChatSummary() {
 	const [summary, setSummary] = useState<SymptomSummaryResponse | null>(null);
-	const [isSummarizing, setIsSummarizing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { isLoading: isSummarizing, error, run, resetError } =
+		useAsyncToolRunner<SymptomSummaryResponse>(setSummary);
 
 	const summarize = useCallback(async (chatId: string) => {
-		setIsSummarizing(true);
-		setError(null);
-
-		try {
-			const data = await apiClient<SymptomSummaryResponse>(API_ROUTES.SUMMARIZE_SYMPTOMS, {
+		const data = await run(
+			() =>
+				apiClient<SymptomSummaryResponse>(API_ROUTES.SUMMARIZE_SYMPTOMS, {
 				method: "POST",
 				body: { chatId },
-			});
+				}),
+			"Summarization failed",
+		);
 
-			setSummary(data);
-			return data;
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Summarization failed";
-			setError(message);
-			throw err;
-		} finally {
-			setIsSummarizing(false);
+		if (!data) {
+			throw new Error("Summarization failed");
 		}
-	}, []);
+
+		return data;
+	}, [run]);
 
 	const reset = useCallback(() => {
 		setSummary(null);
-		setError(null);
-	}, []);
+		resetError();
+	}, [resetError]);
 
 	return { summary, isSummarizing, error, summarize, reset };
 }
@@ -118,41 +115,37 @@ export function useUserProfile() {
 
 export function useSymptomRelationship() {
 	const [result, setResult] = useState<SymptomRelationshipResponse | null>(null);
-	const [isAnalyzing, setIsAnalyzing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { isLoading: isAnalyzing, error, run, resetError } =
+		useAsyncToolRunner<SymptomRelationshipResponse>(setResult);
 
 	const analyze = useCallback(async (input: string, image?: File) => {
-		setIsAnalyzing(true);
-		setError(null);
-
-		try {
-			const formData = new FormData();
-			formData.append("input", input);
-			if (image) {
-				formData.append("image", image);
-			}
-
-			const data = await apiClient<SymptomRelationshipResponse>(API_ROUTES.SYMPTOM_RELATIONSHIP, {
-				method: "POST",
-				body: formData,
-				isFile: true,
-			});
-
-			setResult(data);
-			return data;
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Analysis failed";
-			setError(message);
-			throw err;
-		} finally {
-			setIsAnalyzing(false);
+		const formData = new FormData();
+		formData.append("input", input);
+		if (image) {
+			formData.append("image", image);
 		}
-	}, []);
+
+		const data = await run(
+			() =>
+				apiClient<SymptomRelationshipResponse>(API_ROUTES.SYMPTOM_RELATIONSHIP, {
+					method: "POST",
+					body: formData,
+					isFile: true,
+				}),
+			"Analysis failed",
+		);
+
+		if (!data) {
+			throw new Error("Analysis failed");
+		}
+
+		return data;
+	}, [run]);
 
 	const reset = useCallback(() => {
 		setResult(null);
-		setError(null);
-	}, []);
+		resetError();
+	}, [resetError]);
 
 	return { result, isAnalyzing, error, analyze, reset };
 }

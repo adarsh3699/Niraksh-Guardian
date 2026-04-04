@@ -8,9 +8,9 @@ import {
 import { uploadImage } from "../services/cloudinary/cloudinary";
 import prisma from "../db/prisma";
 import logger from "../config/logger";
-import { ZodError } from "zod";
 import { medicineAnalysisSchema, drugInteractionSchema } from "../validators/healthTools.schema";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 const HISTORY_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -87,11 +87,7 @@ export const analyzeMedicineController = async (req: Request, res: Response) => 
 
 		res.json({ description });
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Medicine Analysis Failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Medicine Analysis Failed" });
 	}
 };
 
@@ -134,8 +130,7 @@ export const analyzePrescriptionController = async (req: Request, res: Response)
 
 		res.json({ description, medicines });
 	} catch (error) {
-		logger.error({ err: error }, "Prescription Analysis Failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Prescription Analysis Failed" });
 	}
 };
 
@@ -289,10 +284,6 @@ export const checkDrugInteractionController = async (req: Request, res: Response
 			riskScore: tabsResponse.riskScore,
 		});
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Drug Interaction Check Failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Drug Interaction Check Failed" });
 	}
 };

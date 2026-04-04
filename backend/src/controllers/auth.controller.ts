@@ -1,12 +1,13 @@
 import * as express from "express";
 import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
-import { ZodError } from "zod";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../services/jwt/jwt";
 import { blacklistToken } from "../services/tokenBlacklist";
 import jwt from "jsonwebtoken";
 import prisma from "../db/prisma";
 import env from "../config/env";
+import logger from "../config/logger";
+import { handleControllerError } from "../utils/controllerError";
 
 const REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -29,6 +30,22 @@ const clearRefreshTokenCookie = (res: express.Response) => {
 		sameSite: REFRESH_TOKEN_COOKIE_SAME_SITE,
 		path: "/api/auth",
 	});
+};
+
+const issueAuthSession = async (res: express.Response, userId: string) => {
+	const accessToken = generateAccessToken(userId);
+	const refreshToken = generateRefreshToken(userId);
+
+	await prisma.refreshToken.create({
+		data: {
+			userId,
+			tokenHash: hashToken(refreshToken),
+			expiresAt: new Date(Date.now() + REFRESH_TOKEN_MAX_AGE_MS),
+		},
+	});
+
+	setRefreshTokenCookie(res, refreshToken);
+	return accessToken;
 };
 
 export const signup = async (req: express.Request, res: express.Response) => {
@@ -54,21 +71,7 @@ export const signup = async (req: express.Request, res: express.Response) => {
 			},
 		});
 
-		// Generate tokens
-		const accessToken = generateAccessToken(user.id);
-		const refreshToken = generateRefreshToken(user.id);
-		const refreshTokenHash = hashToken(refreshToken);
-
-		// Store refresh token
-		await prisma.refreshToken.create({
-			data: {
-				userId: user.id,
-				tokenHash: refreshTokenHash,
-				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-			},
-		});
-
-		setRefreshTokenCookie(res, refreshToken);
+		const accessToken = await issueAuthSession(res, user.id);
 
 		res.status(201).json({
 			message: "User created successfully",
@@ -76,11 +79,7 @@ export const signup = async (req: express.Request, res: express.Response) => {
 			tokens: { accessToken },
 		});
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		const message = error instanceof Error ? error.message : "Unknown error";
-		res.status(500).json({ error: "Internal Server Error", details: message });
+		handleControllerError({ error, res, logger, context: "Signup failed" });
 	}
 };
 
@@ -102,21 +101,7 @@ export const login = async (req: express.Request, res: express.Response) => {
 			return res.status(401).json({ error: "Invalid credentials" });
 		}
 
-		// Generate tokens
-		const accessToken = generateAccessToken(user.id);
-		const refreshToken = generateRefreshToken(user.id);
-		const refreshTokenHash = hashToken(refreshToken);
-
-		// Store refresh token
-		await prisma.refreshToken.create({
-			data: {
-				userId: user.id,
-				tokenHash: refreshTokenHash,
-				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-			},
-		});
-
-		setRefreshTokenCookie(res, refreshToken);
+		const accessToken = await issueAuthSession(res, user.id);
 
 		// Update last login
 		await prisma.user.update({
@@ -130,11 +115,7 @@ export const login = async (req: express.Request, res: express.Response) => {
 			tokens: { accessToken },
 		});
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		const message = error instanceof Error ? error.message : "Unknown error";
-		res.status(500).json({ error: "Internal Server Error", details: message });
+		handleControllerError({ error, res, logger, context: "Login failed" });
 	}
 };
 
@@ -168,26 +149,39 @@ export const refreshToken = async (req: express.Request, res: express.Response) 
 			return res.status(401).json({ error: "Invalid or expired refresh token" });
 		}
 
-		// Rotate tokens
-		// Revoke used token
-		await prisma.refreshToken.update({
-			where: { id: storedToken.id },
-			data: { revoked: true },
-		});
-
-		// Generate new tokens
 		const newAccessToken = generateAccessToken(decoded.userId);
 		const newRefreshToken = generateRefreshToken(decoded.userId);
 		const newRefreshTokenHash = hashToken(newRefreshToken);
 
-		// Store new refresh token
-		await prisma.refreshToken.create({
-			data: {
-				userId: decoded.userId,
-				tokenHash: newRefreshTokenHash,
-				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-			},
+		const rotated = await prisma.$transaction(async (tx) => {
+			const revoked = await tx.refreshToken.updateMany({
+				where: {
+					id: storedToken.id,
+					revoked: false,
+					expiresAt: { gt: new Date() },
+				},
+				data: { revoked: true },
+			});
+
+			if (revoked.count !== 1) {
+				return false;
+			}
+
+			await tx.refreshToken.create({
+				data: {
+					userId: decoded.userId,
+					tokenHash: newRefreshTokenHash,
+					expiresAt: new Date(Date.now() + REFRESH_TOKEN_MAX_AGE_MS),
+				},
+			});
+
+			return true;
 		});
+
+		if (!rotated) {
+			clearRefreshTokenCookie(res);
+			return res.status(401).json({ error: "Invalid or expired refresh token" });
+		}
 
 		setRefreshTokenCookie(res, newRefreshToken);
 
@@ -310,21 +304,7 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 			},
 		});
 
-		// Generate tokens
-		const accessToken = generateAccessToken(user.id);
-		const refreshToken = generateRefreshToken(user.id);
-		const refreshTokenHash = hashToken(refreshToken);
-
-		// Store refresh token
-		await prisma.refreshToken.create({
-			data: {
-				userId: user.id,
-				tokenHash: refreshTokenHash,
-				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-			},
-		});
-
-		setRefreshTokenCookie(res, refreshToken);
+		const accessToken = await issueAuthSession(res, user.id);
 
 		// Update last login
 		await prisma.user.update({
@@ -338,7 +318,7 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 			tokens: { accessToken },
 		});
 	} catch (error) {
-		console.error("Google Login Error:", error);
+		logger.error({ err: error }, "Google login failed");
 		res.status(401).json({ error: "Google Authentication Failed" });
 	}
 };
@@ -385,11 +365,7 @@ export const forgotPassword = async (req: express.Request, res: express.Response
 
 		res.status(200).json({ message: "If an account exists, a reset link has been sent." });
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		console.error("Forgot Password Error:", error);
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Forgot password failed" });
 	}
 };
 
@@ -420,10 +396,6 @@ export const resetPassword = async (req: express.Request, res: express.Response)
 
 		res.status(200).json({ message: "Password reset successfully" });
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		console.error("Reset Password Error:", error);
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Reset password failed" });
 	}
 };

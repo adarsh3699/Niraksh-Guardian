@@ -3,6 +3,8 @@ import prisma from "../db/prisma";
 import logger from "../config/logger";
 import redisClient from "../config/redis";
 import { requireAuthenticatedUserId } from "../types/auth";
+import { updateProfileSchema } from "../validators/profile.schema";
+import { handleControllerError } from "../utils/controllerError";
 
 const PROFILE_CACHE_TTL_SECONDS = 15 * 60;
 
@@ -217,8 +219,13 @@ export const getProfile = async (req: Request, res: Response) => {
 
 		res.status(200).json(responsePayload);
 	} catch (error) {
-		logger.error({ err: error }, "Error fetching profile");
-		res.status(500).json({ error: "Failed to fetch profile" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Error fetching profile",
+			internalErrorMessage: "Failed to fetch profile",
+		});
 	}
 };
 
@@ -241,7 +248,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 			emergencyContactEmail,
 			city,
 			state,
-		} = req.body;
+		} = updateProfileSchema.parse(req.body ?? {});
 
 		// Update user-level fields if provided
 		const userUpdateData: Record<string, unknown> = {};
@@ -344,7 +351,12 @@ export const updateProfile = async (req: Request, res: Response) => {
 
 		res.status(200).json(responsePayload);
 	} catch (error) {
-		logger.error({ err: error }, "Error updating profile");
-		res.status(500).json({ error: "Failed to update profile" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Error updating profile",
+			internalErrorMessage: "Failed to update profile",
+		});
 	}
 };

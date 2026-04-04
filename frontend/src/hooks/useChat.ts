@@ -2,7 +2,7 @@
 
 import useSWR, { mutate as globalMutate, type KeyedMutator } from "swr";
 import { useCallback, useState, useEffect } from "react";
-import { apiClient, swrFetcher } from "@/lib/api";
+import { apiClient, ensureFreshToken, swrFetcher } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { API_ROUTES } from "@/lib/constants";
 import type {
@@ -276,14 +276,18 @@ export function useChat() {
 						isFile: true,
 					});
 				} else {
-					const accessToken = getAccessToken();
-					if (!accessToken) {
+					const hasFreshToken = await ensureFreshToken();
+					if (!hasFreshToken) {
 						throw new Error("Session expired. Please log in again.");
 					}
 
-					const streamRes = await fetch(
-						`${API_BASE_URL}${API_ROUTES.CHAT_MESSAGES_STREAM(chatId)}`,
-						{
+					const openStream = async () => {
+						const accessToken = getAccessToken();
+						if (!accessToken) {
+							throw new Error("Session expired. Please log in again.");
+						}
+
+						return fetch(`${API_BASE_URL}${API_ROUTES.CHAT_MESSAGES_STREAM(chatId)}`, {
 							method: "POST",
 							headers: {
 								"Content-Type": "application/json",
@@ -291,10 +295,22 @@ export function useChat() {
 							},
 							credentials: "include",
 							body: JSON.stringify({ content, language }),
-						},
-					);
+						});
+					};
+
+					let streamRes = await openStream();
+					if (streamRes.status === 401) {
+						const refreshed = await ensureFreshToken();
+						if (!refreshed) {
+							throw new Error("Session expired. Please log in again.");
+						}
+						streamRes = await openStream();
+					}
 
 					if (!streamRes.ok || !streamRes.body) {
+						if (streamRes.status === 401) {
+							throw new Error("Session expired. Please log in again.");
+						}
 						throw new Error("Failed to stream AI response");
 					}
 
@@ -321,7 +337,12 @@ export function useChat() {
 							const jsonPayload = trimmed.slice(5).trim();
 							if (!jsonPayload) continue;
 
-							const event = JSON.parse(jsonPayload) as ChatStreamEvent;
+							let event: ChatStreamEvent;
+							try {
+								event = JSON.parse(jsonPayload) as ChatStreamEvent;
+							} catch {
+								continue;
+							}
 							if (event.type === "ack") {
 								ackEvent = event;
 								aiMessageId = event.aiMessage.id;
@@ -356,6 +377,9 @@ export function useChat() {
 							if (event.type === "error") {
 								throw new Error(event.error || "Failed to stream AI response");
 							}
+
+							// Ignore forward-compatible unknown events.
+							continue;
 						}
 					}
 

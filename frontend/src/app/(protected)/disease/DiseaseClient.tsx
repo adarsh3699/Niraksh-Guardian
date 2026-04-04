@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useDiseaseInfo } from "@/hooks/useHealthTools";
@@ -83,6 +83,7 @@ export function DiseaseClient() {
 	const urlLanguage = searchParams.get("language");
 	const [activeTab, setActiveTab] = useState<ResultTabId>("symptoms");
 	const [isResearchOpen, setIsResearchOpen] = useState(false);
+	const lastAutoFetchUrlKeyRef = useRef<string>("");
 
 	const [topic, setTopic] = useSessionState("ng:disease:topic", urlTopic ?? "");
 	const [language, setLanguage] = useSessionState("ng:disease:language", urlLanguage ?? "en");
@@ -104,19 +105,23 @@ export function DiseaseClient() {
 
 	// Auto-fetch if arriving with ?topic= and no cached result
 	useEffect(() => {
-		if (urlTopic && !result) {
-			setTopic(urlTopic);
-			if (urlLanguage) setLanguage(urlLanguage);
-			fetchInfo(urlTopic, urlLanguage ?? "en");
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+		if (!urlTopic || result) return;
+
+		const requestKey = `${urlTopic}|${urlLanguage ?? "en"}`;
+		if (lastAutoFetchUrlKeyRef.current === requestKey) return;
+		lastAutoFetchUrlKeyRef.current = requestKey;
+
+		setTopic(urlTopic);
+		if (urlLanguage) setLanguage(urlLanguage);
+		void fetchInfo(urlTopic, urlLanguage ?? "en");
+	}, [urlTopic, urlLanguage, result, setTopic, setLanguage, fetchInfo]);
 
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {
 			e?.preventDefault();
 			if (!topic.trim()) return;
 			setActiveTab("symptoms");
+			setIsResearchOpen(false);
 			await fetchInfo(topic, language);
 		},
 		[topic, language, fetchInfo],
@@ -137,14 +142,11 @@ export function DiseaseClient() {
 	const applyQuickSearch = useCallback(
 		(value: string) => {
 			setTopic(value);
+			setIsResearchOpen(false);
 			void fetchInfo(value, language);
 		},
 		[fetchInfo, language, setTopic],
 	);
-
-	useEffect(() => {
-		setIsResearchOpen(false);
-	}, [result?.name]);
 
 	return (
 		<div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { Message } from "../generated/prisma/client";
 import { createChatSchema, sendMessageSchema, updateChatSchema } from "../validators/chat.schema";
-import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { generateAIResponse, generateAIResponseStream } from "../services/ai/gemini";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 const mapHistoryForAI = (messages: Message[]) => messages.map((m) => ({ role: m.role, content: m.content }));
 
@@ -22,6 +22,16 @@ const resolveTargetLanguage = async (userId: string, language?: string) => {
 	});
 
 	return user?.languagePreference || "en";
+};
+
+const STREAM_MIN_TOKEN_TTL_SECONDS = 60;
+
+const hasSufficientStreamTokenTtl = (req: Request): boolean => {
+	const authReq = req as Request & { user?: { exp?: number } };
+	const exp = authReq.user?.exp;
+	if (!exp) return true;
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	return exp - nowSeconds > STREAM_MIN_TOKEN_TTL_SECONDS;
 };
 
 // --- Chat Management ---
@@ -52,12 +62,7 @@ export const createChat = async (req: Request, res: Response) => {
 
 		res.status(201).json(chat);
 	} catch (error) {
-		if (error instanceof ZodError) {
-			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-			return;
-		}
-		logger.error({ err: error }, "Failed to create chat");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to create chat" });
 	}
 };
 
@@ -79,8 +84,7 @@ export const getChats = async (req: Request, res: Response) => {
 
 		res.json(chats);
 	} catch (error) {
-		logger.error({ err: error }, "Failed to get chats");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to get chats" });
 	}
 };
 
@@ -89,6 +93,13 @@ export const getChatHistory = async (req: Request, res: Response) => {
 		const userId = requireAuthenticatedUserId(req, res);
 		const chatId = req.params.chatId as string;
 		if (!userId) return;
+
+		if (!hasSufficientStreamTokenTtl(req)) {
+			res.status(401).json({
+				error: "Access token is expiring soon. Refresh and retry stream.",
+			});
+			return;
+		}
 
 		const chat = await prisma.chat.findUnique({
 			where: { id: chatId },
@@ -106,8 +117,7 @@ export const getChatHistory = async (req: Request, res: Response) => {
 
 		res.json(messages);
 	} catch (error) {
-		logger.error({ err: error }, "Failed to get chat history");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to get chat history" });
 	}
 };
 
@@ -133,8 +143,7 @@ export const deleteChat = async (req: Request, res: Response) => {
 
 		res.json({ message: "Chat deleted successfully" });
 	} catch (error) {
-		logger.error({ err: error }, "Failed to delete chat");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to delete chat" });
 	}
 };
 
@@ -164,12 +173,7 @@ export const updateChat = async (req: Request, res: Response) => {
 
 		res.json(updatedChat);
 	} catch (error) {
-		if (error instanceof ZodError) {
-			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-			return;
-		}
-		logger.error({ err: error }, "Failed to update chat");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to update chat" });
 	}
 };
 
@@ -233,11 +237,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 
 		res.json({ userMessage, aiMessage });
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Failed to send message");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Failed to send message" });
 	}
 };
 
@@ -317,15 +317,11 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		writeEvent({ type: "done", aiMessage: updatedAiMessage });
 		res.end();
 	} catch (error) {
-		if (error instanceof ZodError) {
-			res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
+		if (!res.headersSent) {
+			handleControllerError({ error, res, logger, context: "Failed to stream message" });
 			return;
 		}
 		logger.error({ err: error }, "Failed to stream message");
-		if (!res.headersSent) {
-			res.status(500).json({ error: "Internal Server Error" });
-			return;
-		}
 		res.write(`data: ${JSON.stringify({ type: "error", error: "Internal Server Error" })}\n\n`);
 		res.end();
 	}

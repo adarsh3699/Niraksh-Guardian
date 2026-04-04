@@ -1,5 +1,6 @@
 import env from "../../config/env";
 import logger from "../../config/logger";
+import { parseJsonObject } from "./utils/jsonParser";
 
 let aiClientPromise: Promise<any> | null = null;
 
@@ -46,24 +47,6 @@ const KNOWN_SPECIALISTS = [
 ] as const;
 
 export type KnownSpecialist = (typeof KNOWN_SPECIALISTS)[number];
-
-/* ------------------------------------------------------------------ */
-/*  Shared JSON extraction helper                                     */
-/* ------------------------------------------------------------------ */
-
-function extractJson(text: string): unknown {
-	const match = text
-		.replace(/```json/g, "")
-		.replace(/```/g, "")
-		.trim()
-		.match(/\{[\s\S]*\}/);
-	if (!match) throw new Error("Invalid AI response format");
-	try {
-		return JSON.parse(match[0]);
-	} catch {
-		throw new Error("Invalid AI response format");
-	}
-}
 
 /* ------------------------------------------------------------------ */
 /*  1. extractSymptoms                                                */
@@ -113,7 +96,7 @@ Rules:
 		contents: [{ role: "user", parts }],
 	});
 
-	const parsed = extractJson(result.text || "") as Record<string, unknown>;
+	const parsed = parseJsonObject(result.text || "");
 
 	if (!Array.isArray(parsed.symptoms)) {
 		throw new Error("Unexpected AI response structure");
@@ -233,7 +216,7 @@ Rules:
 		contents: [{ role: "user", parts }],
 	});
 
-	const parsed = extractJson(result.text || "") as Record<string, unknown>;
+	const parsed = parseJsonObject(result.text || "");
 
 	// Validate relationship
 	const rel = parsed.relationship as Record<string, unknown>;
@@ -379,7 +362,7 @@ Rules:
 		contents: [{ role: "user", parts }],
 	});
 
-	const parsed = extractJson(result.text || "") as Record<string, unknown>;
+	const parsed = parseJsonObject(result.text || "");
 
 	// Validate suggestions
 	const rawSuggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];

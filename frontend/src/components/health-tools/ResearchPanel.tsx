@@ -56,6 +56,10 @@ function normalizeQueryKey(query: string): string {
 	return query.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function isCacheExpired(entry: ResearchCacheEntry): boolean {
+	return Date.now() - entry.cachedAt > RESEARCH_CACHE_TTL_MS;
+}
+
 function PaperCard({ paper, index }: { paper: ResearchPaper; index: number }) {
 	const [open, setOpen] = useState(false);
 	const isPubMed = paper.source === "PubMed";
@@ -187,15 +191,19 @@ export function ResearchPanel({
 		setHasFetched(true);
 	}, []);
 
+	const clearResearchData = useCallback((nextHasFetched: boolean) => {
+		setPapers([]);
+		setKeywords([]);
+		setRag(null);
+		setMetadata(null);
+		setHasFetched(nextHasFetched);
+	}, []);
+
 	useEffect(() => {
 		setError(null);
 
 		if (!query.trim()) {
-			setPapers([]);
-			setKeywords([]);
-			setRag(null);
-			setMetadata(null);
-			setHasFetched(false);
+			clearResearchData(false);
 			setIsVisible(false);
 			return;
 		}
@@ -207,21 +215,17 @@ export function ResearchPanel({
 			return;
 		}
 
-		setPapers([]);
-		setKeywords([]);
-		setRag(null);
-		setMetadata(null);
-		setHasFetched(false);
+		clearResearchData(false);
 		setIsVisible(false);
 
-		if (cache[cacheKey] && Date.now() - cache[cacheKey].cachedAt > RESEARCH_CACHE_TTL_MS) {
+		if (cache[cacheKey] && isCacheExpired(cache[cacheKey])) {
 			setCache((prev) => {
 				const next = { ...prev };
 				delete next[cacheKey];
 				return next;
 			});
 		}
-	}, [query, cacheKey, cache, getCachedResponse, hydrateFromResponse, setCache]);
+	}, [query, cacheKey, cache, getCachedResponse, hydrateFromResponse, clearResearchData, setCache]);
 
 	const fetchResearch = useCallback(
 		async (mode: "interactive" | "prefetch") => {
@@ -264,11 +268,7 @@ export function ResearchPanel({
 			} catch {
 				if (mode === "interactive") {
 					setError("Unable to fetch research right now. Please try again in a moment.");
-					setPapers([]);
-					setKeywords([]);
-					setRag(null);
-					setMetadata(null);
-					setHasFetched(true);
+					clearResearchData(true);
 					setIsVisible(true);
 				}
 			} finally {
@@ -278,7 +278,7 @@ export function ResearchPanel({
 				}
 			}
 		},
-		[query, cacheKey, getCachedResponse, hydrateFromResponse, setCache],
+		[query, cacheKey, getCachedResponse, hydrateFromResponse, clearResearchData, setCache],
 	);
 
 	const handleToggle = useCallback(() => {

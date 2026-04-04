@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { symptomDiagnosisSchema, chatSummarySchema } from "../validators/symptom.schema";
 import { diagnoseSymptoms, summarizeChatForDoctor } from "../services/ai/gemini";
-import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
 import { requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 export const symptomDiagnosisController = async (req: Request, res: Response) => {
 	try {
@@ -64,11 +64,7 @@ export const symptomDiagnosisController = async (req: Request, res: Response) =>
 
 		res.json(analysis);
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Symptom Analysis Failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Symptom Analysis Failed" });
 	}
 };
 
@@ -102,10 +98,6 @@ export const chatSummaryController = async (req: Request, res: Response) => {
 
 		res.json(result);
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Summarize Symptoms Failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Summarize Symptoms Failed" });
 	}
 };

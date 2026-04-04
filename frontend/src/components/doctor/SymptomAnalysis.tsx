@@ -246,8 +246,6 @@ interface SymptomAnalysisProps {
 export function SymptomAnalysis({
 	chatId,
 	initialSymptoms,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	initialResult: _initialResult,
 	initialSRIResult = null,
 	autoAnalyze = false,
 	onSpecialistFound,

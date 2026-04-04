@@ -169,6 +169,7 @@ model Chat {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  Message[]
 
+  @@index([userId, updatedAt])
   @@map("chats")
 }
 
@@ -180,6 +181,7 @@ model Message {
   createdAt DateTime @default(now()) @map("created_at")
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
+  @@index([chatId, createdAt])
   @@index([chatId])
   @@index([createdAt])
   @@map("messages")
@@ -194,6 +196,7 @@ model MedicineHistory {
   createdAt      DateTime @default(now()) @map("created_at")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@index([userId])
   @@index([createdAt])
   @@map("medicine_history")
@@ -208,6 +211,7 @@ model PrescriptionHistory {
   createdAt      DateTime @default(now()) @map("created_at")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@index([userId])
   @@index([createdAt])
   @@map("prescription_history")
@@ -221,6 +225,7 @@ model DrugInteractionHistory {
   createdAt         DateTime @default(now()) @map("created_at")
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@index([userId])
   @@index([createdAt])
   @@map("drug_interaction_history")
@@ -246,6 +251,7 @@ model SymptomAnalysisHistory {
   createdAt             DateTime @default(now()) @map("created_at")
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@index([userId])
   @@index([createdAt])
   @@map("symptom_analysis_history")

@@ -109,16 +109,30 @@ export function MedicineClient() {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const suppressAutocompleteRef = useRef(false);
 	const autocompleteRequestSeqRef = useRef(0);
+	const lastAutoRunUrlNameRef = useRef<string>("");
+
+	const closeAutocomplete = useCallback(() => {
+		setSuggestions([]);
+		setIsOpen(false);
+	}, []);
 
 	// Keep URL-driven navigation authoritative over session state.
 	useEffect(() => {
 		if (!urlName) return;
 		const incomingName = urlName.trim();
 		if (!incomingName) return;
+
+		const normalizedIncoming = incomingName.toLowerCase();
+		if (lastAutoRunUrlNameRef.current === normalizedIncoming) return;
+		lastAutoRunUrlNameRef.current = normalizedIncoming;
+
 		const currentName = name.trim();
 		if (incomingName.toLowerCase() !== currentName.toLowerCase()) {
 			reset();
 			setName(incomingName);
+			void Promise.resolve().then(() => {
+				setIsResearchOpen(false);
+			});
 			void (async () => {
 				const response = await analyze(incomingName);
 				if (response) {
@@ -126,27 +140,26 @@ export function MedicineClient() {
 				}
 			})();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [urlName]);
+	}, [urlName, name, reset, setName, analyze, setResultTitle]);
 
 	// Fetch autocomplete suggestions
 	useEffect(() => {
 		const q = debouncedName.trim();
 		if (!q || q.length < 2) {
-			setSuggestions([]);
-			setIsOpen(false);
+			void Promise.resolve().then(closeAutocomplete);
 			return;
 		}
 
 		if (suppressAutocompleteRef.current) {
-			setSuggestions([]);
-			setIsOpen(false);
+			void Promise.resolve().then(closeAutocomplete);
 			return;
 		}
 
 		let cancelled = false;
 		const requestSeq = ++autocompleteRequestSeqRef.current;
-		setIsFetching(true);
+		void Promise.resolve().then(() => {
+			if (!cancelled) setIsFetching(true);
+		});
 
 		apiClient<AutocompleteResponse>(
 			`${API_ROUTES.MEDICINE_AUTOCOMPLETE}?q=${encodeURIComponent(q)}`,
@@ -172,7 +185,7 @@ export function MedicineClient() {
 		return () => {
 			cancelled = true;
 		};
-	}, [debouncedName]);
+	}, [debouncedName, closeAutocomplete]);
 
 	// Close dropdown on outside click
 	useEffect(() => {
@@ -190,17 +203,17 @@ export function MedicineClient() {
 			e?.preventDefault();
 			if (!name.trim() && files.length === 0) return;
 			const queryName = name.trim();
+			setIsResearchOpen(false);
 			suppressAutocompleteRef.current = true;
 			autocompleteRequestSeqRef.current += 1;
 			setIsFetching(false);
-			setSuggestions([]);
-			setIsOpen(false);
+			closeAutocomplete();
 			const response = await analyze(queryName || undefined, files[0] ?? undefined);
 			if (response) {
 				setResultTitle(queryName ? toDisplayMedicineTitle(queryName) : "Medicine Information");
 			}
 		},
-		[name, files, analyze, setResultTitle],
+		[name, files, analyze, setResultTitle, closeAutocomplete],
 	);
 
 	const handleReset = useCallback(() => {
@@ -209,9 +222,9 @@ export function MedicineClient() {
 		setResultTitle("");
 		setName("");
 		setFiles([]);
-		setSuggestions([]);
-		setIsOpen(false);
-	}, [reset, setName, setResultTitle]);
+		setIsResearchOpen(false);
+		closeAutocomplete();
+	}, [reset, setName, setResultTitle, closeAutocomplete]);
 
 	const handleSelectSuggestion = useCallback((suggestion: OneMgSuggestion) => {
 		setIsOpen(false);
@@ -220,33 +233,33 @@ export function MedicineClient() {
 
 	const handleSearchWithAI = useCallback(async () => {
 		const queryName = name.trim();
+		setIsResearchOpen(false);
 		suppressAutocompleteRef.current = true;
 		autocompleteRequestSeqRef.current += 1;
 		setIsFetching(false);
-		setSuggestions([]);
-		setIsOpen(false);
+		closeAutocomplete();
 		if (!queryName) return;
 		const response = await analyze(queryName);
 		if (response) {
 			setResultTitle(toDisplayMedicineTitle(queryName));
 		}
-	}, [name, analyze, setResultTitle]);
+	}, [name, analyze, setResultTitle, closeAutocomplete]);
 
 	const applyQuickMedicine = useCallback(
 		async (value: string) => {
+			setIsResearchOpen(false);
 			suppressAutocompleteRef.current = true;
 			autocompleteRequestSeqRef.current += 1;
 			setIsFetching(false);
 			setName(value);
 			setFiles([]);
-			setSuggestions([]);
-			setIsOpen(false);
+			closeAutocomplete();
 			const response = await analyze(value);
 			if (response) {
 				setResultTitle(toDisplayMedicineTitle(value));
 			}
 		},
-		[analyze, setName, setResultTitle],
+		[analyze, setName, setResultTitle, closeAutocomplete],
 	);
 
 	const handleKeyDown = useCallback(
@@ -276,10 +289,6 @@ export function MedicineClient() {
 		},
 		[isOpen, suggestions, activeIndex, handleSelectSuggestion, handleSearchWithAI, handleSubmit],
 	);
-
-	useEffect(() => {
-		setIsResearchOpen(false);
-	}, [result?.description]);
 
 	return (
 		<div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

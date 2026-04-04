@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
 import { useSessionState } from "@/hooks/useSessionState";
+import { useAsyncToolRunner } from "@/hooks/useAsyncToolRunner";
 import type {
 	MedicineAnalysisResponse,
 	PrescriptionAnalysisResponse,
@@ -11,47 +12,14 @@ import type {
 	DiseaseInfo,
 } from "@/types/health";
 
-interface AsyncToolOptions {
-	clearResultBeforeRun?: boolean;
-}
-
 function useAsyncToolResult<T>(sessionKey: string) {
 	const [result, setResult] = useSessionState<T | null>(sessionKey, null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	const run = useCallback(
-		async (
-			operation: () => Promise<T>,
-			defaultErrorMessage: string,
-			options: AsyncToolOptions = {},
-		): Promise<T | null> => {
-			if (options.clearResultBeforeRun) {
-				setResult(null);
-			}
-
-			setIsLoading(true);
-			setError(null);
-
-			try {
-				const response = await operation();
-				setResult(response);
-				return response;
-			} catch (err) {
-				const message = err instanceof Error ? err.message : defaultErrorMessage;
-				setError(message);
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[setResult],
-	);
+	const { isLoading, error, run, resetError } = useAsyncToolRunner<T>(setResult);
 
 	const reset = useCallback(() => {
 		setResult(null);
-		setError(null);
-	}, [setResult]);
+		resetError();
+	}, [setResult, resetError]);
 
 	return { result, isLoading, error, run, reset };
 }

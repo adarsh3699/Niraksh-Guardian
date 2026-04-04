@@ -5,6 +5,7 @@ import logger from "../config/logger";
 import { deleteFile, uploadFile } from "../services/cloudinary/cloudinary";
 import { analyzeLabReportFile } from "../services/ai/labReportAnalysis";
 import { requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 type LabAnalysisJobStatus = "queued" | "processing" | "completed" | "failed";
 
@@ -140,8 +141,14 @@ export const analyzeLabReportController = async (req: Request, res: Response) =>
 			status: "queued",
 		});
 	} catch (error) {
-		logger.error({ err: error }, "Failed to analyze lab report");
-		return res.status(500).json({ error: "Failed to analyze lab report" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to analyze lab report",
+			internalErrorMessage: "Failed to analyze lab report",
+		});
+		return;
 	}
 };
 
@@ -169,8 +176,14 @@ export const getLabReportJobStatusController = async (req: Request, res: Respons
 			updatedAt: new Date(job.updatedAt).toISOString(),
 		});
 	} catch (error) {
-		logger.error({ err: error }, "Failed to get lab analysis job status");
-		return res.status(500).json({ error: "Failed to get lab analysis job status" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to get lab analysis job status",
+			internalErrorMessage: "Failed to get lab analysis job status",
+		});
+		return;
 	}
 };
 
@@ -242,11 +255,18 @@ export const streamLabReportJobStatusController = async (req: Request, res: Resp
 			clearInterval(heartbeat);
 		});
 	} catch (error) {
-		logger.error({ err: error }, "Failed to stream lab analysis job status");
-		if (!res.headersSent) {
-			return res.status(500).json({ error: "Failed to stream lab analysis job status" });
+		if (res.headersSent) {
+			logger.error({ err: error }, "Failed to stream lab analysis job status");
+			res.end();
+			return;
 		}
-		res.end();
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to stream lab analysis job status",
+			internalErrorMessage: "Failed to stream lab analysis job status",
+		});
 	}
 };
 
@@ -271,8 +291,14 @@ export const listLabReportsController = async (req: Request, res: Response) => {
 
 		return res.status(200).json(reports);
 	} catch (error) {
-		logger.error({ err: error }, "Failed to list lab reports");
-		return res.status(500).json({ error: "Failed to list lab reports" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to list lab reports",
+			internalErrorMessage: "Failed to list lab reports",
+		});
+		return;
 	}
 };
 
@@ -295,8 +321,14 @@ export const getLabReportController = async (req: Request, res: Response) => {
 		if (!report) return res.status(404).json({ error: "Lab report not found" });
 		return res.status(200).json(report);
 	} catch (error) {
-		logger.error({ err: error }, "Failed to fetch lab report detail");
-		return res.status(500).json({ error: "Failed to fetch lab report detail" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to fetch lab report detail",
+			internalErrorMessage: "Failed to fetch lab report detail",
+		});
+		return;
 	}
 };
 
@@ -328,7 +360,13 @@ export const deleteLabReportController = async (req: Request, res: Response) => 
 		await prisma.labReport.delete({ where: { id: report.id } });
 		return res.status(200).json({ message: "Lab report deleted successfully" });
 	} catch (error) {
-		logger.error({ err: error }, "Failed to delete lab report");
-		return res.status(500).json({ error: "Failed to delete lab report" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to delete lab report",
+			internalErrorMessage: "Failed to delete lab report",
+		});
+		return;
 	}
 };

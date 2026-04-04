@@ -5,12 +5,12 @@ import {
 	generateFullAnalysis,
 	generateSuggestionsWithDiagnosis,
 } from "../services/ai/symptomAnalysis.service";
-import { ZodError } from "zod";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
 import { uploadFile } from "../services/cloudinary/cloudinary";
 import { Prisma } from "../generated/prisma/client";
 import { requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 export const symptomRelationshipController = async (req: Request, res: Response) => {
 	try {
@@ -116,10 +116,6 @@ export const symptomRelationshipController = async (req: Request, res: Response)
 			analysis: fullAnalysis.diagnosis,
 		});
 	} catch (error) {
-		if (error instanceof ZodError) {
-			return res.status(400).json({ error: "Validation failed", validationErrors: error.issues });
-		}
-		logger.error({ err: error }, "Symptom Analysis Failed");
-		return res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Symptom Analysis Failed" });
 	}
 };

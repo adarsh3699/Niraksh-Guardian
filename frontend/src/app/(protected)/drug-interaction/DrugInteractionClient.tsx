@@ -36,6 +36,11 @@ export function DrugInteractionClient() {
 	const [activeMode, setActiveMode] = useState<"personal" | "direct">("direct");
 	const { result, isLoading, error, checkInteraction, reset } = useDrugInteraction();
 
+	const getModeForMedicines = useCallback((list: string[]) => {
+		const filled = list.filter((m) => m.trim()).length;
+		return filled <= 1 ? "personal" : "direct";
+	}, []);
+
 	// Keep URL-driven navigation authoritative over session state.
 	useEffect(() => {
 		if (!urlMedicines) return;
@@ -56,6 +61,9 @@ export function DrugInteractionClient() {
 		const currentKey = normalizeKey(medicines);
 
 		if (incomingKey !== currentKey) {
+			void Promise.resolve().then(() => {
+				setActiveMode(getModeForMedicines(nextList));
+			});
 			setMedicines(nextList);
 			reset();
 		}
@@ -64,44 +72,41 @@ export function DrugInteractionClient() {
 			lastAutoRunKeyRef.current = incomingKey;
 			void checkInteraction(nextList);
 		}
-	}, [urlMedicines, medicines, setMedicines, reset, checkInteraction]);
+	}, [urlMedicines, medicines, setMedicines, reset, checkInteraction, getModeForMedicines]);
 
 	const handleChange = useCallback(
 		(index: number, value: string) => {
 			setMedicines((prev) => {
 				const next = [...prev];
 				next[index] = value;
+				setActiveMode(getModeForMedicines(next));
 				return next;
 			});
 		},
-		[setMedicines],
+		[setMedicines, getModeForMedicines],
 	);
 
 	const handleAdd = useCallback(() => {
-		setMedicines((prev) => [...prev, ""]);
-	}, [setMedicines]);
+		setMedicines((prev) => {
+			const next = [...prev, ""];
+			setActiveMode(getModeForMedicines(next));
+			return next;
+		});
+	}, [setMedicines, getModeForMedicines]);
 
 	const handleRemove = useCallback(
 		(index: number) => {
 			setMedicines((prev) => {
 				if (prev.length <= 1) return prev; // Min 1
-				return prev.filter((_, i) => i !== index);
+				const next = prev.filter((_, i) => i !== index);
+				setActiveMode(getModeForMedicines(next));
+				return next;
 			});
 		},
-		[setMedicines],
+		[setMedicines, getModeForMedicines],
 	);
 
 	const filledCount = medicines.filter((m) => m.trim()).length;
-	// Deriving mode based on filled inputs if not explicitly set
-	const currentMode = activeMode;
-	useEffect(() => {
-		if (filledCount <= 1 && currentMode !== "personal") {
-			setActiveMode("personal");
-		} else if (filledCount > 1 && currentMode !== "direct") {
-			setActiveMode("direct");
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [filledCount]);
 
 	const handleSubmit = useCallback(
 		async (e?: FormEvent) => {

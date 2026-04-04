@@ -4,6 +4,8 @@ import prisma from "../db/prisma";
 import logger from "../config/logger";
 import { generateContent } from "../services/ai/gemini"; // Reusing existing AI service
 import { requireAuthenticatedUserId } from "../types/auth";
+import { healthReportRequestSchema } from "../validators/report.schema";
+import { handleControllerError } from "../utils/controllerError";
 
 /**
  * Render markdown-formatted text into a PDFKit document with proper formatting.
@@ -107,8 +109,9 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		// Parse selected data sources (default: all enabled)
 		const validSources = ["symptoms", "prescriptions", "medicines", "drugInteractions", "chatHistory"] as const;
-		const rawSources: string[] = Array.isArray(req.body?.sources) ? req.body.sources : [...validSources];
-		const sources = new Set(rawSources.filter((s) => (validSources as readonly string[]).includes(s)));
+		const { sources: parsedSources } = healthReportRequestSchema.parse(req.body ?? {});
+		const rawSources = parsedSources ?? [...validSources];
+		const sources = new Set(rawSources);
 
 		const DATA_LIMIT = 20;
 
@@ -636,11 +639,17 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		doc.end();
 	} catch (error) {
-		logger.error({ err: error }, "Error generating health report");
-		// Check if headers already sent to avoid crashing
-		if (!res.headersSent) {
-			res.status(500).json({ error: "Failed to generate health report" });
+		if (res.headersSent) {
+			logger.error({ err: error }, "Error generating health report");
+			return;
 		}
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Error generating health report",
+			internalErrorMessage: "Failed to generate health report",
+		});
 	}
 };
 
@@ -661,7 +670,12 @@ export const listHealthReports = async (req: Request, res: Response) => {
 
 		res.json(reports);
 	} catch (error) {
-		logger.error({ err: error }, "Error listing health reports");
-		res.status(500).json({ error: "Failed to list health reports" });
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Error listing health reports",
+			internalErrorMessage: "Failed to list health reports",
+		});
 	}
 };

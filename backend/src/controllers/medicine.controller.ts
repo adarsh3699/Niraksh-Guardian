@@ -3,6 +3,7 @@ import prisma from "../db/prisma";
 import logger from "../config/logger";
 import redisClient from "../config/redis";
 import { requireAuthenticatedUserId } from "../types/auth";
+import { handleControllerError } from "../utils/controllerError";
 
 const ONE_MG_AUTOCOMPLETE = "https://www.1mg.com/pwa-dweb-api/api/v4/search/autocomplete";
 const DEFAULT_CITY = "New Delhi";
@@ -94,8 +95,7 @@ export const medicineAutocompleteController = async (req: Request, res: Response
 
 		res.json(responsePayload);
 	} catch (error) {
-		logger.error({ err: error }, "Medicine autocomplete failed");
-		res.status(500).json({ error: "Internal Server Error" });
+		handleControllerError({ error, res, logger, context: "Medicine autocomplete failed" });
 	}
 };
 
