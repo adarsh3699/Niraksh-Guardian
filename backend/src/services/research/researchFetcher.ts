@@ -501,6 +501,50 @@ async function rankPapersByRag(
 }
 
 async function generateGroundedSummary(query: string, topPapers: ResearchPaper[]): Promise<ResearchRagSummary> {
+	const buildDeterministicSummary = (reasonPrefix?: string): string => {
+		const topItems = topPapers.slice(0, 3);
+		const numberedLines = topItems.map((paper, idx) => {
+			const score =
+				typeof paper.retrievalScore === "number"
+					? ` - relevance ${(paper.retrievalScore * 100).toFixed(0)}%`
+					: "";
+			const journal = paper.journal || "journal unavailable";
+			const year = paper.year || "n/a";
+			return `${idx + 1}. **${paper.title}** (${journal}, ${year})${score}`;
+		});
+
+		const notes = [
+			reasonPrefix ? `- ${reasonPrefix}` : "",
+			`- **Top evidence for query:** ${query}`,
+			"",
+			"### Key Evidence Highlights",
+			...numberedLines,
+			"",
+			"### Clinical Note",
+			"- Use these citations as reference context and confirm treatment decisions with a licensed clinician.",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		return notes;
+	};
+
+	const buildRankedEvidenceSection = (): string => {
+		const lines = topPapers.slice(0, 3).map((paper, idx) => {
+			const score =
+				typeof paper.retrievalScore === "number"
+					? ` - relevance ${(paper.retrievalScore * 100).toFixed(0)}%`
+					: "";
+			const journal = paper.journal || "journal unavailable";
+			const year = paper.year || "n/a";
+			return `${idx + 1}. **${paper.title}** (${journal}, ${year})${score}`;
+		});
+
+		return ["### Ranked Evidence (Relevance)", ...lines].join("\n");
+	};
+
+	const stripCitationTokens = (text: string): string => text.replace(/\s*\[#\d+\]/g, "").trim();
+
 	if (!topPapers.length) {
 		return {
 			enabled: false,
@@ -520,7 +564,9 @@ async function generateGroundedSummary(query: string, topPapers: ResearchPaper[]
 			enabled: false,
 			method: "lexical",
 			confidence,
-			summary: "Evidence retrieved. AI synthesis unavailable because GEMINI_API_KEY is not configured.",
+			summary: buildDeterministicSummary(
+				"Evidence retrieved. AI synthesis unavailable because GEMINI_API_KEY is not configured."
+			),
 			citations: topPapers.map((p) => p.id),
 		};
 	}
@@ -528,7 +574,7 @@ async function generateGroundedSummary(query: string, topPapers: ResearchPaper[]
 	const contextBlock = topPapers
 		.map((paper, i) => {
 			const idx = i + 1;
-			return `[#${idx}] ${paper.title}\nSource: ${paper.source} (${paper.year || "n/a"})\nJournal: ${paper.journal || "n/a"}\nURL: ${paper.url}\nAbstract: ${paper.abstract || "Not available"}`;
+			return `${idx}. ${paper.title}\nSource: ${paper.source} (${paper.year || "n/a"})\nJournal: ${paper.journal || "n/a"}\nURL: ${paper.url}\nAbstract: ${paper.abstract || "Not available"}`;
 		})
 		.join("\n\n");
 
@@ -541,7 +587,7 @@ Rules:
 - Use only the evidence provided.
 - Do not invent findings.
 - Mention uncertainty where evidence is weak.
-- Add inline citations as [#1], [#2], etc.
+- Do not use [#1], [#2] style citation tags.
 - Keep output to 4-6 bullet points.
 
 User query: ${query}
@@ -550,11 +596,14 @@ Evidence:
 ${contextBlock}
 `);
 
+		const cleanedSummary = stripCitationTokens(summary);
+		const combinedSummary = [cleanedSummary, "", buildRankedEvidenceSection()].filter(Boolean).join("\n");
+
 		return {
 			enabled: true,
 			method: "semantic+lexical",
 			confidence,
-			summary: summary.trim(),
+			summary: combinedSummary,
 			citations: topPapers.map((p) => p.id),
 		};
 	} catch (err) {
@@ -563,7 +612,9 @@ ${contextBlock}
 			enabled: false,
 			method: "semantic+lexical",
 			confidence,
-			summary: "Evidence retrieved, but AI synthesis failed. You can still review the ranked papers below.",
+			summary: buildDeterministicSummary(
+				"AI synthesis was temporarily unavailable. A direct evidence digest is shown below."
+			),
 			citations: topPapers.map((p) => p.id),
 		};
 	}

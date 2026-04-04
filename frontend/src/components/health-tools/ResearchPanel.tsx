@@ -2,46 +2,18 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { FlaskConical, ChevronDown, ExternalLink, Loader2, BookOpen } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import { API_ROUTES } from "@/lib/constants";
 import { useSessionState } from "@/hooks/useSessionState";
-
-interface ResearchPaper {
-	id: string;
-	source: "PubMed" | "Semantic Scholar";
-	title: string;
-	authors: string[];
-	journal: string;
-	year: string;
-	abstract: string;
-	url: string;
-	citationCount?: number;
-	retrievalScore?: number;
-	retrievalSignals?: string[];
-}
-
-interface ResearchRagSummary {
-	enabled: boolean;
-	method: "semantic+lexical" | "lexical";
-	confidence: "high" | "medium" | "low";
-	summary: string;
-	citations: string[];
-}
-
-interface ResearchMetadata {
-	totalCandidates: number;
-	returned: number;
-	keywordJoinerUsed: "AND" | "OR";
-	embeddingsUsed: boolean;
-}
-
-interface ResearchResponse {
-	papers: ResearchPaper[];
-	keywords: string[];
-	rag: ResearchRagSummary;
-	metadata: ResearchMetadata;
-}
+import type {
+	ResearchMetadata,
+	ResearchPaper,
+	ResearchRagSummary,
+	ResearchResponse,
+} from "@/types/research";
 
 interface ResearchCacheEntry {
 	data: ResearchResponse;
@@ -374,9 +346,9 @@ export function ResearchPanel({
 							<p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary/90">
 								Evidence Summary ({rag.confidence} confidence)
 							</p>
-							<p className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/85">
-								{rag.summary}
-							</p>
+							<div className="prose prose-sm max-w-none text-foreground/85 prose-p:my-1.5 prose-li:my-0.5 prose-ul:my-2 prose-strong:text-foreground prose-headings:text-foreground prose-headings:font-semibold">
+								<ReactMarkdown remarkPlugins={[remarkGfm]}>{rag.summary}</ReactMarkdown>
+							</div>
 						</div>
 					)}
 
