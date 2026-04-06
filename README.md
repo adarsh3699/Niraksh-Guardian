@@ -6,6 +6,14 @@ Niraksh-Guardian is an intelligent digital health companion designed to help ind
 
 It bridges the gap between personal health concern and professional medical care through guided understanding, explainable AI insights, and contextual doctor recommendations.
 
+# ✅ At a Glance
+
+- Understand symptoms with explainable, structured guidance (not a diagnosis)
+- Get contextual doctor/specialist direction with clear reasoning
+- Analyze prescriptions, medicines, and lab reports (image + text)
+- Keep a personal health timeline, reports, and profile context in one place
+- Explore disease/medicine information and research-backed references
+
 ---
 
 # 🌍 Problem Statement
@@ -69,7 +77,7 @@ There is no guided system that converts natural symptom expression into understa
 - Health-aware users seeking early insight
 - Students and young professionals with limited health literacy
 
-## Core Gap
+## What Users Need
 
 Users need a system that:
 
@@ -85,18 +93,9 @@ Niraksh-Guardian addresses this missing layer between concern and consultation.
 
 # 💡 Proposed Solution
 
-Niraksh-Guardian is an AI-assisted health understanding platform that transforms personal health signals into guided medical direction.
+Niraksh-Guardian is an AI-assisted health understanding platform that turns personal health signals into guided medical direction.
 
-It allows users to:
-
-- Describe symptoms naturally
-- Receive structured health insights
-- Understand possible conditions
-- Learn urgency context
-- Discover relevant specialists
-- Interpret prescriptions and medicines
-
-The system acts as an **early health interpreter**, not a diagnosis tool.
+It acts as an **early health interpreter** (not a diagnosis tool) by combining symptom understanding, medical clarity tools, and specialist direction into one guided experience.
 
 ---
 
@@ -104,23 +103,23 @@ The system acts as an **early health interpreter**, not a diagnosis tool.
 
 ## 🧠 Guided Symptom Interpretation
 
-Users describe symptoms in everyday language and receive structured, understandable insights about possible meaning and urgency.
+Users describe symptoms in everyday language and receive structured insights about likely meaning, urgency, and what to do next.
 
 ## 👨‍⚕️ Contextual Doctor Guidance
 
-Instead of searching by specialty, users receive specialist suggestions linked directly to their symptoms with clear reasoning.
+Instead of guessing a specialty, users receive ranked specialist suggestions linked to their symptoms with clear reasoning.
 
 ## 💬 Conversational Health Understanding
 
-Health concerns are explored through natural interaction, making medical interpretation accessible without jargon.
+Health concerns are explored through natural, streaming chat with support for image attachments and language-aware context.
 
 ## 💊 Medical Clarity Layer
 
-Prescriptions and drug information are translated into understandable explanations, improving medication awareness.
+Prescriptions, medicines, and lab reports are translated into clearer explanations, improving safety and awareness.
 
 ## 🔎 Multi-Entry Health Exploration
 
-Users can begin from symptoms, chat, medicine, or condition exploration — reflecting real-world health journeys.
+Users can begin from symptoms, chat, medicine, disease exploration, prescription analysis, or lab reports — reflecting real-world health journeys.
 
 ---
 
@@ -183,26 +182,43 @@ Secure hosting, storage, and communication services.
 
 ---
 
+# 🧩 Product Capabilities
+
+Niraksh-Guardian now covers a broader set of health workflows across analysis, education, and follow-up care:
+
+- Multi-modal analysis for symptoms, chat, prescriptions, images, and lab reports
+- Streaming AI chat with image attachments and multi-language support
+- Symptom analysis with contextual doctor recommendations and location-based filtering
+- Personalized drug interaction checks using current medication and recent history
+- Lab report analysis with risk insights and downloadable health summaries (PDF)
+- Disease and medicine exploration for faster health understanding
+- Centralized health history, reports, and profile context in one place
+- Research-backed medical guidance with supporting references and citations
+
+---
+
+# 🧰 Developer Quick Start
+
+If you want to run the project locally, use the setup guides in the service-specific READMEs:
+
+- [Backend setup](./backend/README.md)
+- [Frontend setup](./frontend/README.md)
+
+Typical local ports are `4000` for the backend API and `3000` for the frontend app.
+
+---
+
 # 🚀 Implementation Strategy
 
 The project follows an iterative build approach:
 
-**Phase 1 — Core Health Understanding**
-Symptom input and interpretation flows.
+- **Phase 1 — Core Health Understanding:** Symptom input and interpretation flows
+- **Phase 2 — Specialist Guidance:** Doctor mapping and recommendation
+- **Phase 3 — Conversational Assistance:** Interactive health dialogue
+- **Phase 4 — Medication & Prescription Clarity:** Drug, prescription, and lab report understanding
+- **Phase 5 — Personal Health Context:** User history and reports
 
-**Phase 2 — Specialist Guidance**
-Doctor mapping and recommendation.
-
-**Phase 3 — Conversational Assistance**
-Interactive health dialogue.
-
-**Phase 4 — Medication & Prescription Clarity**
-Drug and prescription understanding.
-
-**Phase 5 — Personal Health Context**
-User history and reports.
-
-This staged approach ensures progressive validation and usability testing.
+This staged approach supports progressive validation and usability testing.
 
 ---
 
@@ -259,13 +275,11 @@ instead of:
 
 Key innovation aspects:
 
-- Natural language symptom interpretation
-- Explainable specialist mapping
-- Guided health reasoning
-- Multi-context health entry
-- Human-centric health UX
+- Structured, explainable health guidance instead of generic search results
+- Specialist direction with reasoning (not just information)
+- A unified workflow across symptoms, chat, medicines, prescriptions, and lab reports
 
-It reframes health exploration from search to guidance.
+It reframes health exploration from search into guided understanding.
 
 ---
 
@@ -273,11 +287,8 @@ It reframes health exploration from search to guidance.
 
 The system is feasible because:
 
-- AI models can interpret natural language symptoms
-- Specialist mapping is structured and scalable
-- Web platforms enable accessible deployment
-- Modular architecture supports growth
-- Privacy-safe health context storage is achievable
+- AI models can interpret symptom narratives and medical documents with guardrails
+- Specialist mapping, caching, and modular services are structured and scalable
 
 The project is technically implementable and incrementally expandable.
 

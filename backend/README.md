@@ -12,12 +12,14 @@ To solve the challenge of accurately and securely interpreting fragmented person
 
 ## 🚀 Innovative Features
 
-- **🧠 Multi-Modal Analysis Orchestration:** Users communicate their health issues in many ways. The backend seamlessly interprets paragraphs of text, lists of symptoms, or uploaded images of medical documents, ensuring out API handles any input type and translates it into a unified, understandable health report.
-- **⚡ Lightning Fast Medical Insights:** Waiting for medical answers can be stressful. We've implemented advanced caching systems so that insights on common diseases and conditions are delivered to users almost instantaneously, skipping the delay of manual processing.
-- **🛡️ Unshakeable Platform Reliability:** A healthcare tool must be available when needed most. Our infrastructure is designed so that even if certain background systems experience disruptions, critical path features remain entirely online and accessible to users.
-- **🗺️ Intelligent Matchmaking Engine:** Finding the right doctor is often trial and error. Our dynamic ranking system takes the guesswork out of the process by scoring doctors against your specific, AI-extracted medical needs and your geographic location, ensuring the highest quality, most relevant care pairing.
-- **📄 Centralized Patient Portfolios:** Managing disparate medical documents is difficult. The backend automatically organizes all your AI chats, pill safety checks, and symptom analyses into a comprehensive timeline, capable of compiling this entire history into a clean, easy-to-read PDF report you can hand to a physician.
-- **📧 Proactive Communication Safety:** Ensuring users receive critical notifications like password resets without fail, utilizing automated monitoring systems to safeguard deliverability across the platform.
+- **🧠 Multi-Modal Analysis Orchestration:** The backend accepts symptoms, free-form chat, prescriptions, medicine images, and lab reports, then turns them into structured health outputs.
+- **📡 Real-Time Streaming Workflows:** Chat responses and lab report processing can stream progress updates so users see results as they are generated.
+- **💊 Personalized Safety Checks:** Drug interaction analysis considers the user's current medicines and recent medication history, not just a single input list.
+- **🗺️ Intelligent Matchmaking Engine:** Doctor recommendations are ranked by symptoms, condition tags, location, rating, experience, and fees for better matching.
+- **📚 Medical Knowledge & Research Layer:** Disease information, research paper lookup, and symptom summaries support clearer health education and referral.
+- **📄 Centralized Patient Portfolios:** Health summaries, generated reports, and lab report history are stored together so users and doctors can review a complete timeline.
+- **📧 Proactive Communication Safety:** SES event handling and delivery monitoring help keep critical email notifications reliable.
+- **🌐 Language-Aware Health Context:** User language preference is stored so the platform can keep conversational and UI flows more accessible.
 
 ## 💻 Tech Stack
 
@@ -55,8 +57,8 @@ To solve the challenge of accurately and securely interpreting fragmented person
    Create a `.env` file based on `.env.example` and fill in your credentials:
 
     ```env
-    PORT=8080
-    DATABASE_URL=postgresql://user:password@localhost:5432/niraksh
+    PORT=4000
+    DATABASE_URL=postgresql://user:password@localhost:5432/niraksh_guardian?schema=public
     REDIS_URL=redis://localhost:6379
     JWT_SECRET=your_jwt_secret
     # Add other required keys for AWS, Cloudinary, and Gemini
@@ -65,15 +67,17 @@ To solve the challenge of accurately and securely interpreting fragmented person
 3. Database Setup:
 
     ```bash
+    pnpm install
     pnpm prisma generate
-    pnpm prisma migrate dev
+    pnpm prisma:migrate
+    pnpm seed
     ```
 
 4. Start the Server:
     ```bash
     pnpm dev
     ```
-    The API will be available at `http://localhost:8080` (or your defined PORT).
+    The API will be available at `http://localhost:4000` (or your defined PORT).
 
 ## 📚 Architecture Overview
 
@@ -89,3 +93,5 @@ Dive deeper into our backend architecture, database schemas, and AI engineering 
 - `pnpm start`: Runs the built application
 - `pnpm lint`: Runs ESLint
 - `pnpm format`: Runs Prettier
+- `pnpm prisma:migrate`: Runs Prisma migrations
+- `pnpm seed`: Seeds the database with initial data

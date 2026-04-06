@@ -12,15 +12,15 @@ To eliminate the friction and anxiety commonly associated with digital healthcar
 
 ## 🚀 Innovative Features
 
-- **🌐 Instant Interface Responsiveness:** During moments of health stress, you need answers immediately. We’ve designed the interface to be blazing fast, ensuring that pages load instantly and there are zero frustrating layout shifts as you read important medical information.
-- **🎨 Calming & Professional Design:** The platform utilizes a deeply thought-out, uniform design system. By maintaining strict consistency in colors, spacing, and typography, we provide a trustworthy, premium experience that reassures users they are in a safe environment.
-- **⚡ Synchronized Health Timeline:** Your health data shouldn't exist in silos. Our platform ensures that if you upload a prescription or chat about a symptom, your personal health dashboard and timeline update instantaneously in the background, keeping all your information centralized without requiring page reloads.
-- **📝 Empathetic AI Chat:** We provide a beautifully rendered, interactive chat interface that feels like talking to a dedicated health advocate. It supports attaching images directly into the chat and maintains conversational context, allowing for a natural flow of questions and answers.
-- **🧩 Frictionless Tool Transitions:** Moving between different health tasks should be effortless. We’ve designed intelligent workflows—like seamlessly carrying the medications identified in a prescription scan directly into the Drug Interaction safety checker with a single click—saving you time and effort.
+- **🧭 Symptom Analysis & Doctor Finder:** The app guides users from symptom entry to specialist recommendations with location and fee-aware filtering.
+- **📄 Prescription + Lab Report Workspace:** Prescription and lab report analysis now live in a unified experience, making it easier to switch between modes without losing context.
+- **🧪 Disease & Medicine Explorers:** Users can browse disease information, search medicines by name or image, and get clearer context on conditions and treatments.
+- **💬 Streaming AI Chat:** Niraksh AI supports image attachments, real-time response streaming, and language-aware conversations for more natural health guidance.
+- **🕒 Health History & Reports:** The dashboard, history timeline, and report pages give users a centralized view of health activity and downloadable summaries.
 
 ## 💻 Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript 5.x
 - **Styling:** Tailwind CSS v4
 - **State & Data Fetching:** React Context, SWR
@@ -49,9 +49,11 @@ To eliminate the friction and anxiety commonly associated with digital healthcar
    Create a `.env.local` file based on the provided examples:
 
    ```env
-   NEXT_PUBLIC_API_URL=http://localhost:8080/api
+   NEXT_PUBLIC_API_URL=http://localhost:4000/api
    NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
    ```
+
+   For production, point `NEXT_PUBLIC_API_URL` to your deployed backend API.
 
 3. Start the Development Server:
    ```bash
@@ -69,7 +71,7 @@ For a detailed breakdown of our React Server Components boundary strategy, data 
 
 ## 🛠️ Scripts
 
-- `pnpm dev`: Starts the development server
+- `pnpm dev`: Starts the development server on `http://localhost:3000`
 - `pnpm build`: Builds the application for production
 - `pnpm start`: Starts the production server
 - `pnpm lint`: Runs ESLint checks
