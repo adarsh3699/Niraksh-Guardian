@@ -8,10 +8,43 @@ import prisma from "../db/prisma";
 import env from "../config/env";
 import logger from "../config/logger";
 import { handleControllerError } from "../utils/controllerError";
+import { recordRefreshAttempt, recordRefreshFailure, recordRefreshSuccess } from "../services/authMetrics";
 
 const REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_COOKIE_SAME_SITE = env.NODE_ENV === "production" ? "none" : "lax";
+
+type RefreshFailureCode =
+	| "missing_token"
+	| "invalid_request"
+	| "invalid_jwt"
+	| "invalid_payload"
+	| "token_not_found"
+	| "rotation_conflict"
+	| "unexpected_error";
+
+const rejectRefresh = (
+	res: express.Response,
+	code: RefreshFailureCode,
+	error = "Invalid refresh token",
+	context?: Record<string, unknown>,
+	statusCode = 401,
+	clearCookie = true
+) => {
+	if (clearCookie) {
+		clearRefreshTokenCookie(res);
+	}
+	recordRefreshFailure(code);
+	logger.warn(
+		{
+			event: "auth.refresh.failed",
+			code,
+			...context,
+		},
+		"Refresh token exchange rejected"
+	);
+	return res.status(statusCode).json({ error, code });
+};
 
 const setRefreshTokenCookie = (res: express.Response, token: string) => {
 	res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, {
@@ -121,19 +154,32 @@ export const login = async (req: express.Request, res: express.Response) => {
 
 export const refreshToken = async (req: express.Request, res: express.Response) => {
 	try {
-		const parsed = refreshTokenSchema.parse(req.body ?? {});
+		recordRefreshAttempt();
+		const parsedResult = refreshTokenSchema.safeParse(req.body ?? {});
+		if (!parsedResult.success) {
+			return rejectRefresh(res, "invalid_request", "Invalid refresh token request");
+		}
+
+		const parsed = parsedResult.data;
 		const tokenFromBody = parsed.refreshToken;
 		const tokenFromCookie = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as string | undefined;
 		const incomingRefreshToken = tokenFromBody ?? tokenFromCookie;
 
 		if (!incomingRefreshToken) {
-			return res.status(401).json({ error: "Refresh token missing" });
+			return rejectRefresh(res, "missing_token", "Refresh token missing");
 		}
 
-		const decoded = verifyRefreshToken(incomingRefreshToken);
-		if (typeof decoded === "string") {
-			throw new Error("Invalid token payload");
+		let decoded: string | jwt.JwtPayload;
+		try {
+			decoded = verifyRefreshToken(incomingRefreshToken);
+		} catch {
+			return rejectRefresh(res, "invalid_jwt");
 		}
+
+		if (typeof decoded === "string" || !decoded.userId) {
+			return rejectRefresh(res, "invalid_payload");
+		}
+
 		const tokenHash = hashToken(incomingRefreshToken);
 
 		const storedToken = await prisma.refreshToken.findFirst({
@@ -146,7 +192,9 @@ export const refreshToken = async (req: express.Request, res: express.Response) 
 		});
 
 		if (!storedToken) {
-			return res.status(401).json({ error: "Invalid or expired refresh token" });
+			return rejectRefresh(res, "token_not_found", "Invalid or expired refresh token", {
+				userId: decoded.userId,
+			});
 		}
 
 		const newAccessToken = generateAccessToken(decoded.userId);
@@ -179,18 +227,34 @@ export const refreshToken = async (req: express.Request, res: express.Response) 
 		});
 
 		if (!rotated) {
-			clearRefreshTokenCookie(res);
-			return res.status(401).json({ error: "Invalid or expired refresh token" });
+			return rejectRefresh(
+				res,
+				"rotation_conflict",
+				"Invalid or expired refresh token",
+				{
+					userId: decoded.userId,
+					tokenId: storedToken.id,
+				},
+				409,
+				false
+			);
 		}
 
 		setRefreshTokenCookie(res, newRefreshToken);
+		recordRefreshSuccess();
 
 		res.json({
 			accessToken: newAccessToken,
 		});
-	} catch {
-		clearRefreshTokenCookie(res);
-		res.status(401).json({ error: "Invalid refresh token" });
+	} catch (error) {
+		logger.error(
+			{
+				event: "auth.refresh.error",
+				error,
+			},
+			"Refresh token exchange failed unexpectedly"
+		);
+		return rejectRefresh(res, "unexpected_error");
 	}
 };
 

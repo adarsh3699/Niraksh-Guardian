@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import redisClient from "../config/redis";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
+import { getAuthMetricsSnapshot } from "../services/authMetrics";
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.get("/", async (req: Request, res: Response) => {
 		uptime: Math.round(process.uptime()),
 		timestamp: new Date().toISOString(),
 		checks,
+		auth: getAuthMetricsSnapshot(),
 	};
 
 	if (!allHealthy) {

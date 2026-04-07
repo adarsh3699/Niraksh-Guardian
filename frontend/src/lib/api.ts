@@ -29,14 +29,40 @@ export class ApiError extends Error implements ApiErrorType {
 /* ------------------------------------------------------------------ */
 
 let refreshPromise: Promise<boolean> | null = null;
+let isSessionTerminating = false;
+const REFRESH_RETRY_DELAY_MS = 150;
+
+function terminateSession(): void {
+	if (isSessionTerminating) return;
+	isSessionTerminating = true;
+	clearTokens();
+	if (typeof window !== "undefined") {
+		window.location.href = `/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+	}
+}
 
 async function refreshAccessToken(): Promise<boolean> {
 	try {
-		const res = await fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-		});
+		const doRefresh = async () =>
+			fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+			});
+
+		let res = await doRefresh();
+
+		if (!res.ok && (res.status === 401 || res.status === 409)) {
+			try {
+				const body = (await res.json()) as { code?: string };
+				if (body.code === "rotation_conflict") {
+					await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
+					res = await doRefresh();
+				}
+			} catch {
+				// Ignore malformed error payloads and continue with failure handling.
+			}
+		}
 
 		if (!res.ok) return false;
 
@@ -48,17 +74,26 @@ async function refreshAccessToken(): Promise<boolean> {
 	}
 }
 
-/** Acquire or wait for an in-flight refresh. */
-export async function ensureFreshToken(): Promise<boolean> {
-	const token = getAccessToken();
-	if (token && !isTokenExpired(token)) return true;
-
+function requestRefresh(): Promise<boolean> {
 	if (!refreshPromise) {
 		refreshPromise = refreshAccessToken().finally(() => {
 			refreshPromise = null;
 		});
 	}
+
 	return refreshPromise;
+}
+
+/** Acquire or wait for an in-flight refresh. */
+export async function ensureFreshToken(): Promise<boolean> {
+	const token = getAccessToken();
+	if (token && !isTokenExpired(token)) return true;
+	return requestRefresh();
+}
+
+/** Force refresh even if access token is still valid. */
+export async function forceRefreshToken(): Promise<boolean> {
+	return requestRefresh();
 }
 
 /* ------------------------------------------------------------------ */
@@ -88,10 +123,7 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 	if (!noAuth) {
 		const ok = await ensureFreshToken();
 		if (!ok) {
-			clearTokens();
-			if (typeof window !== "undefined") {
-				window.location.href = `/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
-			}
+			terminateSession();
 			throw new ApiError(401, "Session expired. Please log in again.");
 		}
 	}
@@ -120,15 +152,12 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 	if (!res.ok) {
 		/* 401 → try one refresh, then bail */
 		if (res.status === 401 && !noAuth) {
-			const refreshed = await refreshAccessToken();
+			const refreshed = await forceRefreshToken();
 			if (refreshed) {
 				// Retry the original request once
 				return apiClient<T>(endpoint, { ...options, noAuth: false });
 			}
-			clearTokens();
-			if (typeof window !== "undefined") {
-				window.location.href = `/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
-			}
+			terminateSession();
 			throw new ApiError(401, "Session expired. Please log in again.");
 		}
 

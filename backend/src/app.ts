@@ -83,6 +83,22 @@ app.use(
 	})
 );
 
+app.use((err: unknown, req: Request, res: Response, next: express.NextFunction) => {
+	if (err instanceof Error && err.message.includes("not allowed by CORS")) {
+		logger.warn(
+			{
+				event: "cors.origin.blocked",
+				origin: req.headers.origin,
+				path: req.path,
+			},
+			"Blocked request from disallowed origin"
+		);
+		return res.status(403).json({ error: "Forbidden origin" });
+	}
+
+	return next(err);
+});
+
 // Body Parsing
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
