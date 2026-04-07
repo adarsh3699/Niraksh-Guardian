@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useCallback, useMemo, useState } from "react";
 import { apiClient, swrFetcher } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useAsyncToolRunner } from "@/hooks/useAsyncToolRunner";
 import type {
 	Doctor,

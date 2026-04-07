@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { apiClient } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useAuth } from "@/contexts/AuthProvider";
 import { useToast } from "@/contexts/ToastProvider";
 import type { AuthResponse } from "@/types/auth";

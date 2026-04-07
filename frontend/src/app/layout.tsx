@@ -3,6 +3,7 @@ import { AuthProvider } from "@/contexts/AuthProvider";
 import { ToastProvider } from "@/contexts/ToastProvider";
 import { GoogleAuthWrapper } from "@/contexts/GoogleAuthWrapper";
 import { SITE_CONFIG } from "@/lib/seo";
+import { ServiceWorkerRegister } from "../components/layout/ServiceWorkerRegister";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -16,10 +17,16 @@ export const metadata: Metadata = {
 		default: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
 		template: `%s | ${SITE_CONFIG.name}`,
 	},
+	manifest: "/manifest.webmanifest",
 	description: SITE_CONFIG.description,
 	keywords: SITE_CONFIG.keywords,
 	authors: SITE_CONFIG.authors,
 	creator: SITE_CONFIG.creator,
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "default",
+		title: SITE_CONFIG.name,
+	},
 	metadataBase: new URL(SITE_CONFIG.url),
 	openGraph: {
 		type: SITE_CONFIG.openGraph.type,
@@ -44,6 +51,10 @@ export const metadata: Metadata = {
 			"max-snippet": -1,
 		},
 	},
+	icons: {
+		icon: [{ url: "/brandLogo.png", type: "image/png" }],
+		apple: [{ url: "/brandLogo.png", type: "image/png" }],
+	},
 };
 
 export default function RootLayout({
@@ -64,7 +75,10 @@ export default function RootLayout({
 			<body className="antialiased">
 				<GoogleAuthWrapper>
 					<AuthProvider>
-						<ToastProvider>{children}</ToastProvider>
+						<ToastProvider>
+							{children}
+							<ServiceWorkerRegister />
+						</ToastProvider>
 					</AuthProvider>
 				</GoogleAuthWrapper>
 			</body>

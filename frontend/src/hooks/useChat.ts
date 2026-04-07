@@ -4,7 +4,7 @@ import useSWR, { mutate as globalMutate, type KeyedMutator } from "swr";
 import { useCallback, useState, useEffect } from "react";
 import { apiClient, ensureFreshToken, swrFetcher } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import type {
 	Chat,
 	ChatWithLastMessage,

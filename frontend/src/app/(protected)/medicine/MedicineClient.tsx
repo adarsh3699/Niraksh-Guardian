@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import Image from "next/image";
 import { ResearchPanel } from "@/components/health-tools/ResearchPanel";
 

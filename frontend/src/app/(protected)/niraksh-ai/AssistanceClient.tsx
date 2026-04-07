@@ -8,7 +8,7 @@ import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useToast } from "@/contexts/ToastProvider";
 import { apiClient, ApiError } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import type { ChatLanguage } from "@/types/chat";
 import { PanelLeft } from "lucide-react";
 

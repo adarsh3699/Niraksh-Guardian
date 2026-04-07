@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { apiClient } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useAsyncToolRunner } from "@/hooks/useAsyncToolRunner";
 import type {

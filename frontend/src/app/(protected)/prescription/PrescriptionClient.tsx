@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { apiClient, swrFetcher } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/contexts/ToastProvider";
 import { cn } from "@/lib/utils";

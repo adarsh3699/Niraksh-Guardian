@@ -20,7 +20,7 @@ import {
 	isTokenExpired,
 } from "@/lib/auth";
 import { apiClient, ensureFreshToken, forceRefreshToken } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 
 /* ------------------------------------------------------------------ */
 /*  Context shape                                                     */

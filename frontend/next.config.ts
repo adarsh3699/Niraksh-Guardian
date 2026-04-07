@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
 			{ protocol: "http", hostname: "localhost", port: "4000" },
 		],
 	},
+	async headers() {
+		return [
+			{
+				source: "/sw.js",
+				headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+			},
+			{
+				source: "/manifest.webmanifest",
+				headers: [{ key: "Content-Type", value: "application/manifest+json" }],
+			},
+		];
+	},
 };
 
 export default nextConfig;

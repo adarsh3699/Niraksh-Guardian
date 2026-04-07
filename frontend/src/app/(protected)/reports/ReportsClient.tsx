@@ -17,7 +17,7 @@ import {
 	MessageSquare,
 } from "lucide-react";
 import { apiClient, swrFetcher } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useToast } from "@/contexts/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";

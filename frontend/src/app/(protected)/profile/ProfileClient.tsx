@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { User, Heart, MapPin, AlertCircle, X } from "lucide-react";
 import { profileSchema, type ProfileFormData } from "@/lib/validations";
 import { apiClient, swrFetcher } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useToast } from "@/contexts/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";

@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, ShieldAlert, ArrowRight, ArrowLeft } from "lucide-react";
 import { resetPasswordSchema, type ResetPasswordFormData } from "@/lib/validations";
 import { apiClient } from "@/lib/api";
-import { API_ROUTES } from "@/lib/constants";
+import { API_ROUTES } from "@/lib/api-routes";
 import { useToast } from "@/contexts/ToastProvider";
 import { AuthIllustrationPanel } from "@/components/auth/AuthIllustrationPanel";
 import { Spinner } from "@/components/ui/Spinner";
