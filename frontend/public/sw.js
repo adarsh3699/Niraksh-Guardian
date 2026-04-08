@@ -16,7 +16,9 @@ const PROTECTED_PATH_PREFIXES = [
 ];
 
 function isProtectedPath(pathname) {
-	return PROTECTED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+	return PROTECTED_PATH_PREFIXES.some(
+		(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+	);
 }
 
 self.addEventListener("install", (event) => {

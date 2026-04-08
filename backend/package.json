@@ -6,7 +6,7 @@
 	"scripts": {
 		"postinstall": "prisma generate",
 		"dev": "nodemon --exec tsx src/server.ts",
-		"build": "tsc",
+		"build": "tsc && rm -rf dist/generated && cp -R src/generated dist/generated",
 		"start": "node dist/server.js",
 		"lint": "eslint src/**/*.ts",
 		"format": "prettier --write src/**/*.ts",
