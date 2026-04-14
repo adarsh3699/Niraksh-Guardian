@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { aiRateLimiter } from "../middlewares/rateLimiter";
 import { authenticate } from "../middlewares/auth";
 import { fetchResearchPapers } from "../services/research/researchFetcher";
 import env from "../config/env";
@@ -12,7 +13,7 @@ import {
 const router = Router();
 
 // GET /api/research/papers?q=diabetes+metformin
-router.get("/papers", authenticate, async (req, res) => {
+router.get("/papers", authenticate, aiRateLimiter, async (req, res) => {
 	const parsedQuery = researchQuerySchema.safeParse(req.query);
 	if (!parsedQuery.success) {
 		const hasMissingQuery = !req.query.q || String(req.query.q).trim() === "";

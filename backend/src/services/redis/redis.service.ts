@@ -32,30 +32,3 @@ class RedisService {
 }
 
 export const redisService = new RedisService();
-
-// Rate Limiter Middleware
-import { Request, Response, NextFunction } from "express";
-
-export const apiRateLimiter = async (req: Request, res: Response, next: NextFunction) => {
-	const ip = req.ip || "unknown";
-	const key = `rate_limit:${ip}`;
-	const limit = 100; // Limit per window
-	const window = 60 * 15; // 15 minutes in seconds
-
-	try {
-		const requests = await redisClient.incr(key);
-
-		if (requests === 1) {
-			await redisClient.expire(key, window);
-		}
-
-		if (requests > limit) {
-			return res.status(429).json({ error: "Too many requests" });
-		}
-
-		next();
-	} catch (error) {
-		console.error("Rate Limiter Error:", error);
-		next(); // Fail open if Redis is down
-	}
-};

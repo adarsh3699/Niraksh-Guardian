@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { chatRateLimiter } from "../middlewares/rateLimiter";
 import { authenticate } from "../middlewares/auth";
 import {
 	createChat,
@@ -23,7 +24,7 @@ router.put("/:chatId", updateChat);
 router.delete("/:chatId", deleteChat);
 
 // Message handling
-router.post("/:chatId/messages/stream", upload.single("image"), sendMessageStream);
-router.post("/:chatId/messages", upload.single("image"), sendMessage);
+router.post("/:chatId/messages/stream", chatRateLimiter, upload.single("image"), sendMessageStream);
+router.post("/:chatId/messages", chatRateLimiter, upload.single("image"), sendMessage);
 
 export default router;

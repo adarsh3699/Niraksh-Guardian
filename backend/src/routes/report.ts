@@ -1,4 +1,5 @@
 import express from "express";
+import { aiRateLimiter } from "../middlewares/rateLimiter";
 import { generateHealthReport, listHealthReports } from "../controllers/report.controller";
 import {
 	analyzeLabReportController,
@@ -23,6 +24,6 @@ router.get("/lab/jobs/:jobId", getLabReportJobStatusController);
 router.get("/lab/jobs/:jobId/stream", streamLabReportJobStatusController);
 router.get("/lab/:id", getLabReportController);
 router.delete("/lab/:id", deleteLabReportController);
-router.post("/lab/analyze", upload.single("file"), analyzeLabReportController);
+router.post("/lab/analyze", aiRateLimiter, upload.single("file"), analyzeLabReportController);
 
 export default router;

@@ -105,8 +105,7 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
 // Rate Limiting
-app.use(apiRateLimiter);
-
+// Applied per route
 // Disable x-powered-by
 app.disable("x-powered-by");
 
@@ -134,15 +133,15 @@ app.use("/api/auth", authRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/health", healthRoutes);
 app.use("/api/chats", chatRoutes);
-app.use("/api/doctors", doctorRoutes);
 app.use("/api/ai", symptomRoutes);
 app.use("/api/symptoms", symptomRelationshipRoutes);
-app.use("/api/disease", diseaseRoutes);
-app.use("/api/history", historyRoutes); // Register History Routes
-app.use("/api/profile", profileRoutes); // Register Profile Routes
-app.use("/api/reports", reportRoutes); // Register Report Routes
-app.use("/api/medicine", medicineRoutes); // Medicine autocomplete proxy
-app.use("/api/research", researchRouter); // Register Research Routes
+app.use("/api/research", researchRouter);
+app.use("/api/reports", reportRoutes);
+app.use("/api/doctors", apiRateLimiter, doctorRoutes);
+app.use("/api/disease", apiRateLimiter, diseaseRoutes);
+app.use("/api/history", apiRateLimiter, historyRoutes);
+app.use("/api/profile", apiRateLimiter, profileRoutes);
+app.use("/api/medicine", apiRateLimiter, medicineRoutes);
 // Global Error Handler
 app.use(errorHandler);
 

@@ -1,22 +1,33 @@
 import { Request, Response, NextFunction } from "express";
 import redisClient from "../config/redis";
+import logger from "../config/logger";
 
-// Helper to create a rate limiter
-const createRateLimiter = (options: {
+interface RateLimiterOptions {
 	prefix: string;
 	limit: number;
-	window: number; // in seconds
+	window: number;
 	message: string;
-}) => {
-	return async (req: Request, res: Response, next: NextFunction) => {
-		const ip = req.ip || "unknown";
-		// For login, maybe limit by email too? But email is in body.
-		// Let's stick to IP for now to avoid parsing body issues before validation.
-		// Or use a composite key if body available.
+	keyBy?: "ip" | "user" | "both";
+}
 
-		const key = `rate_limit:${options.prefix}:${ip}`;
+const createRateLimiter = (options: RateLimiterOptions) => {
+	return async (req: Request, res: Response, next: NextFunction) => {
+		const userId = (req as any).user?.id;
+		const ip = req.ip || "unknown";
+
+		const identifier =
+			options.keyBy === "ip"
+				? ip
+				: options.keyBy === "both"
+					? `${userId ?? "anon"}:${ip}`
+					: userId
+						? `user:${userId}`
+						: `ip:${ip}`;
+
+		const key = `rate_limit:${options.prefix}:${identifier}`;
 
 		if (!redisClient.isOpen) {
+			logger.warn({ prefix: options.prefix }, "Rate limiter skipped: Redis not connected");
 			return next();
 		}
 
@@ -27,35 +38,63 @@ const createRateLimiter = (options: {
 				await redisClient.expire(key, options.window);
 			}
 
+			res.setHeader("X-RateLimit-Limit", options.limit);
+			res.setHeader("X-RateLimit-Remaining", Math.max(0, options.limit - requests));
+
 			if (requests > options.limit) {
-				return res.status(429).json({ error: options.message });
+				const ttl = await redisClient.ttl(key);
+				res.setHeader("Retry-After", ttl);
+				logger.warn(
+					{ prefix: options.prefix, identifier, requests, limit: options.limit },
+					"Rate limit exceeded"
+				);
+				return res.status(429).json({ error: options.message, retryAfter: ttl });
 			}
 
 			next();
 		} catch (error) {
-			console.error(`Rate Limiter Error (${options.prefix}):`, error);
-			next(); // Fail open
+			logger.error({ error, prefix: options.prefix }, "Rate limiter error");
+			next();
 		}
 	};
 };
 
-export const apiRateLimiter = createRateLimiter({
-	prefix: "api",
-	limit: 100,
-	window: 15 * 60, // 15 mins
-	message: "Too many requests from this IP, please try again later.",
-});
-
 export const loginLimiter = createRateLimiter({
-	prefix: "login",
-	limit: 10, // 10 attempts
-	window: 15 * 60, // 15 mins
-	message: "Too many login attempts, please try again later.",
+	prefix: "auth:login",
+	limit: 10,
+	window: 15 * 60, // 15 minutes
+	message: "Too many login attempts. Please try again later.",
+	keyBy: "ip",
 });
 
 export const resetEmailLimiter = createRateLimiter({
-	prefix: "reset_email",
-	limit: 5, // 5 requests
-	window: 30 * 60, // 1 hour
-	message: "Too many password reset requests, please try again later.",
+	prefix: "auth:reset",
+	limit: 5,
+	window: 30 * 60, // 30 minutes
+	message: "Too many password reset requests. Please try again later.",
+	keyBy: "ip",
+});
+
+export const aiRateLimiter = createRateLimiter({
+	prefix: "api:ai",
+	limit: 25,
+	window: 10 * 60,
+	message: "AI request limit reached. Please wait before trying again.",
+	keyBy: "user",
+});
+
+export const chatRateLimiter = createRateLimiter({
+	prefix: "api:chat",
+	limit: 60,
+	window: 10 * 60,
+	message: "Too many messages. Please slow down.",
+	keyBy: "user",
+});
+
+export const apiRateLimiter = createRateLimiter({
+	prefix: "api:general",
+	limit: 300,
+	window: 10 * 60,
+	message: "Too many requests. Please try again shortly.",
+	keyBy: "user",
 });
