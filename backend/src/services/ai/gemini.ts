@@ -294,7 +294,7 @@ export const diagnoseSymptoms = async (
         Gastroenterologist, Urologist, Pulmonologist, Endocrinologist, Nephrologist,
         Oncologist, Rheumatologist, General Surgeon, Physiotherapist.
 
-        Return 1–3 specialists that best match the symptoms. If the symptoms could indicate
+        Return 1–3 specialists that best match the symptoms and its possibleConditions. If the symptoms could indicate
         a serious condition (e.g. chest pain → Cardiologist + Pulmonologist), list all relevant ones.
         Only include General Physician if no more specific specialist fits.
 

@@ -12,7 +12,7 @@ interface RateLimiterOptions {
 
 const createRateLimiter = (options: RateLimiterOptions) => {
 	return async (req: Request, res: Response, next: NextFunction) => {
-		const userId = (req as any).user?.id;
+		const userId = (req as Request & { user?: { id: string } }).user?.id;
 		const ip = req.ip || "unknown";
 
 		const identifier =

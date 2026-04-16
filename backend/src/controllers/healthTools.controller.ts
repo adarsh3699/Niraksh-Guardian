@@ -97,8 +97,7 @@ export const analyzePrescriptionController = async (req: Request, res: Response)
 		const userId = requireAuthenticatedUserId(req, res);
 		if (!userId) return;
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const files = (req as any).files as Express.Multer.File[];
+		const files = (req as Request & { files?: Express.Multer.File[] }).files;
 		if (!files || files.length === 0) {
 			return res.status(400).json({ error: "No prescription images uploaded" });
 		}

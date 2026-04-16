@@ -77,24 +77,33 @@ export const deleteHistoryItem = async (req: Request, res: Response) => {
 		const userId = requireAuthenticatedUserId(req, res);
 		if (!userId) return;
 
-		const { type, id } = req.params;
+		const { type } = req.params;
+		const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+		if (!id) return res.status(400).json({ error: "Invalid id" });
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		let model: any;
+		// Use a union type for the dynamic Prisma model delegate
+		type PrismaModelDelegate = {
+			findUnique: (args: {
+				where: { id: string };
+			}) => Promise<{ id: string; userId: string; imageUrl?: string | null } | null>;
+			delete: (args: { where: { id: string } }) => Promise<unknown>;
+		};
+
+		let model: PrismaModelDelegate;
 
 		// Determine model based on type
 		switch (type) {
 			case "medicine":
-				model = prisma.medicineHistory;
+				model = prisma.medicineHistory as unknown as PrismaModelDelegate;
 				break;
 			case "prescription":
-				model = prisma.prescriptionHistory;
+				model = prisma.prescriptionHistory as unknown as PrismaModelDelegate;
 				break;
 			case "interaction":
-				model = prisma.drugInteractionHistory;
+				model = prisma.drugInteractionHistory as unknown as PrismaModelDelegate;
 				break;
 			case "symptom":
-				model = prisma.symptomAnalysisHistory;
+				model = prisma.symptomAnalysisHistory as unknown as PrismaModelDelegate;
 				break;
 			default:
 				return res.status(400).json({ error: "Invalid history type" });

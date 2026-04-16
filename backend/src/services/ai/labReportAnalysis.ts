@@ -1,6 +1,7 @@
 import env from "../../config/env";
 import logger from "../../config/logger";
 import { extractJsonObjectString } from "./utils/jsonParser";
+import { getCategoryWithFallback, type LabCategory } from "../../utils/categoryClassifier";
 
 let aiClientPromise: Promise<any> | null = null;
 
@@ -23,7 +24,13 @@ const ai = {
 };
 const MODEL_NAME = "gemini-2.5-flash";
 
-export type LabComponentStatus = "low" | "normal" | "high" | "unknown";
+export type LabComponentStatus = "critical" | "high" | "borderline" | "normal" | "low" | "unknown";
+
+export interface RelatedCondition {
+	name: string;
+	description: string;
+	riskLevel: "low" | "moderate" | "high";
+}
 
 export interface ParsedLabComponent {
 	componentName: string;
@@ -37,6 +44,12 @@ export interface ParsedLabComponent {
 	riskTag: string;
 	confidence: number;
 	sourceSnippet: string;
+	category: LabCategory;
+	aiInsight: string | null;
+	urgency: string | null;
+	symptomConnections: string[];
+	relatedConditions: RelatedCondition[];
+	whatToDoNext: string | null;
 }
 
 export interface LabReportAnalysisResult {
@@ -94,16 +107,39 @@ function resolveReferenceBounds(rawMin: unknown, rawMax: unknown): { min: number
 function parseStatus(value: unknown): LabComponentStatus {
 	if (typeof value !== "string") return "unknown";
 	const key = value.trim().toLowerCase();
+	if (key.includes("critical")) return "critical";
 	if (key.includes("high")) return "high";
 	if (key.includes("low")) return "low";
+	if (key.includes("borderline")) return "borderline";
 	if (key.includes("normal")) return "normal";
 	return "unknown";
 }
 
 function classifyStatus(value: number | null, min: number | null, max: number | null): LabComponentStatus {
 	if (value === null || (min === null && max === null)) return "unknown";
-	if (min !== null && value < min) return "low";
+	
+	// Critical: >150% of upper limit OR <50% of lower limit
+	if (max !== null && value > max * 1.5) return "critical";
+	if (min !== null && value < min * 0.5) return "critical";
+	
+	// High: above upper limit but not critical
 	if (max !== null && value > max) return "high";
+	
+	// Low: below lower limit but not critical
+	if (min !== null && value < min) return "low";
+	
+	// Borderline: within 10% of either boundary
+	if (min !== null && max !== null) {
+		const range = max - min;
+		const lowerBoundary = min + range * 0.1;
+		const upperBoundary = max - range * 0.1;
+		
+		if (value < lowerBoundary || value > upperBoundary) {
+			return "borderline";
+		}
+	}
+	
+	// Normal: within safe range
 	return "normal";
 }
 
@@ -184,11 +220,23 @@ Strict JSON schema:
       "unit": "mg/dL",
       "referenceMin": 0.5,
       "referenceMax": 1.2,
-      "status": "low|normal|high|unknown",
+      "status": "critical|high|borderline|normal|low|unknown",
       "effectSummary": "short clinical implication in simple language",
       "riskTag": "renal|liver|metabolic|hematology|cardiac|electrolyte|other",
-			"confidence": 0.0,
-			"sourceSnippet": "short snippet from row used for extraction"
+      "confidence": 0.0,
+      "sourceSnippet": "short snippet from row used for extraction",
+      "category": "Lipid Panel|Hematology|Thyroid|Metabolic|Liver|Kidney|Electrolytes|Vitamins|Hormones|Microbiology|Other",
+      "aiInsight": "2-3 sentence plain-language explanation of health implications",
+      "urgency": "immediate|monitor|routine",
+      "symptomConnections": ["fatigue", "weakness"],
+      "relatedConditions": [
+        {
+          "name": "Chronic Kidney Disease",
+          "description": "Brief explanation of the condition",
+          "riskLevel": "low|moderate|high"
+        }
+      ],
+      "whatToDoNext": "2-3 sentence actionable guidance"
     }
   ]
 }
@@ -199,7 +247,55 @@ Rules:
 - If observed value cannot be parsed, keep observedRaw and set status unknown.
 - If reference interval is shown as a combined range (e.g. "21-43"), split into referenceMin/referenceMax numbers.
 - Keep effectSummary concise and educational (not diagnosis).
-- No markdown.`;
+- No markdown.
+
+Status Classification Rules:
+- critical: observed value >150% of upper reference limit OR <50% of lower reference limit
+- high: above upper reference limit but not critical
+- low: below lower reference limit but not critical
+- borderline: within 10% of either reference boundary (upper or lower) but not outside the range
+- normal: within safe range
+- unknown: cannot determine reference range
+
+Category Classification:
+- Lipid Panel: Cholesterol, LDL, HDL, Triglycerides, VLDL
+- Hematology: Hemoglobin, WBC, RBC, Platelets, Hematocrit, MCV, MCH, MCHC
+- Thyroid: TSH, T3, T4, Free T3, Free T4
+- Metabolic: Glucose, HbA1c, Creatinine, Urea, Uric Acid
+- Liver: ALT, AST, Bilirubin, Alkaline Phosphatase, GGT, Total Protein, Albumin
+- Kidney: Creatinine, Urea, eGFR, Albumin, BUN
+- Electrolytes: Sodium, Potassium, Chloride, Calcium, Magnesium, Phosphate
+- Vitamins: Vitamin D, Vitamin B12, Folate, Vitamin A, Vitamin E
+- Hormones: Testosterone, Estrogen, Cortisol, Insulin, Prolactin, FSH, LH
+- Microbiology: Culture results, sensitivity tests, bacterial counts
+- Other: Any component not fitting the above categories
+
+AI Insight Guidelines:
+- Use plain language accessible to non-medical users
+- Explain what the component measures and why it matters
+- Indicate whether the value is concerning and why
+- Avoid medical jargon where possible
+- Be concise (2-3 sentences)
+
+Urgency Classification:
+- immediate: Critical values requiring urgent medical attention (e.g., critically high glucose, severely low hemoglobin)
+- monitor: Abnormal values requiring follow-up within days/weeks (e.g., borderline cholesterol, slightly elevated liver enzymes)
+- routine: Normal or borderline values for routine check-up
+
+Symptom Connections:
+- Identify symptoms commonly associated with abnormal values
+- Examples: High Cholesterol → chest pain, shortness of breath; Low Hemoglobin → fatigue, weakness, pale skin, dizziness
+- Return as array of strings
+
+Related Conditions:
+- List medical conditions associated with the component's abnormal value
+- Include condition name, brief description, and risk level (low/moderate/high)
+- Risk level should reflect the severity of the abnormal value
+
+What To Do Next:
+- Provide actionable guidance (2-3 sentences)
+- Suggest lifestyle changes, follow-up tests, or specialist consultation as appropriate
+- Be specific but not prescriptive (avoid direct medical advice)`;
 
 	try {
 		const result = await ai.models.generateContent({
@@ -234,6 +330,12 @@ Rules:
 				riskTag?: unknown;
 				confidence?: unknown;
 				sourceSnippet?: unknown;
+				category?: unknown;
+				aiInsight?: unknown;
+				urgency?: unknown;
+				symptomConnections?: unknown;
+				relatedConditions?: unknown;
+				whatToDoNext?: unknown;
 			}>;
 		};
 
@@ -257,6 +359,44 @@ Rules:
 				const status =
 					aiStatus !== "unknown" ? aiStatus : classifyStatus(observedValue, referenceMin, referenceMax);
 
+				// Parse new fields with fallback classification
+				const aiCategory = typeof item.category === "string" && item.category.trim() 
+					? item.category.trim() 
+					: null;
+				
+				// Use fallback classifier if AI didn't provide a valid category
+				const category = getCategoryWithFallback(aiCategory, componentName);
+				
+				const aiInsight = typeof item.aiInsight === "string" && item.aiInsight.trim()
+					? item.aiInsight.trim()
+					: null;
+				
+				const urgency = typeof item.urgency === "string" && item.urgency.trim()
+					? item.urgency.trim()
+					: null;
+				
+				const symptomConnections = Array.isArray(item.symptomConnections)
+					? item.symptomConnections
+						.filter((s): s is string => typeof s === "string")
+						.map(s => s.trim())
+						.filter(s => s.length > 0)
+					: [];
+				
+				const relatedConditions: RelatedCondition[] = Array.isArray(item.relatedConditions)
+					? item.relatedConditions
+						.filter((c): c is any => typeof c === "object" && c !== null)
+						.map((c) => ({
+							name: typeof c.name === "string" ? c.name.trim() : "",
+							description: typeof c.description === "string" ? c.description.trim() : "",
+							riskLevel: ["low", "moderate", "high"].includes(c.riskLevel) ? c.riskLevel : "moderate"
+						}))
+						.filter(c => c.name.length > 0)
+					: [];
+				
+				const whatToDoNext = typeof item.whatToDoNext === "string" && item.whatToDoNext.trim()
+					? item.whatToDoNext.trim()
+					: null;
+
 				return {
 					componentName,
 					observedRaw,
@@ -278,6 +418,12 @@ Rules:
 						typeof item.sourceSnippet === "string" && item.sourceSnippet.trim()
 							? item.sourceSnippet.trim().slice(0, 200)
 							: `${componentName}: ${observedRaw}`.slice(0, 200),
+					category,
+					aiInsight,
+					urgency,
+					symptomConnections,
+					relatedConditions,
+					whatToDoNext,
 				};
 			})
 			.filter((item): item is ParsedLabComponent => Boolean(item));

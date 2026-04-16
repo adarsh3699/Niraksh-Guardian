@@ -7,12 +7,15 @@ import { requireAuthenticatedUserId } from "../types/auth";
 import { healthReportRequestSchema } from "../validators/report.schema";
 import { handleControllerError } from "../utils/controllerError";
 
+// Use the instance type from the PDFDocument constructor
+type PDFDoc = InstanceType<typeof PDFDocument>;
+
 /**
  * Render markdown-formatted text into a PDFKit document with proper formatting.
  * Handles: **bold**, *italic*, # headings, bullet lists, and inline code.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderMarkdownText(doc: any, text: string, opts: { width?: number; lineGap?: number } = {}) {
+
+function renderMarkdownText(doc: PDFDoc, text: string, opts: { width?: number; lineGap?: number } = {}) {
 	const LEFT = 50;
 	const width = opts.width ?? 495;
 	const lineGap = opts.lineGap ?? 3;
@@ -59,8 +62,8 @@ function renderMarkdownText(doc: any, text: string, opts: { width?: number; line
 /**
  * Render a single line of text, handling inline **bold** and *italic* segments.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderInlineMarkdown(doc: any, text: string, x: number, width: number, lineGap: number) {
+
+function renderInlineMarkdown(doc: PDFDoc, text: string, x: number, width: number, lineGap: number) {
 	// Split by **bold** and *italic* markers
 	const parts: { text: string; bold: boolean; italic: boolean }[] = [];
 	const regex = /\*\*(.+?)\*\*|\*(.+?)\*|([^*]+)/g;
@@ -152,16 +155,28 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		// 2. Build data sections for the AI prompt
 		const profile = user.patientHealthProfile;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const userData = user as any;
+
+		// Dynamic relations are conditionally included — cast to access them safely
+		type UserWithDynamicRelations = Omit<typeof user, "chats"> & {
+			symptomAnalysisHistories?: Array<{
+				createdAt: Date;
+				symptoms: string[];
+				urgencyLevel: string;
+				severity?: string;
+			}>;
+			prescriptionHistory?: Array<{ createdAt: Date; extractedText?: string }>;
+			medicineHistory?: Array<{ createdAt: Date; medicineName: string }>;
+			drugInteractionHistory?: Array<{ createdAt: Date; drugs: unknown }>;
+			chats?: Array<{ title: string; messages?: Array<{ content: string }> }>;
+		};
+		const userData = user as unknown as UserWithDynamicRelations;
 
 		let dataContext = "";
 
 		if (sources.has("symptoms") && userData.symptomAnalysisHistories?.length) {
 			const symptomLines = userData.symptomAnalysisHistories
 				.map(
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) =>
+					(h) =>
 						`- [${new Date(h.createdAt).toLocaleDateString()}] ${h.symptoms.join(", ")} (Urgency: ${h.urgencyLevel}, Severity: ${h.severity || "N/A"})`
 				)
 				.join("\n");
@@ -171,8 +186,7 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		if (sources.has("prescriptions") && userData.prescriptionHistory?.length) {
 			const rxLines = userData.prescriptionHistory
 				.map(
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) =>
+					(h) =>
 						`- [${new Date(h.createdAt).toLocaleDateString()}] ${h.extractedText?.slice(0, 400) || "No text extracted"}`
 				)
 				.join("\n");
@@ -181,31 +195,24 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		if (sources.has("medicines") && userData.medicineHistory?.length) {
 			const medLines = userData.medicineHistory
-				.map(
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) => `- [${new Date(h.createdAt).toLocaleDateString()}] ${h.medicineName}`
-				)
+				.map((h) => `- [${new Date(h.createdAt).toLocaleDateString()}] ${h.medicineName}`)
 				.join("\n");
 			dataContext += `\n\nRecent Medicine Searches (${userData.medicineHistory.length} records):\n${medLines}`;
 		}
 
 		if (sources.has("drugInteractions") && userData.drugInteractionHistory?.length) {
 			const diLines = userData.drugInteractionHistory
-				.map(
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(h: any) => {
-						const drugs = Array.isArray(h.drugs) ? h.drugs.join(" + ") : String(h.drugs);
-						return `- [${new Date(h.createdAt).toLocaleDateString()}] ${drugs}`;
-					}
-				)
+				.map((h) => {
+					const drugs = Array.isArray(h.drugs) ? (h.drugs as string[]).join(" + ") : String(h.drugs);
+					return `- [${new Date(h.createdAt).toLocaleDateString()}] ${drugs}`;
+				})
 				.join("\n");
 			dataContext += `\n\nRecent Drug Interaction Checks (${userData.drugInteractionHistory.length} records):\n${diLines}`;
 		}
 
 		if (sources.has("chatHistory") && userData.chats?.length) {
 			const chatLines = userData.chats
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				.map((c: any) => {
+				.map((c) => {
 					const preview = c.messages?.[0]?.content?.slice(0, 100) || "";
 					return `- "${c.title}" — ${preview}`;
 				})
@@ -383,7 +390,7 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 
 		// --- Medical Profile (Boxed Section) ---
 		const boxY = doc.y;
-		doc.roundedRect(50, boxY, 495, 70, 5).fill("#f9f9f9").stroke("#e0e0e0");
+		doc.roundedRect(50, boxY, 495, 70, 5).fill("#f9f9f9").strokeColor("#e0e0e0").stroke();
 		doc.fillColor("#000000");
 
 		doc.font("Helvetica-Bold")
@@ -526,8 +533,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 				doc.text("Prescription Summary", 150, thY + 5);
 
 				let rY = thY + 25;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				userData.prescriptionHistory.forEach((rx: any) => {
+
+				userData.prescriptionHistory.forEach((rx) => {
 					if (rY > 740) {
 						doc.addPage();
 						rY = 50;
@@ -562,8 +569,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 				doc.text("Urgency", 470, thY + 5);
 
 				let rY = thY + 25;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				userData.symptomAnalysisHistories.forEach((record: any) => {
+
+				userData.symptomAnalysisHistories.forEach((record) => {
 					if (rY > 740) {
 						doc.addPage();
 						rY = 50;
@@ -591,8 +598,8 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		if (sources.has("medicines") && userData.medicineHistory?.length) {
 			drawSectionHeading("Recent Medicine Searches");
 			doc.font("Helvetica").fontSize(10);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			userData.medicineHistory.forEach((med: any) => {
+
+			userData.medicineHistory.forEach((med) => {
 				doc.circle(60, doc.y + 3, 2).fill("black");
 				doc.text(`${med.medicineName} — ${new Date(med.createdAt).toLocaleDateString()}`, 75, doc.y - 2, {
 					width: 450,
@@ -606,9 +613,9 @@ export const generateHealthReport = async (req: Request, res: Response) => {
 		if (sources.has("drugInteractions") && userData.drugInteractionHistory?.length) {
 			drawSectionHeading("Recent Drug Interaction Checks");
 			doc.font("Helvetica").fontSize(10);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			userData.drugInteractionHistory.forEach((di: any) => {
-				const drugs = Array.isArray(di.drugs) ? di.drugs.join(" + ") : String(di.drugs);
+
+			userData.drugInteractionHistory.forEach((di) => {
+				const drugs = Array.isArray(di.drugs) ? (di.drugs as string[]).join(" + ") : String(di.drugs);
 				doc.circle(60, doc.y + 3, 2).fill("black");
 				doc.text(`${drugs} — ${new Date(di.createdAt).toLocaleDateString()}`, 75, doc.y - 2, { width: 450 });
 				doc.moveDown(0.3);

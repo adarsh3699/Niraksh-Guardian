@@ -4,6 +4,7 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
+		"preinstall": "npx only-allow pnpm",
 		"postinstall": "prisma generate",
 		"dev": "nodemon --exec tsx src/server.ts",
 		"build": "tsc && rm -rf dist/generated && cp -R src/generated dist/generated",
@@ -29,6 +30,7 @@
 		"@types/nodemailer": "^7.0.9",
 		"@types/sns-validator": "^0.3.3",
 		"@typescript-eslint/parser": "^8.55.0",
+		"axios": "^1.15.0",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-import": "^2.32.0",
@@ -70,6 +72,7 @@
 		"onlyBuiltDependencies": [
 			"@prisma/client",
 			"@prisma/engines",
+			"esbuild",
 			"prisma",
 			"protobufjs"
 		],

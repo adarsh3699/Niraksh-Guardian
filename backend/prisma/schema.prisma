@@ -49,6 +49,7 @@ model LabReport {
   createdAt      DateTime             @default(now()) @map("created_at")
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   components     LabReportComponent[]
+  shares         LabReportShare[]
 
   @@index([userId])
   @@index([createdAt])
@@ -56,25 +57,59 @@ model LabReport {
 }
 
 model LabReportComponent {
-  id            String    @id @default(uuid())
-  reportId      String    @map("report_id")
-  componentName String    @map("component_name")
-  observedValue Float?    @map("observed_value")
-  observedRaw   String?   @map("observed_raw")
-  unit          String?
-  referenceMin  Float?    @map("reference_min")
-  referenceMax  Float?    @map("reference_max")
-  status        String
-  effectSummary String?   @map("effect_summary") @db.Text
-  riskTag       String?   @map("risk_tag")
-  confidence    Float?
-  sourceSnippet String?   @map("source_snippet") @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at")
-  report        LabReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  id                 String            @id @default(uuid())
+  reportId           String            @map("report_id")
+  componentName      String            @map("component_name")
+  observedValue      Float?            @map("observed_value")
+  observedRaw        String?           @map("observed_raw")
+  unit               String?
+  referenceMin       Float?            @map("reference_min")
+  referenceMax       Float?            @map("reference_max")
+  status             String
+  effectSummary      String?           @map("effect_summary") @db.Text
+  riskTag            String?           @map("risk_tag")
+  confidence         Float?
+  sourceSnippet      String?           @map("source_snippet") @db.Text
+  category           String?
+  aiInsight          String?           @map("ai_insight") @db.Text
+  urgency            String?
+  symptomConnections String[]          @default([]) @map("symptom_connections")
+  relatedConditions  Json?             @map("related_conditions")
+  trend              Float[]           @default([])
+  whatToDoNext       String?           @map("what_to_do_next") @db.Text
+  createdAt          DateTime          @default(now()) @map("created_at")
+  report             LabReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  notes              LabReportNote[]
 
   @@index([reportId])
   @@index([status])
+  @@index([category])
   @@map("lab_report_components")
+}
+
+model LabReportNote {
+  id          String             @id @default(uuid())
+  componentId String             @map("component_id")
+  note        String             @db.Text
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  component   LabReportComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@index([componentId])
+  @@map("lab_report_notes")
+}
+
+model LabReportShare {
+  id        String    @id @default(uuid())
+  reportId  String    @map("report_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  report    LabReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([expiresAt])
+  @@map("lab_report_shares")
 }
 
 model HealthReport {

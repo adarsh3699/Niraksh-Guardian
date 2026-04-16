@@ -1,6 +1,15 @@
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma";
 
-const prisma = new PrismaClient();
+const databaseUrl = (process.env.DATABASE_URL ?? "").trim().replace(/^['"]|['"]$/g, "");
+
+if (!databaseUrl) {
+	throw new Error("DATABASE_URL is required to run seed");
+}
+
+const prisma = new PrismaClient({
+	accelerateUrl: databaseUrl,
+});
 
 // ─── Helper: generate doctor data ───────────────────────────────────────────
 

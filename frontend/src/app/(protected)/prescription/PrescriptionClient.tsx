@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { useSessionState } from "@/hooks/useSessionState";
@@ -18,9 +18,6 @@ import {
 	Search,
 	FlaskConical,
 	Upload,
-	TrendingUp,
-	TrendingDown,
-	Minus,
 	Trash2,
 } from "lucide-react";
 import { apiClient, swrFetcher } from "@/lib/api";
@@ -37,9 +34,41 @@ import type {
 	LabReportJobStatusResponse,
 	LabReportListItem,
 } from "@/types/report";
+import {
+	LabAnalysisHeader,
+	SmartAlertBanner,
+	LabReportSummary,
+	ComparisonToggle,
+	LabComponentsTable,
+	ComponentDetailModal,
+	type StatusFilter,
+	type ExportFormat,
+	type PanelGroupSummary,
+} from "@/components/lab";
+import { filterComponentsBySearch, filterComponentsByStatus } from "@/lib/lab";
+import { sortComponents, type SortColumn, type SortDirection } from "@/lib/lab";
+import { getAlertDismissals, setAlertDismissal } from "@/lib/lab";
+import type { LabStatus } from "@/lib/lab";
 
 type AnalysisMode = "prescription" | "lab";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+/* ------------------------------------------------------------------ */
+/*  Local types                                                        */
+/* ------------------------------------------------------------------ */
+
+interface ComponentNote {
+	id: string;
+	note: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+interface PreviousReportResponse {
+	reportId: string;
+	components: LabReportComponent[];
+	createdAt: string;
+}
 
 /* ------------------------------------------------------------------ */
 /*  PrescriptionClient                                                 */
@@ -48,6 +77,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 export function PrescriptionClient() {
 	const { addToast } = useToast();
 	const searchParams = useSearchParams();
+	const router = useRouter();
 	const initialMode = searchParams.get("mode") === "lab" ? "lab" : "prescription";
 	const [mode, setMode] = useState<AnalysisMode>(initialMode);
 
@@ -64,13 +94,39 @@ export function PrescriptionClient() {
 		"queued" | "processing" | "completed" | "failed" | null
 	>(null);
 	const [activeLabId, setActiveLabId] = useState<string | null>(null);
-	const [labStatusFilter, setLabStatusFilter] = useState<"all" | "high" | "low" | "normal">("all");
-	const [selectedLabComponentId, setSelectedLabComponentId] = useState<string | null>(null);
 	const [deletingLabReportId, setDeletingLabReportId] = useState<string | null>(null);
 	const [confirmDeleteReportId, setConfirmDeleteReportId] = useState<string | null>(null);
 
+	// Task 11.1 – new state
+	const [searchQuery, setSearchQuery] = useState("");
+	const [labStatusFilter, setLabStatusFilter] = useState<StatusFilter>("all");
+	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+	const [categoryExpanded, setCategoryExpanded] = useState<Record<string, boolean>>({
+		"Lipid Panel": true,
+		Hematology: true,
+		Thyroid: true,
+		Metabolic: true,
+		Liver: true,
+		Kidney: true,
+		Electrolytes: true,
+		Vitamins: true,
+		Hormones: true,
+		Microbiology: true,
+		Other: true,
+	});
+	const [comparisonMode, setComparisonMode] = useState(false);
+	const [selectedLabComponentId, setSelectedLabComponentId] = useState<string | null>(null);
+	const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(() =>
+		getAlertDismissals(),
+	);
+	// Notes keyed by componentId
+	const [notes, setNotes] = useState<Record<string, ComponentNote[]>>({});
+
+	// Accessibility: live region announcement message
+	const [liveAnnouncement, setLiveAnnouncement] = useState("");
+
 	const { result, isLoading, error, analyze, reset } = usePrescriptionAnalysis();
-	const router = useRouter();
 
 	const {
 		data: labReports,
@@ -86,6 +142,15 @@ export function PrescriptionClient() {
 		{ revalidateOnFocus: false },
 	);
 
+	// Task 11.1 – SWR hook for previous report (comparison mode)
+	const { data: previousReport } = useSWR<PreviousReportResponse>(
+		comparisonMode && activeLabId
+			? `${API_BASE_URL}/api/reports/lab/${activeLabId}/previous`
+			: null,
+		swrFetcher,
+		{ revalidateOnFocus: false },
+	);
+
 	useEffect(() => {
 		if (searchParams.get("mode") === "lab") {
 			setMode("lab");
@@ -96,19 +161,69 @@ export function PrescriptionClient() {
 		setSelectedLabComponentId(null);
 	}, [activeLabId]);
 
-	const filteredLabComponents = useMemo(() => {
-		const components = activeLabReport?.components ?? [];
-		if (labStatusFilter === "all") return components;
-		return components.filter((component) => component.status === labStatusFilter);
-	}, [activeLabReport?.components, labStatusFilter]);
+	// Task 11.2 – useMemo: displayedComponents (search + status filter + sort)
+	const displayedComponents = useMemo(() => {
+		type TypedComponent = LabReportComponent & { status: LabStatus };
+		const components = (activeLabReport?.components ?? []) as TypedComponent[];
+		const afterSearch = filterComponentsBySearch(components, searchQuery);
+		const afterStatus = filterComponentsByStatus(afterSearch, labStatusFilter);
+		return sortComponents(afterStatus, sortColumn, sortDirection) as LabReportComponent[];
+	}, [activeLabReport?.components, searchQuery, labStatusFilter, sortColumn, sortDirection]);
 
-	const selectedLabComponent = useMemo<LabReportComponent | null>(() => {
+	// Task 11.2 – useMemo: filterCounts (count per status)
+	const filterCounts = useMemo(() => {
+		const components = activeLabReport?.components ?? [];
+		return {
+			all: components.length,
+			critical: components.filter((c) => c.status === "critical").length,
+			high: components.filter((c) => c.status === "high").length,
+			borderline: components.filter((c) => c.status === "borderline").length,
+			normal: components.filter((c) => c.status === "normal").length,
+			low: components.filter((c) => c.status === "low").length,
+			unknown: components.filter((c) => c.status === "unknown").length,
+		} satisfies Record<StatusFilter, number>;
+	}, [activeLabReport?.components]);
+
+	// Task 11.2 – useMemo: selectedComponent
+	const selectedComponent = useMemo<LabReportComponent | null>(() => {
 		if (!selectedLabComponentId || !activeLabReport) return null;
 		return (
-			activeLabReport.components.find((component) => component.id === selectedLabComponentId) ??
-			null
+			activeLabReport.components.find((c) => c.id === selectedLabComponentId) ?? null
 		);
-	}, [activeLabReport, selectedLabComponentId]);
+	}, [selectedLabComponentId, activeLabReport]);
+
+	// Derived: should show smart alert banner
+	const shouldShowAlert = useMemo(() => {
+		if (!activeLabReport) return false;
+		if (dismissedAlerts.has(activeLabReport.id)) return false;
+		return filterCounts.critical > 0;
+	}, [activeLabReport, dismissedAlerts, filterCounts.critical]);
+
+	// Derived: risk score (0-100) from overallRisk string
+	const riskScore = useMemo(() => {
+		if (!activeLabReport) return 0;
+		const risk = activeLabReport.overallRisk;
+		if (risk === "high") return 75;
+		if (risk === "moderate") return 45;
+		return 15;
+	}, [activeLabReport]);
+
+	// Derived: panel group summaries
+	const panelGroups = useMemo<PanelGroupSummary[]>(() => {
+		if (!activeLabReport) return [];
+		const groups: Record<string, string[]> = {};
+		for (const c of activeLabReport.components) {
+			const cat = c.category || "Other";
+			if (!groups[cat]) groups[cat] = [];
+			groups[cat].push(c.status);
+		}
+		return Object.entries(groups).map(([category, statuses]) => {
+			const hasCritical = statuses.includes("critical");
+			const hasHigh = statuses.includes("high") || statuses.includes("low");
+			const healthStatus = hasCritical ? "alert" : hasHigh ? "warning" : "ok";
+			return { category, healthStatus } as PanelGroupSummary;
+		});
+	}, [activeLabReport]);
 
 	const switchMode = useCallback(
 		(nextMode: AnalysisMode) => {
@@ -157,6 +272,280 @@ export function PrescriptionClient() {
 		if (selectedMedicines.length !== 1) return;
 		router.push(`/medicine?name=${encodeURIComponent(selectedMedicines[0])}`);
 	}, [selectedMedicines, router]);
+
+	// Task 11.3 – useCallback handlers
+
+	const handleSearchChange = useCallback((query: string) => {
+		setSearchQuery(query);
+	}, []);
+
+	const handleFilterChange = useCallback((filter: StatusFilter) => {
+		setLabStatusFilter(filter);
+	}, []);
+
+	const handleSort = useCallback(
+		(column: SortColumn) => {
+			setSortColumn((prev) => {
+				if (prev === column) {
+					setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+					return prev;
+				}
+				setSortDirection("asc");
+				return column;
+			});
+		},
+		[],
+	);
+
+	const handleToggleCategory = useCallback((category: string) => {
+		setCategoryExpanded((prev) => ({
+			...prev,
+			[category]: !(prev[category] ?? true),
+		}));
+	}, []);
+
+	const handleComponentSelect = useCallback((componentId: string) => {
+		setSelectedLabComponentId(componentId);
+	}, []);
+
+	const handleCloseModal = useCallback(() => {
+		setSelectedLabComponentId(null);
+	}, []);
+
+	const handleToggleComparison = useCallback(() => {
+		setComparisonMode((prev) => !prev);
+	}, []);
+
+	const handleDismissAlert = useCallback(() => {
+		if (!activeLabReport) return;
+		setAlertDismissal(activeLabReport.id);
+		setDismissedAlerts((prev) => {
+			const next = new Set(prev);
+			next.add(activeLabReport.id);
+			return next;
+		});
+	}, [activeLabReport]);
+
+	// Accessibility: announce filter changes to screen readers
+	useEffect(() => {
+		if (!activeLabReport) return;
+		const filterLabel = labStatusFilter === "all" ? "all" : labStatusFilter;
+		setLiveAnnouncement(
+			`Showing ${displayedComponents.length} ${filterLabel} component${displayedComponents.length !== 1 ? "s" : ""}`,
+		);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [labStatusFilter, searchQuery]);
+
+	// Accessibility: announce sort changes to screen readers
+	const prevSortRef = useRef<{ column: SortColumn; direction: SortDirection } | null>(null);
+	useEffect(() => {
+		const prev = prevSortRef.current;
+		if (prev && (prev.column !== sortColumn || prev.direction !== sortDirection)) {
+			const columnLabel =
+				sortColumn === "name" ? "Component" : sortColumn === "value" ? "Observed Value" : "Status";
+			const dirLabel = sortDirection === "asc" ? "ascending" : "descending";
+			setLiveAnnouncement(`Sorted by ${columnLabel} ${dirLabel}`);
+		}
+		prevSortRef.current = { column: sortColumn, direction: sortDirection };
+	}, [sortColumn, sortDirection]);
+
+	// Accessibility: announce modal open/close to screen readers
+	useEffect(() => {
+		if (selectedLabComponentId) {
+			setLiveAnnouncement("Component details opened");
+		} else if (prevSortRef.current !== null) {
+			// Only announce close if modal was previously open (avoid announcing on initial render)
+			setLiveAnnouncement("Component details closed");
+		}
+	 
+	}, [selectedLabComponentId]);
+
+	// Task 11.4 – Note CRUD handlers with optimistic updates
+
+	const handleAddNote = useCallback(
+		async (componentId: string, note: string) => {
+			if (!activeLabId) return;
+			const tempId = `temp-${Date.now()}`;
+			const tempNote: ComponentNote = {
+				id: tempId,
+				note,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
+			// Optimistic update
+			setNotes((prev) => ({
+				...prev,
+				[componentId]: [...(prev[componentId] ?? []), tempNote],
+			}));
+			try {
+				const response = await apiClient<ComponentNote>(
+					`${API_BASE_URL}/api/reports/lab/${activeLabId}/notes`,
+					{
+						method: "PATCH",
+						body: JSON.stringify({ componentId, note }),
+					},
+				);
+				setNotes((prev) => ({
+					...prev,
+					[componentId]: (prev[componentId] ?? []).map((n) =>
+						n.id === tempId ? response : n,
+					),
+				}));
+			} catch (err) {
+				// Rollback
+				setNotes((prev) => ({
+					...prev,
+					[componentId]: (prev[componentId] ?? []).filter((n) => n.id !== tempId),
+				}));
+				addToast("error", err instanceof Error ? err.message : "Failed to add note.");
+			}
+		},
+		[activeLabId, addToast],
+	);
+
+	const handleEditNote = useCallback(
+		async (componentId: string, noteId: string, note: string) => {
+			if (!activeLabId) return;
+			// Optimistic update
+			setNotes((prev) => ({
+				...prev,
+				[componentId]: (prev[componentId] ?? []).map((n) =>
+					n.id === noteId ? { ...n, note, updatedAt: new Date().toISOString() } : n,
+				),
+			}));
+			try {
+				await apiClient<ComponentNote>(
+					`${API_BASE_URL}/api/reports/lab/${activeLabId}/notes`,
+					{
+						method: "PATCH",
+						body: JSON.stringify({ noteId, note }),
+					},
+				);
+			} catch (err) {
+				addToast("error", err instanceof Error ? err.message : "Failed to edit note.");
+				// Revert by re-fetching (simple approach)
+			}
+		},
+		[activeLabId, addToast],
+	);
+
+	const handleDeleteNote = useCallback(
+		async (componentId: string, noteId: string) => {
+			if (!activeLabId) return;
+			// Optimistic update
+			setNotes((prev) => ({
+				...prev,
+				[componentId]: (prev[componentId] ?? []).filter((n) => n.id !== noteId),
+			}));
+			try {
+				await apiClient<{ message: string }>(
+					`${API_BASE_URL}/api/reports/lab/${activeLabId}/notes/${noteId}`,
+					{ method: "DELETE" },
+				);
+			} catch (err) {
+				addToast("error", err instanceof Error ? err.message : "Failed to delete note.");
+			}
+		},
+		[activeLabId, addToast],
+	);
+
+	// Task 11.5 – Export handlers
+
+	const handleExportPDF = useCallback(async () => {
+		if (!activeLabId) return;
+		try {
+			const accessToken = getAccessToken();
+			const response = await fetch(
+				`${API_BASE_URL}/api/reports/lab/${activeLabId}/export/pdf`,
+				{
+					headers: { Authorization: `Bearer ${accessToken}` },
+				},
+			);
+			if (!response.ok) throw new Error("Failed to export PDF.");
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `lab-report-${activeLabId}.pdf`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			addToast("error", err instanceof Error ? err.message : "Failed to export PDF.");
+		}
+	}, [activeLabId, addToast]);
+
+	const handleExportCSV = useCallback(async () => {
+		if (!activeLabId) return;
+		try {
+			const accessToken = getAccessToken();
+			const response = await fetch(
+				`${API_BASE_URL}/api/reports/lab/${activeLabId}/export/csv`,
+				{
+					headers: { Authorization: `Bearer ${accessToken}` },
+				},
+			);
+			if (!response.ok) throw new Error("Failed to export CSV.");
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `lab-report-${activeLabId}.csv`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			addToast("error", err instanceof Error ? err.message : "Failed to export CSV.");
+		}
+	}, [activeLabId, addToast]);
+
+	const handleShareReport = useCallback(async () => {
+		if (!activeLabId) return;
+		try {
+			const response = await apiClient<{ shareLink: string; expiresAt: string }>(
+				`${API_BASE_URL}/api/reports/lab/${activeLabId}/share`,
+				{ method: "POST" },
+			);
+			await navigator.clipboard.writeText(response.shareLink);
+			addToast("success", "Share link copied to clipboard.");
+		} catch (err) {
+			addToast("error", err instanceof Error ? err.message : "Failed to share report.");
+		}
+	}, [activeLabId, addToast]);
+
+	const handlePrint = useCallback(() => {
+		window.print();
+	}, []);
+
+	const handleExport = useCallback(
+		(format: ExportFormat) => {
+			if (format === "pdf") void handleExportPDF();
+			else if (format === "csv") void handleExportCSV();
+			else if (format === "share") void handleShareReport();
+			else if (format === "print") handlePrint();
+		},
+		[handleExportPDF, handleExportCSV, handleShareReport, handlePrint],
+	);
+
+	// Task 11.6 – handleFindSpecialist
+	const handleFindSpecialist = useCallback(
+		(specialization: string) => {
+			router.push(`/doctors?specialization=${encodeURIComponent(specialization)}`);
+		},
+		[router],
+	);
+
+	// Task 11.7 – handleSymptomClick
+	const handleSymptomClick = useCallback(
+		(symptom: string) => {
+			addToast("info", `Symptom: ${symptom}`);
+		},
+		[addToast],
+	);
+
+	// Panel badge click – scroll to category section
+	const handlePanelBadgeClick = useCallback((category: string) => {
+		const el = document.getElementById(`category-${category}`);
+		if (el) el.scrollIntoView({ behavior: "smooth" });
+	}, []);
 
 	const handleAnalyzeLabReport = useCallback(async () => {
 		if (!labFiles.length) {
@@ -306,7 +695,15 @@ export function PrescriptionClient() {
 	}, [labJobId, mutateLabReports, addToast]);
 
 	return (
-		<div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+		<div className="mx-auto max-w-4xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
+			{/* Visually-hidden aria-live region for screen reader announcements */}
+			<div
+				aria-live="polite"
+				aria-atomic="true"
+				className="sr-only"
+			>
+				{liveAnnouncement}
+			</div>
 			{/* Header */}
 			<div className="mb-8">
 				<div className="mb-2 flex items-center gap-3">
@@ -595,171 +992,66 @@ export function PrescriptionClient() {
 										</div>
 									</div>
 
-									<div className="grid gap-3 sm:grid-cols-3">
-										<div className="rounded-lg border border-border bg-background px-3 py-2">
-											<p className="text-xs text-muted">Overall Risk</p>
-											<p className="text-sm font-semibold capitalize text-foreground">
-												{activeLabReport.overallRisk}
-											</p>
-										</div>
-										<div className="rounded-lg border border-border bg-background px-3 py-2">
-											<p className="text-xs text-muted">Abnormal Components</p>
-											<p className="text-sm font-semibold text-foreground">
-												{activeLabReport.abnormalCount}/{activeLabReport.totalCount}
-											</p>
-										</div>
-										<div className="rounded-lg border border-border bg-background px-3 py-2">
-											<p className="text-xs text-muted">Date</p>
-											<p className="text-sm font-semibold text-foreground">
-												{formatDate(activeLabReport.createdAt)}
-											</p>
-										</div>
-									</div>
+									{/* Task 11.8 – SmartAlertBanner */}
+									<SmartAlertBanner
+										shouldShowAlert={shouldShowAlert}
+										onDismiss={handleDismissAlert}
+									/>
 
-									{activeLabReport.overallSummary && (
-										<div className="rounded-lg border border-border bg-background px-3 py-3">
-											<p className="text-xs font-semibold uppercase tracking-wide text-muted">
-												Summary
-											</p>
-											<p className="mt-1 text-sm text-foreground">
-												{activeLabReport.overallSummary}
-											</p>
-										</div>
-									)}
+									{/* Task 11.8 – LabReportSummary */}
+									<LabReportSummary
+										criticalCount={filterCounts.critical}
+										normalCount={filterCounts.normal}
+										totalCount={filterCounts.all}
+										riskScore={riskScore}
+										panelGroups={panelGroups}
+										onPanelBadgeClick={handlePanelBadgeClick}
+									/>
 
-									<div className="flex flex-wrap gap-2">
-										{(["all", "high", "low", "normal"] as const).map((status) => (
-											<button
-												key={status}
-												type="button"
-												onClick={() => setLabStatusFilter(status)}
-												className={cn(
-													"rounded-full border px-3 py-1 text-xs font-medium capitalize",
-													labStatusFilter === status
-														? "border-primary/40 bg-primary/10 text-primary"
-														: "border-border bg-background text-muted",
-												)}
-											>
-												{status}
-											</button>
-										))}
-									</div>
+									{/* Task 11.8 – ComparisonToggle */}
+									<ComparisonToggle
+										isActive={comparisonMode}
+										hasPreviousReport={Boolean(previousReport)}
+										onToggle={handleToggleComparison}
+									/>
 
-									<div className="grid gap-4 xl:grid-cols-[1fr_280px]">
-										<div className="overflow-hidden rounded-lg border border-border">
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-border text-sm">
-													<thead className="bg-background">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-																Component
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-																Observed
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-																Status
-															</th>
-															<th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-																Action
-															</th>
-														</tr>
-													</thead>
-													<tbody className="divide-y divide-border bg-surface">
-														{filteredLabComponents.length === 0 ? (
-															<tr>
-																<td
-																	colSpan={4}
-																	className="px-3 py-8 text-center text-sm text-muted"
-																>
-																	No components in this filter.
-																</td>
-															</tr>
-														) : (
-															filteredLabComponents.map((component) => (
-																<tr key={component.id}>
-																	<td className="px-3 py-2 font-medium text-foreground">
-																		{component.componentName}
-																	</td>
-																	<td className="px-3 py-2 text-muted">
-																		{component.observedRaw || "N/A"} {component.unit || ""}
-																	</td>
-																	<td className="px-3 py-2">
-																		<span
-																			className={cn(
-																				"inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold capitalize",
-																				component.status === "high" && "bg-red-100 text-red-700",
-																				component.status === "low" && "bg-amber-100 text-amber-700",
-																				component.status === "normal" &&
-																					"bg-emerald-100 text-emerald-700",
-																				component.status === "unknown" &&
-																					"bg-slate-100 text-slate-700",
-																			)}
-																		>
-																			{component.status === "high" && (
-																				<TrendingUp className="size-3" />
-																			)}
-																			{component.status === "low" && (
-																				<TrendingDown className="size-3" />
-																			)}
-																			{component.status === "normal" && (
-																				<Minus className="size-3" />
-																			)}
-																			{component.status}
-																		</span>
-																	</td>
-																	<td className="px-3 py-2 text-right">
-																		<Button
-																			variant="outline"
-																			size="sm"
-																			onClick={() => setSelectedLabComponentId(component.id)}
-																		>
-																			Details
-																		</Button>
-																	</td>
-																</tr>
-															))
-														)}
-													</tbody>
-												</table>
-											</div>
-										</div>
+									{/* Task 11.8 – LabAnalysisHeader */}
+									<LabAnalysisHeader
+										searchQuery={searchQuery}
+										onSearchChange={handleSearchChange}
+										onClearSearch={() => handleSearchChange("")}
+										activeFilter={labStatusFilter}
+										onFilterChange={handleFilterChange}
+										filterCounts={filterCounts}
+										onExport={handleExport}
+										reportId={activeLabReport.id}
+									/>
 
-										<aside className="rounded-lg border border-border bg-background p-3">
-											<p className="text-xs font-semibold uppercase tracking-wide text-muted">
-												Component Detail
-											</p>
-											{selectedLabComponent ? (
-												<div className="mt-3 space-y-2 text-sm">
-													<p className="font-semibold text-foreground">
-														{selectedLabComponent.componentName}
-													</p>
-													<p className="text-muted">
-														Observed: {selectedLabComponent.observedRaw || "N/A"}{" "}
-														{selectedLabComponent.unit || ""}
-													</p>
-													<p className="text-muted">
-														Reference: {selectedLabComponent.referenceMin ?? "N/A"} -{" "}
-														{selectedLabComponent.referenceMax ?? "N/A"}
-													</p>
-													<p className="text-muted">
-														{selectedLabComponent.effectSummary || "No effect summary available."}
-													</p>
-													{typeof selectedLabComponent.confidence === "number" &&
-														selectedLabComponent.confidence < 0.55 && (
-															<p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-																<AlertTriangle className="size-3" />
-																Low-confidence extraction.
-															</p>
-														)}
-												</div>
-											) : (
-												<p className="mt-3 text-sm text-muted">
-													Click Details on a row to inspect component interpretation.
-												</p>
-											)}
-										</aside>
-									</div>
+									{/* Task 11.8 – LabComponentsTable */}
+									<LabComponentsTable
+										components={displayedComponents}
+										sortColumn={sortColumn}
+										sortDirection={sortDirection}
+										onSort={handleSort}
+										categoryExpanded={categoryExpanded}
+										onToggleCategory={handleToggleCategory}
+										comparisonMode={comparisonMode}
+										previousComponents={previousReport?.components}
+										onComponentSelect={handleComponentSelect}
+										onAddNote={handleAddNote}
+										onEditNote={handleEditNote}
+										onDeleteNote={handleDeleteNote}
+										notes={notes}
+									/>
+
+									{/* Task 11.8 – ComponentDetailModal */}
+									<ComponentDetailModal
+										component={selectedComponent}
+										isOpen={selectedLabComponentId !== null}
+										onClose={handleCloseModal}
+										onSymptomClick={handleSymptomClick}
+										onFindSpecialist={handleFindSpecialist}
+									/>
 								</div>
 							)}
 						</div>

@@ -24,6 +24,12 @@ export interface LabReportListItem {
 	createdAt: string;
 }
 
+export interface RelatedCondition {
+	name: string;
+	description: string;
+	riskLevel: "low" | "moderate" | "high";
+}
+
 export interface LabReportComponent {
 	id: string;
 	componentName: string;
@@ -37,6 +43,13 @@ export interface LabReportComponent {
 	riskTag: string | null;
 	confidence: number | null;
 	sourceSnippet: string | null;
+	category: string | null;
+	aiInsight: string | null;
+	urgency: "immediate" | "monitor" | "routine" | null;
+	symptomConnections: string[];
+	relatedConditions: RelatedCondition[];
+	trend?: number[];
+	whatToDoNext?: string | null;
 	createdAt: string;
 }
 
