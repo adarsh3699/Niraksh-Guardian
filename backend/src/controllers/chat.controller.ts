@@ -3,7 +3,8 @@ import { Message } from "../generated/prisma/client";
 import { createChatSchema, sendMessageSchema, updateChatSchema } from "../validators/chat.schema";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
-import { GeminiStreamError, generateAIResponse, generateAIResponseStream } from "../services/ai/gemini";
+import { GeminiStreamError } from "../services/ai/gemini";
+import { generateWithGemma } from "../services/ai/llm";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 import { handleControllerError } from "../utils/controllerError";
 
@@ -237,17 +238,12 @@ export const sendMessage = async (req: Request, res: Response) => {
 		});
 
 		// 3. Generate AI Response
-		// Format history for the service
+		// Build prompt from conversation history
 		const historyForAI = mapHistoryForAI(recentMessages);
-		const targetLanguage = await resolveTargetLanguage(userId, language);
+		const conversationContext = historyForAI.map((m) => `${m.role}: ${m.content}`).join("\n");
+		const prompt = `${conversationContext}\nuser: ${content}`;
 
-		const aiResponseText = await generateAIResponse(
-			historyForAI,
-			content,
-			targetLanguage,
-			file?.buffer,
-			file?.mimetype
-		);
+		const aiResponseText = await generateWithGemma(prompt);
 
 		// 4. Save AI Response
 		const aiMessage = await prisma.message.create({
@@ -330,7 +326,6 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		});
 		provisionalAiMessageId = aiMessage.id;
 
-		const targetLanguage = await resolveTargetLanguage(userId, language);
 		const historyForAI = mapHistoryForAI(recentMessages);
 
 		res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -349,16 +344,17 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 
 		writeEvent({ type: "ack", userMessage, aiMessage });
 
+		// Build prompt from conversation history
+		const conversationContext = historyForAI.map((m) => `${m.role}: ${m.content}`).join("\n");
+		const prompt = `${conversationContext}\nuser: ${content}`;
+
 		let aiResponseText = "";
-		for await (const delta of generateAIResponseStream(
-			historyForAI,
-			content,
-			targetLanguage,
-			file?.buffer,
-			file?.mimetype
-		)) {
-			aiResponseText += delta;
-			writeEvent({ type: "chunk", delta });
+		try {
+			aiResponseText = await generateWithGemma(prompt);
+			writeEvent({ type: "chunk", delta: aiResponseText });
+		} catch (streamError) {
+			logger.error({ err: streamError }, "Failed to generate response");
+			writeEvent({ type: "error", error: "Failed to generate AI response", code: "GENERATION_ERROR", retryable: false });
 		}
 
 		const updatedAiMessage = await prisma.message.update({
