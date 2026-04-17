@@ -8,22 +8,8 @@ import { generateWithGemma } from "../services/ai/llm";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 import { handleControllerError } from "../utils/controllerError";
 
-const mapHistoryForAI = (messages: Message[]) => messages.map((m) => ({ role: m.role, content: m.content }));
-
-const getStoredMessageContent = (content: string, file?: unknown) => (file ? `[Image Uploaded] ${content}` : content);
-
-const resolveTargetLanguage = async (userId: string, language?: string) => {
-	if (language) {
-		return language;
-	}
-
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { languagePreference: true },
-	});
-
-	return user?.languagePreference || "en";
-};
+const getStoredMessageContent = (content: string, file?: unknown) =>
+	file ? `[Image Uploaded] ${content}` : content;
 
 const STREAM_MIN_TOKEN_TTL_SECONDS = 60;
 
@@ -65,6 +51,31 @@ const toStreamErrorPayload = (error: unknown): StreamErrorPayload => {
 	};
 };
 
+// --- Helper Functions ---
+
+const buildFormattedPrompt = (previousMessages: Message[], currentMessage: string): string => {
+	const previousContext = previousMessages
+		.map((m) => `${m.role === "user" ? "Patient" : "AI Assistant"}: ${m.content}`)
+		.join("\n");
+
+	const contextSection = previousContext.trim()
+		? `Previous conversation:\n${previousContext}\n\n`
+		: "";
+
+	return `${contextSection}Current user query:\n${currentMessage}`;
+};
+
+const verifyChatOwnership = async (chatId: string, userId: string) => {
+	const chat = await prisma.chat.findUnique({
+		where: { id: chatId },
+	});
+
+	if (!chat || chat.userId !== userId) {
+		return null;
+	}
+	return chat;
+};
+
 // --- Chat Management ---
 
 export const createChat = async (req: Request, res: Response) => {
@@ -78,12 +89,9 @@ export const createChat = async (req: Request, res: Response) => {
 			data: {
 				userId,
 				title,
-				// We might want to store language preference in the chat or user profile
-				// For now, assuming it's used for the session context
 			},
 		});
 
-		// If language provided, update user preference (optional, based on requirements)
 		if (language) {
 			await prisma.user.update({
 				where: { id: userId },
@@ -148,7 +156,6 @@ export const getChatHistory = async (req: Request, res: Response) => {
 export const deleteChat = async (req: Request, res: Response) => {
 	try {
 		const userId = requireAuthenticatedUserId(req, res);
-		// Fix chatId typing
 		const chatId = req.params.chatId as string;
 		if (!userId) return;
 
@@ -207,18 +214,11 @@ export const sendMessage = async (req: Request, res: Response) => {
 		const chatId = req.params.chatId as string;
 		if (!userId) return;
 
-		// Handle optional image file
-		// Safe access to file, assuming multer middleware usage
 		const file = (req as AuthenticatedRequest).file;
+		const { content } = sendMessageSchema.parse(req.body);
 
-		const { content, language } = sendMessageSchema.parse(req.body);
-
-		// 1. Verify Chat Ownership
-		const chat = await prisma.chat.findUnique({
-			where: { id: chatId },
-		});
-
-		if (!chat || chat.userId !== userId) {
+		const chat = await verifyChatOwnership(chatId, userId);
+		if (!chat) {
 			return res.status(404).json({ error: "Chat not found" });
 		}
 
@@ -228,7 +228,6 @@ export const sendMessage = async (req: Request, res: Response) => {
 			take: 20,
 		});
 
-		// 2. Save User Message
 		const userMessage = await prisma.message.create({
 			data: {
 				chatId,
@@ -237,15 +236,11 @@ export const sendMessage = async (req: Request, res: Response) => {
 			},
 		});
 
-		// 3. Generate AI Response
-		// Build prompt from conversation history
-		const historyForAI = mapHistoryForAI(recentMessages);
-		const conversationContext = historyForAI.map((m) => `${m.role}: ${m.content}`).join("\n");
-		const prompt = `${conversationContext}\nuser: ${content}`;
+		const previousMessages = recentMessages.slice(-3);
+		const formattedPrompt = buildFormattedPrompt(previousMessages, content);
 
-		const aiResponseText = await generateWithGemma(prompt);
+		const aiResponseText = await generateWithGemma(formattedPrompt);
 
-		// 4. Save AI Response
 		const aiMessage = await prisma.message.create({
 			data: {
 				chatId,
@@ -266,15 +261,11 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 
 	const cleanupProvisionalMessages = async () => {
 		const messageIds = [provisionalUserMessageId, provisionalAiMessageId].filter(Boolean) as string[];
-		if (messageIds.length === 0) {
-			return;
-		}
+		if (messageIds.length === 0) return;
 
 		try {
 			await prisma.message.deleteMany({
-				where: {
-					id: { in: messageIds },
-				},
+				where: { id: { in: messageIds } },
 			});
 		} catch (cleanupError) {
 			logger.warn({ err: cleanupError, messageIds }, "Failed to cleanup provisional stream messages");
@@ -294,10 +285,10 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		}
 
 		const file = (req as AuthenticatedRequest).file;
-		const { content, language } = sendMessageSchema.parse(req.body);
+		const { content } = sendMessageSchema.parse(req.body);
 
-		const chat = await prisma.chat.findUnique({ where: { id: chatId } });
-		if (!chat || chat.userId !== userId) {
+		const chat = await verifyChatOwnership(chatId, userId);
+		if (!chat) {
 			res.status(404).json({ error: "Chat not found" });
 			return;
 		}
@@ -326,8 +317,6 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		});
 		provisionalAiMessageId = aiMessage.id;
 
-		const historyForAI = mapHistoryForAI(recentMessages);
-
 		res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
 		res.setHeader("Cache-Control", "no-cache, no-transform");
 		res.setHeader("Connection", "keep-alive");
@@ -339,18 +328,15 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			res.write(`data: ${JSON.stringify(payload)}\n\n`);
 		};
 
-		// Send an initial heartbeat comment to encourage immediate flush on some proxies.
 		res.write(`: stream-open ${Date.now()}\n\n`);
-
 		writeEvent({ type: "ack", userMessage, aiMessage });
 
-		// Build prompt from conversation history
-		const conversationContext = historyForAI.map((m) => `${m.role}: ${m.content}`).join("\n");
-		const prompt = `${conversationContext}\nuser: ${content}`;
+		const previousMessages = recentMessages.slice(-3);
+		const formattedPrompt = buildFormattedPrompt(previousMessages, content);
 
 		let aiResponseText = "";
 		try {
-			aiResponseText = await generateWithGemma(prompt);
+			aiResponseText = await generateWithGemma(formattedPrompt);
 			writeEvent({ type: "chunk", delta: aiResponseText });
 		} catch (streamError) {
 			logger.error({ err: streamError }, "Failed to generate response");
@@ -358,9 +344,10 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		}
 
 		const updatedAiMessage = await prisma.message.update({
-			where: { id: aiMessage.id },
+			where: { id: provisionalAiMessageId as string },
 			data: { content: aiResponseText },
 		});
+
 		provisionalUserMessageId = null;
 		provisionalAiMessageId = null;
 
@@ -379,6 +366,7 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			});
 			return;
 		}
+
 		logger.error({ err: error }, "Failed to stream message");
 		res.write(
 			`data: ${JSON.stringify({
