@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
-import { Message } from "../generated/prisma/client";
 import { createChatSchema, sendMessageSchema, updateChatSchema } from "../validators/chat.schema";
 import logger from "../config/logger";
 import prisma from "../db/prisma";
-import { GeminiStreamError } from "../services/ai/gemini";
-import { generateWithGemma } from "../services/ai/llm";
+import {
+	buildChatGenerationInput,
+	generateChatResponse,
+	generateChatResponseStream,
+	normalizeChatGenerationError,
+} from "../services/chat/chatGeneration.service";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 import { handleControllerError } from "../utils/controllerError";
 
@@ -30,36 +33,15 @@ type StreamErrorPayload = {
 };
 
 const toStreamErrorPayload = (error: unknown): StreamErrorPayload => {
-	if (error instanceof GeminiStreamError) {
-		return {
-			type: "error",
-			error: error.message,
-			code: error.code === "RESOURCE_EXHAUSTED" ? "RESOURCE_EXHAUSTED" : "INTERNAL_STREAM_ERROR",
-			retryable: error.retryable,
-			retryAfterSeconds: error.retryAfterSeconds,
-			statusCode: error.code === "RESOURCE_EXHAUSTED" ? 429 : 500,
-		};
-	}
-
+	const normalized = normalizeChatGenerationError(error);
 	return {
 		type: "error",
-		error: "Internal Server Error",
-		code: "INTERNAL_STREAM_ERROR",
-		retryable: false,
-		statusCode: 500,
+		error: normalized.error,
+		code: normalized.code,
+		retryable: normalized.retryable,
+		retryAfterSeconds: normalized.retryAfterSeconds,
+		statusCode: normalized.statusCode,
 	};
-};
-
-// --- Helper Functions ---
-
-const buildFormattedPrompt = (previousMessages: Message[], currentMessage: string): string => {
-	const previousContext = previousMessages
-		.map((m) => `${m.role === "user" ? "Patient" : "AI Assistant"}: ${m.content}`)
-		.join("\n");
-
-	const contextSection = previousContext.trim() ? `Previous conversation:\n${previousContext}\n\n` : "";
-
-	return `${contextSection}Current user query:\n${currentMessage}`;
 };
 
 const verifyChatOwnership = async (chatId: string, userId: string) => {
@@ -212,17 +194,19 @@ export const sendMessage = async (req: Request, res: Response) => {
 		if (!userId) return;
 
 		const file = (req as AuthenticatedRequest).file;
-		const { content } = sendMessageSchema.parse(req.body);
+		const { content, language } = sendMessageSchema.parse(req.body);
 
 		const chat = await verifyChatOwnership(chatId, userId);
 		if (!chat) {
 			return res.status(404).json({ error: "Chat not found" });
 		}
 
-		const recentMessages = await prisma.message.findMany({
-			where: { chatId },
-			orderBy: { createdAt: "asc" },
-			take: 20,
+		const generationInput = await buildChatGenerationInput({
+			chatId,
+			userId,
+			content,
+			languageOverride: language,
+			file,
 		});
 
 		const userMessage = await prisma.message.create({
@@ -233,10 +217,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 			},
 		});
 
-		const previousMessages = recentMessages.slice(-3);
-		const formattedPrompt = buildFormattedPrompt(previousMessages, content);
-
-		const aiResponseText = await generateWithGemma(formattedPrompt);
+		const aiResponseText = await generateChatResponse(generationInput);
 
 		const aiMessage = await prisma.message.create({
 			data: {
@@ -253,19 +234,20 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 export const sendMessageStream = async (req: Request, res: Response) => {
-	let provisionalUserMessageId: string | null = null;
 	let provisionalAiMessageId: string | null = null;
 
-	const cleanupProvisionalMessages = async () => {
-		const messageIds = [provisionalUserMessageId, provisionalAiMessageId].filter(Boolean) as string[];
-		if (messageIds.length === 0) return;
+	const cleanupProvisionalAiMessage = async () => {
+		if (!provisionalAiMessageId) return;
 
 		try {
-			await prisma.message.deleteMany({
-				where: { id: { in: messageIds } },
+			await prisma.message.delete({
+				where: { id: provisionalAiMessageId },
 			});
 		} catch (cleanupError) {
-			logger.warn({ err: cleanupError, messageIds }, "Failed to cleanup provisional stream messages");
+			logger.warn(
+				{ err: cleanupError, provisionalAiMessageId },
+				"Failed to cleanup provisional AI stream message"
+			);
 		}
 	};
 
@@ -282,7 +264,7 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		}
 
 		const file = (req as AuthenticatedRequest).file;
-		const { content } = sendMessageSchema.parse(req.body);
+		const { content, language } = sendMessageSchema.parse(req.body);
 
 		const chat = await verifyChatOwnership(chatId, userId);
 		if (!chat) {
@@ -290,10 +272,12 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			return;
 		}
 
-		const recentMessages = await prisma.message.findMany({
-			where: { chatId },
-			orderBy: { createdAt: "asc" },
-			take: 20,
+		const generationInput = await buildChatGenerationInput({
+			chatId,
+			userId,
+			content,
+			languageOverride: language,
+			file,
 		});
 
 		const userMessage = await prisma.message.create({
@@ -303,7 +287,6 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 				content: getStoredMessageContent(content, file),
 			},
 		});
-		provisionalUserMessageId = userMessage.id;
 
 		const aiMessage = await prisma.message.create({
 			data: {
@@ -328,21 +311,27 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 		res.write(`: stream-open ${Date.now()}\n\n`);
 		writeEvent({ type: "ack", userMessage, aiMessage });
 
-		const previousMessages = recentMessages.slice(-3);
-		const formattedPrompt = buildFormattedPrompt(previousMessages, content);
-
 		let aiResponseText = "";
 		try {
-			aiResponseText = await generateWithGemma(formattedPrompt);
-			writeEvent({ type: "chunk", delta: aiResponseText });
-		} catch (streamError) {
-			logger.error({ err: streamError }, "Failed to generate response");
+			for await (const delta of generateChatResponseStream(generationInput)) {
+				aiResponseText += delta;
+				writeEvent({ type: "chunk", delta });
+			}
+		} catch (generationError) {
+			await cleanupProvisionalAiMessage();
+			provisionalAiMessageId = null;
+
+			const streamError = toStreamErrorPayload(generationError);
+			logger.error({ err: generationError, streamError }, "Failed to generate streaming chat response");
 			writeEvent({
-				type: "error",
-				error: "Failed to generate AI response",
-				code: "GENERATION_ERROR",
-				retryable: false,
+				type: streamError.type,
+				error: streamError.error,
+				code: streamError.code,
+				retryable: streamError.retryable,
+				...(streamError.retryAfterSeconds ? { retryAfterSeconds: streamError.retryAfterSeconds } : {}),
 			});
+			res.end();
+			return;
 		}
 
 		const updatedAiMessage = await prisma.message.update({
@@ -350,13 +339,12 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			data: { content: aiResponseText },
 		});
 
-		provisionalUserMessageId = null;
 		provisionalAiMessageId = null;
 
 		writeEvent({ type: "done", aiMessage: updatedAiMessage });
 		res.end();
 	} catch (error) {
-		await cleanupProvisionalMessages();
+		await cleanupProvisionalAiMessage();
 		const streamError = toStreamErrorPayload(error);
 
 		if (!res.headersSent) {

@@ -1,6 +1,6 @@
 # Niraksh Guardian - AI Services
 
-This is the local AI service component of the Niraksh Guardian health platform. It provides intelligent health guidance powered by **Gemma 2B** running on **Ollama**.
+This is the local AI service component of the Niraksh Guardian health platform. It provides intelligent health guidance powered by **medgemma1.5** running on **Ollama**.
 
 ## 🎯 What This Service Does
 
@@ -13,11 +13,11 @@ This is the local AI service component of the Niraksh Guardian health platform. 
 ### Key Features
 
 ✅ RESTful API with FastAPI  
-✅ Real-time health guidance using local Gemma 2B model  
+✅ Real-time health guidance using local medgemma1.5 model  
 ✅ Conversation context awareness (tracks last 3 messages)  
 ✅ Greeting detection to provide appropriate responses  
 ✅ Health-only scope control (refuses non-medical queries)  
-✅ Structured response format (Explanation → Causes → Action Plan)  
+✅ Structured response format (Explanation → Causes → Action Plan)
 
 ---
 
@@ -36,11 +36,13 @@ Before running this service, you need:
 ### Step 1: Install Ollama
 
 **Windows:**
+
 1. Download Ollama from https://ollama.ai
 2. Run the installer and follow the installation wizard
 3. Restart your computer after installation
 
 **macOS:**
+
 ```bash
 # Using Homebrew
 brew install ollama
@@ -49,19 +51,20 @@ brew install ollama
 ```
 
 **Linux:**
+
 ```bash
 curl https://ollama.ai/install.sh | sh
 ```
 
-### Step 2: Download & Setup Gemma 2B Model
+### Step 2: Download & Setup medgemma1.5 Model
 
-Once Ollama is installed, pull the Gemma 2B model:
+Once Ollama is installed, pull the medgemma1.5 model:
 
 ```bash
-ollama pull gemma:2b
+ollama pull medgemma1.5
 ```
 
-This will download the Gemma 2B model (~1.4GB). The download may take a few minutes depending on your internet speed.
+This will download the medgemma1.5 model. The download may take a few minutes depending on your internet speed.
 
 ### Step 3: Start Ollama Server
 
@@ -84,18 +87,21 @@ cd ai-services
 Create a virtual environment:
 
 **Windows (PowerShell):**
+
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 python -m venv venv
 venv\Scripts\activate.bat
 ```
 
 **macOS/Linux:**
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -120,6 +126,7 @@ uvicorn main:app --reload --port 8000
 ```
 
 Expected output:
+
 ```
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 INFO:     Started server process [12345]
@@ -135,8 +142,9 @@ curl http://localhost:8000/
 ```
 
 You should get:
+
 ```json
-{"message": "AI service is working"}
+{ "message": "AI service is working" }
 ```
 
 ---
@@ -144,27 +152,57 @@ You should get:
 ## 📡 API Endpoints
 
 ### 1. Health Check
+
 **Endpoint:** `GET /`
 
 **Response:**
+
 ```json
-{"message": "AI service is working"}
+{ "message": "AI service is working" }
 ```
 
 ### 2. Generate Health Guidance
+
 **Endpoint:** `POST /generate`
 
 **Request Body:**
+
 ```json
 {
-  "prompt": "I have a fever and headache"
+	"prompt": "I have a fever and headache"
 }
 ```
 
-**Response:**
+### 3. Stream Health Guidance
+
+**Endpoint:** `POST /generate/stream`
+
+**Request Body (JSON):**
+
 ```json
 {
-  "response": "Explanation:\nFever and headache are common symptoms that can indicate various conditions...\n\nPossible causes or factors:\n- Viral infections (flu, cold)\n- Bacterial infections\n...\n\nWhat to do:\n- Rest in a cool environment\n- Stay hydrated\n- Monitor temperature\n- Seek medical help if symptoms persist..."
+	"prompt": "I have persistent cough from 3 days",
+	"language": "en",
+	"image_data": {
+		"base64": "<optional-base64-image>",
+		"mime_type": "image/png"
+	}
+}
+```
+
+**SSE Events:**
+
+```text
+data: {"type":"chunk","delta":"..."}
+data: {"type":"chunk","delta":"..."}
+data: {"type":"done"}
+```
+
+**Response:**
+
+```json
+{
+	"response": "Explanation:\nFever and headache are common symptoms that can indicate various conditions...\n\nPossible causes or factors:\n- Viral infections (flu, cold)\n- Bacterial infections\n...\n\nWhat to do:\n- Rest in a cool environment\n- Stay hydrated\n- Monitor temperature\n- Seek medical help if symptoms persist..."
 }
 ```
 
@@ -181,7 +219,7 @@ AI Services (Python/FastAPI)
        ↓
 Ollama Server
        ↓
-Gemma 2B Model
+medgemma1.5 Model
        ↓
 Response → Backend → Frontend
 ```
@@ -196,31 +234,89 @@ Response → Backend → Frontend
 
 ---
 
+## 🎯 System Instruction & Prompting
+
+The local medgemma1.5 model is guided by a system instruction similar to the Gemini fallback provider:
+
+**Core Role:** "Niraksh AI, an empathetic and highly knowledgeable Smart Healthcare Assistant"
+
+**Key Behaviors:**
+
+- ✅ Responds only to health-related queries
+- ✅ Asks 1 targeted question at a time to understand issues
+- ✅ Provides helpful, conversational guidance
+- ✅ Never diagnoses or prescribes medications
+- ✅ Always advises consulting healthcare professionals for serious symptoms
+
+**Response Format:**
+Unlike the previous rigid format, medgemma now responds naturally with:
+
+- Flexible structure (paragraphs, bullet points, or sections as needed)
+- Conversational tone while maintaining clinical accuracy
+- Context-aware follow-ups based on conversation history
+
+To customize the system instruction, edit `build_prompt()` in `main.py`.
+
+---
+
 ## ⚙️ Configuration
 
 ### Model Configuration
 
 The service uses:
-- **Model**: `gemma:2b`
+
+- **Model**: `medgemma1.5`
 - **Ollama Endpoint**: `http://localhost:11434/api/generate`
-- **Stream**: Disabled (synchronous responses)
+- **Stream**: Enabled via `POST /generate/stream`
 
 To use a different model, edit `main.py` and change:
+
 ```python
-"model": "gemma:2b"  # Change to another model
+"model": "medgemma1.5"  # Change to another model
 ```
 
 Available Ollama models:
-- `gemma:2b` (recommended, ~1.4GB)
+
+- `medgemma1.5` (recommended)
 - `llama2` (~4GB)
 - `mistral` (~4GB)
 
 Pull other models with:
+
 ```bash
 ollama pull mistral
 # or
 ollama pull llama2
 ```
+
+### Generation Parameters
+
+The service includes safeguards to prevent infinite loops and maintains response quality:
+
+```python
+MAX_TOKENS = 1000        # Maximum tokens per response (prevents runaway generation)
+TEMPERATURE = 0.7        # Creativity level: 0.0 (deterministic) to 1.0+ (creative)
+TOP_P = 0.9             # Nucleus sampling: controls diversity of token selection
+```
+
+**Why `TEMPERATURE = 0.7`?**
+
+- Lower (0.0-0.3): Repetitive, deterministic responses
+- **0.7 (current):** Good balance of consistency + variety, reduces loops
+- Higher (0.9+): More creative but less reliable for health queries
+
+**Adjust if:**
+
+- Responses too repetitive: ↑ Increase `TEMPERATURE` to 0.8–0.9
+- Responses too varied: ↓ Decrease `TEMPERATURE` to 0.5–0.6
+- Model stuck in loops: ↓ Decrease `MAX_TOKENS` or `TEMPERATURE`
+
+**Troubleshooting infinite loops:**
+
+- ✓ Ensure `MAX_TOKENS` is set (default: 1000)
+- ✓ Check Ollama is running: `curl http://localhost:11434/api/tags`
+- ✓ Verify medgemma1.5 model exists: `ollama list`
+- ✓ Restart Ollama if frozen: `killall ollama && ollama serve`
 
 ### Port Configuration
 
@@ -231,9 +327,10 @@ uvicorn main:app --reload --port 8080
 ```
 
 Then update the backend connection URL in `backend/src/services/ai/llm.ts`:
+
 ```typescript
 const response = await axios.post("http://localhost:8080/generate", {
-  prompt: payload,
+	prompt: payload,
 });
 ```
 
@@ -291,25 +388,28 @@ For emergency situations or serious symptoms, users are always directed to consu
 
 **Problem**: `Error: Failed to connect to http://localhost:11434`
 
-**Solution**: 
+**Solution**:
+
 1. Make sure Ollama is installed and running: `ollama serve`
 2. Check that port 11434 is not blocked by firewall
 3. Verify Ollama is accessible: `curl http://localhost:11434`
 
 ### "Model not found" Error
 
-**Problem**: `Error: model 'gemma:2b' not found`
+**Problem**: `Error: model 'medgemma1.5' not found`
 
-**Solution**: 
+**Solution**:
+
 ```bash
-ollama pull gemma:2b
+ollama pull medgemma1.5
 ```
 
 ### Module Import Error
 
 **Problem**: `ModuleNotFoundError: No module named 'fastapi'`
 
-**Solution**: 
+**Solution**:
+
 1. Activate your virtual environment
 2. Run: `pip install -r requirements.txt`
 
@@ -317,7 +417,8 @@ ollama pull gemma:2b
 
 **Problem**: `OSError: [Errno 48] Address already in use`
 
-**Solution**: 
+**Solution**:
+
 1. Kill the process on port 8000: `fuser -k 8000/tcp` (macOS/Linux) or find and close the app on Windows
 2. Or use a different port: `uvicorn main:app --port 8001`
 
@@ -326,32 +427,35 @@ ollama pull gemma:2b
 **Problem**: The AI service takes too long to respond
 
 **Solutions**:
+
 - Increase available RAM
 - Close other applications
 - Check system CPU usage
-- Gemma 2B is lightweight; if still slow, check internet/Ollama connection
+- If still slow, check system resources and Ollama health
 
 ---
 
 ## 📚 Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| fastapi | 0.104.1 | Web framework for the API |
-| uvicorn | 0.24.0 | ASGI server to run FastAPI |
-| requests | 2.31.0 | HTTP client for Ollama communication |
-| pydantic | 2.5.0 | Data validation and settings management |
+| Package  | Version | Purpose                                 |
+| -------- | ------- | --------------------------------------- |
+| fastapi  | 0.104.1 | Web framework for the API               |
+| uvicorn  | 0.24.0  | ASGI server to run FastAPI              |
+| requests | 2.31.0  | HTTP client for Ollama communication    |
+| pydantic | 2.5.0   | Data validation and settings management |
 
 ---
 
 ## 🔗 Integration Points
 
 ### Connected to Backend
+
 - **File**: `backend/src/services/ai/llm.ts`
 - **Endpoint**: `POST http://localhost:8000/generate`
 - **Usage**: Provides AI responses for user chat queries
 
 ### Dependency
+
 - **Ollama API**: `POST http://localhost:11434/api/generate`
 - **Used by**: FastAPI to generate health guidance
 
@@ -360,6 +464,7 @@ ollama pull gemma:2b
 ## 📞 Support
 
 For issues or questions:
+
 1. Check the Troubleshooting section above
 2. Review Ollama documentation: https://ollama.ai
 3. Check FastAPI docs: https://fastapi.tiangolo.com

@@ -1,85 +1,207 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+import json
+from typing import Optional
+
 import requests
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 
 app = FastAPI()
 
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
+LOCAL_MODEL = "medgemma1.5"
+REQUEST_TIMEOUT_SECONDS = 60
+TEMPERATURE = 0.7
+TOP_P = 0.9
+
+
+class ImageData(BaseModel):
+    base64: str
+    mime_type: str
+
+
 class PromptRequest(BaseModel):
     prompt: str
+    language: Optional[str] = None
+    image_data: Optional[ImageData] = None
+
+
+def error_response(message: str, code: str, retryable: bool, status_code: int, retry_after_seconds: Optional[int] = None):
+    payload = {
+        "error": message,
+        "code": code,
+        "retryable": retryable,
+    }
+
+    if retry_after_seconds is not None:
+        payload["retryAfterSeconds"] = retry_after_seconds
+
+    return JSONResponse(content=payload, status_code=status_code)
+
+
+def apply_greeting_guard(prompt: str):
+    prompt_text = prompt.strip().lower()
+    greeting_keywords = [
+        "hello",
+        "hi",
+        "hey",
+        "greetings",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "what's up",
+    ]
+
+    is_only_greeting = (
+        any(prompt_text == keyword or prompt_text.startswith(keyword + " ") for keyword in greeting_keywords)
+        and len(prompt_text.split()) <= 3
+    )
+
+    if is_only_greeting and "previous conversation:" not in prompt_text:
+        return "I am an AI assistant for health-related concerns. How can I assist you today?"
+
+    return None
+
+
+def build_prompt(user_prompt: str, language: Optional[str]):
+    language_instruction = f"Respond strictly in {language}." if language and language.strip() else ""
+    return f"""You are Niraksh AI, an empathetic and highly knowledgeable Smart Healthcare Assistant. Your primary goal is to provide helpful health guidance.
+
+GUIDELINES:
+- Respond ONLY to health-related queries. Politely decline non-medical questions.
+- Ask relevant follow-up questions when needed to understand the full situation.
+- Ask only 1 targeted, solution-based question at a time (e.g., 'When did this start?', 'Does it worsen after eating?').
+- Once you understand the issue, provide a helpful, easy-to-read guide with practical insights.
+- Use clear, conversational language that patients can understand.
+- Consider the last 3 messages for context and continuity.
+
+SAFETY RULES:
+- Never provide medical diagnosis or act as a doctor.
+- Never prescribe medications.
+- Always advise consulting a healthcare professional for serious, unclear, or worsening symptoms.
+- Provide only general health guidance and educational information.
+
+RESPONSE STYLE:
+- Be empathetic, calm, and informative.
+- Address concerns directly without unnecessary preamble.
+- Format responses naturally (bullet points, paragraphs, or sections as needed).
+- Avoid repetition of previously explained points unless necessary for clarity.
+
+{language_instruction}
+
+User Query:
+{user_prompt}
+"""
+
+
+def build_ollama_payload(req: PromptRequest, stream: bool):
+    payload = {
+        "model": LOCAL_MODEL,
+        "prompt": build_prompt(req.prompt, req.language),
+        "stream": stream,
+        "options": {
+            "temperature": TEMPERATURE,
+            "top_p": TOP_P,
+        },
+    }
+
+    if req.image_data and req.image_data.base64:
+        payload["images"] = [req.image_data.base64]
+
+    return payload
+
 
 @app.get("/")
 def home():
-    return {"message" : "AI service is working"}
+    return {"message": "AI service is working"}
+
 
 @app.post("/generate")
-def generate(req : PromptRequest):
-    prompt_text = req.prompt.strip().lower()
-    
-    # Check if it's only a greeting (be very specific to avoid false positives)
-    greeting_keywords = ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening", "what's up"]
-    is_only_greeting = any(prompt_text == keyword or prompt_text.startswith(keyword + " ") for keyword in greeting_keywords) and len(prompt_text.split()) <= 3
-    
-    if is_only_greeting:
-        # Only reply with greeting if there's NO previous conversation context
-        if "previous conversation:" not in prompt_text.lower():
-            return {
-                "response": "I am an AI assistant for health-related concerns. How can I assist you today?"
+def generate(req: PromptRequest):
+    greeting_response = apply_greeting_guard(req.prompt)
+    if greeting_response:
+        return {"response": greeting_response}
+
+    try:
+        response = requests.post(
+            OLLAMA_API_URL,
+            json=build_ollama_payload(req, stream=False),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.exceptions.Timeout:
+        return error_response("Local AI request timed out", "TIMEOUT", True, 504)
+    except requests.exceptions.ConnectionError:
+        return error_response("Local AI service is unavailable", "SERVICE_UNAVAILABLE", True, 503)
+    except requests.exceptions.RequestException as exc:
+        return error_response(f"Local AI request failed: {exc}", "GENERATION_ERROR", False, 500)
+
+    if response.status_code >= 400:
+        message = response.text or "Local AI generation failed"
+        if "not found" in message.lower() and "model" in message.lower():
+            return error_response("Configured local model not found", "MODEL_NOT_FOUND", True, 503)
+        return error_response(message, "GENERATION_ERROR", response.status_code >= 500, response.status_code)
+
+    payload = response.json()
+    text = payload.get("response", "")
+    if not text.strip():
+        return error_response("Local AI returned an empty response", "GENERATION_ERROR", False, 500)
+
+    return {"response": text}
+
+
+@app.post("/generate/stream")
+def generate_stream(req: PromptRequest):
+    greeting_response = apply_greeting_guard(req.prompt)
+    if greeting_response:
+        def greeting_generator():
+            yield f"data: {json.dumps({'type': 'chunk', 'delta': greeting_response})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        return StreamingResponse(greeting_generator(), media_type="text/event-stream")
+
+    try:
+        upstream = requests.post(
+            OLLAMA_API_URL,
+            json=build_ollama_payload(req, stream=True),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            stream=True,
+        )
+    except requests.exceptions.Timeout:
+        return error_response("Local AI request timed out", "TIMEOUT", True, 504)
+    except requests.exceptions.ConnectionError:
+        return error_response("Local AI service is unavailable", "SERVICE_UNAVAILABLE", True, 503)
+    except requests.exceptions.RequestException as exc:
+        return error_response(f"Local AI request failed: {exc}", "GENERATION_ERROR", False, 500)
+
+    if upstream.status_code >= 400:
+        message = upstream.text or "Local AI generation failed"
+        if "not found" in message.lower() and "model" in message.lower():
+            return error_response("Configured local model not found", "MODEL_NOT_FOUND", True, 503)
+        return error_response(message, "GENERATION_ERROR", upstream.status_code >= 500, upstream.status_code)
+
+    def event_generator():
+        try:
+            for line in upstream.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+
+                event = json.loads(line)
+                chunk = event.get("response", "")
+                if chunk:
+                    yield f"data: {json.dumps({'type': 'chunk', 'delta': chunk})}\n\n"
+
+                if event.get("done"):
+                    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                    return
+        except Exception as exc:  # noqa: BLE001
+            error_payload = {
+                "type": "error",
+                "error": f"Local AI stream failed: {exc}",
+                "code": "GENERATION_ERROR",
+                "retryable": False,
             }
-    
-    prompt = f"""
-    ROLE:
-    You are an AI assistant that provides general, non-diagnostic health guidance.
+            yield f"data: {json.dumps(error_payload)}\n\n"
+        finally:
+            upstream.close()
 
-    SCOPE CONTROL:
-    - Respond ONLY to health-related queries.
-    - If a query is unrelated to health, reply:
-    "I can only assist with health-related concerns. Please ask a health-related question."
-
-    CONTEXT HANDLING:
-    - Always consider the last 3 messages to understand the user's situation.
-    - Maintain continuity by referencing relevant prior information.
-    - Do NOT repeat previously explained points unless necessary for clarity.
-    - Build upon earlier responses to provide progressive guidance.
-
-    COMMUNICATION STYLE:
-    - Keep responses clear, concise, and easy to understand.
-    - Avoid unnecessary detail or technical jargon unless needed.
-    - Stay neutral, calm, and informative.
-    - When the user describes a health concern, address it directly without unnecessary preamble.
-
-    SAFETY & LIMITATIONS:
-    - Do NOT provide medical diagnosis.
-    - Do NOT present yourself as a doctor or medical professional.
-    - Do NOT prescribe medications or treatments.
-    - Provide only general health guidance and educational information.
-    - For serious, unclear, or worsening symptoms, always advise consulting a qualified healthcare professional.
-
-    INTERACTION QUALITY:
-    - Ask relevant follow-up questions when information is incomplete.
-    - Focus on understanding symptoms, duration, and severity where applicable.
-    - Ensure responses are helpful, structured, and context-aware.
-    
-    RESPONSE FORMAT:
-    Explanation:
-    ...
-
-    Possible causes or factors:
-    ...
-
-    What to do:
-    ...
-    
-    {req.prompt}
-    """
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json = {
-            "model": "gemma:2b",
-            "prompt": prompt,
-            "stream": False
-        }
-    )
-
-    return {
-        "response": response.json()["response"]
-    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
