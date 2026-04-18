@@ -21,7 +21,7 @@ const ai = {
 		},
 	},
 };
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-2.5-flash-lite";
 
 const KNOWN_SPECIALISTS = [
 	"General Physician",

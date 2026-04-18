@@ -8,8 +8,7 @@ import { generateWithGemma } from "../services/ai/llm";
 import { AuthenticatedRequest, requireAuthenticatedUserId } from "../types/auth";
 import { handleControllerError } from "../utils/controllerError";
 
-const getStoredMessageContent = (content: string, file?: unknown) =>
-	file ? `[Image Uploaded] ${content}` : content;
+const getStoredMessageContent = (content: string, file?: unknown) => (file ? `[Image Uploaded] ${content}` : content);
 
 const STREAM_MIN_TOKEN_TTL_SECONDS = 60;
 
@@ -58,9 +57,7 @@ const buildFormattedPrompt = (previousMessages: Message[], currentMessage: strin
 		.map((m) => `${m.role === "user" ? "Patient" : "AI Assistant"}: ${m.content}`)
 		.join("\n");
 
-	const contextSection = previousContext.trim()
-		? `Previous conversation:\n${previousContext}\n\n`
-		: "";
+	const contextSection = previousContext.trim() ? `Previous conversation:\n${previousContext}\n\n` : "";
 
 	return `${contextSection}Current user query:\n${currentMessage}`;
 };
@@ -340,7 +337,12 @@ export const sendMessageStream = async (req: Request, res: Response) => {
 			writeEvent({ type: "chunk", delta: aiResponseText });
 		} catch (streamError) {
 			logger.error({ err: streamError }, "Failed to generate response");
-			writeEvent({ type: "error", error: "Failed to generate AI response", code: "GENERATION_ERROR", retryable: false });
+			writeEvent({
+				type: "error",
+				error: "Failed to generate AI response",
+				code: "GENERATION_ERROR",
+				retryable: false,
+			});
 		}
 
 		const updatedAiMessage = await prisma.message.update({
