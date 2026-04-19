@@ -54,7 +54,7 @@ export const buildChatGenerationInput = async (
 		take: 20,
 	});
 
-	const previousMessages = recentMessages.slice(-4).map((message) => ({
+	const previousMessages = recentMessages.slice(-10).map((message) => ({
 		role: message.role,
 		content: message.content,
 	}));
