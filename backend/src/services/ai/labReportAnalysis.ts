@@ -22,7 +22,7 @@ const ai = {
 		},
 	},
 };
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-2.5-flash-lite";
 
 export type LabComponentStatus = "critical" | "high" | "borderline" | "normal" | "low" | "unknown";
 
@@ -117,28 +117,28 @@ function parseStatus(value: unknown): LabComponentStatus {
 
 function classifyStatus(value: number | null, min: number | null, max: number | null): LabComponentStatus {
 	if (value === null || (min === null && max === null)) return "unknown";
-	
+
 	// Critical: >150% of upper limit OR <50% of lower limit
 	if (max !== null && value > max * 1.5) return "critical";
 	if (min !== null && value < min * 0.5) return "critical";
-	
+
 	// High: above upper limit but not critical
 	if (max !== null && value > max) return "high";
-	
+
 	// Low: below lower limit but not critical
 	if (min !== null && value < min) return "low";
-	
+
 	// Borderline: within 10% of either boundary
 	if (min !== null && max !== null) {
 		const range = max - min;
 		const lowerBoundary = min + range * 0.1;
 		const upperBoundary = max - range * 0.1;
-		
+
 		if (value < lowerBoundary || value > upperBoundary) {
 			return "borderline";
 		}
 	}
-	
+
 	// Normal: within safe range
 	return "normal";
 }
@@ -360,42 +360,37 @@ What To Do Next:
 					aiStatus !== "unknown" ? aiStatus : classifyStatus(observedValue, referenceMin, referenceMax);
 
 				// Parse new fields with fallback classification
-				const aiCategory = typeof item.category === "string" && item.category.trim() 
-					? item.category.trim() 
-					: null;
-				
+				const aiCategory =
+					typeof item.category === "string" && item.category.trim() ? item.category.trim() : null;
+
 				// Use fallback classifier if AI didn't provide a valid category
 				const category = getCategoryWithFallback(aiCategory, componentName);
-				
-				const aiInsight = typeof item.aiInsight === "string" && item.aiInsight.trim()
-					? item.aiInsight.trim()
-					: null;
-				
-				const urgency = typeof item.urgency === "string" && item.urgency.trim()
-					? item.urgency.trim()
-					: null;
-				
+
+				const aiInsight =
+					typeof item.aiInsight === "string" && item.aiInsight.trim() ? item.aiInsight.trim() : null;
+
+				const urgency = typeof item.urgency === "string" && item.urgency.trim() ? item.urgency.trim() : null;
+
 				const symptomConnections = Array.isArray(item.symptomConnections)
 					? item.symptomConnections
-						.filter((s): s is string => typeof s === "string")
-						.map(s => s.trim())
-						.filter(s => s.length > 0)
+							.filter((s): s is string => typeof s === "string")
+							.map((s) => s.trim())
+							.filter((s) => s.length > 0)
 					: [];
-				
+
 				const relatedConditions: RelatedCondition[] = Array.isArray(item.relatedConditions)
 					? item.relatedConditions
-						.filter((c): c is any => typeof c === "object" && c !== null)
-						.map((c) => ({
-							name: typeof c.name === "string" ? c.name.trim() : "",
-							description: typeof c.description === "string" ? c.description.trim() : "",
-							riskLevel: ["low", "moderate", "high"].includes(c.riskLevel) ? c.riskLevel : "moderate"
-						}))
-						.filter(c => c.name.length > 0)
+							.filter((c): c is any => typeof c === "object" && c !== null)
+							.map((c) => ({
+								name: typeof c.name === "string" ? c.name.trim() : "",
+								description: typeof c.description === "string" ? c.description.trim() : "",
+								riskLevel: ["low", "moderate", "high"].includes(c.riskLevel) ? c.riskLevel : "moderate",
+							}))
+							.filter((c) => c.name.length > 0)
 					: [];
-				
-				const whatToDoNext = typeof item.whatToDoNext === "string" && item.whatToDoNext.trim()
-					? item.whatToDoNext.trim()
-					: null;
+
+				const whatToDoNext =
+					typeof item.whatToDoNext === "string" && item.whatToDoNext.trim() ? item.whatToDoNext.trim() : null;
 
 				return {
 					componentName,
