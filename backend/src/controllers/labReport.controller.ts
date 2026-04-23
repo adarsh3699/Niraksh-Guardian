@@ -780,3 +780,434 @@ export const getPreviousLabReportController = async (req: Request, res: Response
 		return;
 	}
 };
+
+type DashboardTrendDirection = "up" | "down" | "stable";
+
+interface DashboardTrendPoint {
+	reportId: string;
+	date: string;
+	value: number;
+	status: string;
+	referenceMin: number | null;
+	referenceMax: number | null;
+}
+
+interface DashboardTrendSeries {
+	componentName: string;
+	unit: string | null;
+	points: DashboardTrendPoint[];
+	latestValue: number | null;
+	previousValue: number | null;
+	delta: number | null;
+	deltaPercent: number | null;
+	trendDirection: DashboardTrendDirection;
+	latestStatus: string;
+}
+
+interface MedicineAggregate {
+	name: string;
+	count: number;
+	lastSeenAt: string;
+}
+
+interface DashboardLabReportRow {
+	id: string;
+	createdAt: Date;
+	overallRisk: string;
+	abnormalCount: number;
+	totalCount: number;
+	components: Array<{
+		componentName: string;
+		observedValue: number | null;
+		unit: string | null;
+		status: string;
+		referenceMin: number | null;
+		referenceMax: number | null;
+	}>;
+}
+
+const ABNORMAL_STATUSES = new Set(["critical", "high", "borderline", "low"]);
+const ALLOWED_REPORT_WINDOWS = new Set([3, 6, 12]);
+
+function normalizeMedicineName(name: string): string {
+	return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function parsePrescriptionMedicines(value: unknown): string[] {
+	if (!value || typeof value !== "object") return [];
+
+	const record = value as { medicines?: unknown };
+	if (!Array.isArray(record.medicines)) return [];
+
+	return record.medicines
+		.filter((item): item is string => typeof item === "string")
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+}
+
+function toDeltaPercent(previous: number | null, latest: number | null): number | null {
+	if (previous === null || latest === null) return null;
+	if (previous === 0) return null;
+	return ((latest - previous) / Math.abs(previous)) * 100;
+}
+
+function roundToTwo(value: number): number {
+	return Math.round(value * 100) / 100;
+}
+
+export const getDashboardInsightsController = async (req: Request, res: Response) => {
+	try {
+		const userId = requireAuthenticatedUserId(req, res);
+		if (!userId) return;
+
+		const reportWindowQuery = Array.isArray(req.query.reportWindow)
+			? req.query.reportWindow[0]
+			: req.query.reportWindow;
+		const parsedWindow = Number(reportWindowQuery);
+		const reportWindow = ALLOWED_REPORT_WINDOWS.has(parsedWindow) ? parsedWindow : 6;
+		const prescriptionWindow = Math.min(reportWindow * 4, 40);
+
+		const [
+			healthProfile,
+			labReports,
+			labReportCount,
+			prescriptionHistory,
+			prescriptionCount,
+			medicineHistory,
+			drugInteractionHistory,
+			symptomHistory,
+		] = await Promise.all([
+			prisma.patientHealthProfile.findUnique({
+				where: { userId },
+				select: { id: true, healthRiskScore: true },
+			}),
+			prisma.labReport.findMany({
+				where: { userId },
+				orderBy: { createdAt: "desc" },
+				take: reportWindow,
+				select: {
+					id: true,
+					createdAt: true,
+					overallRisk: true,
+					abnormalCount: true,
+					totalCount: true,
+					components: {
+						select: {
+							componentName: true,
+							observedValue: true,
+							unit: true,
+							status: true,
+							referenceMin: true,
+							referenceMax: true,
+						},
+					},
+				},
+			}),
+			prisma.labReport.count({ where: { userId } }),
+			prisma.prescriptionHistory.findMany({
+				where: { userId },
+				orderBy: { createdAt: "desc" },
+				take: prescriptionWindow,
+				select: {
+					id: true,
+					analysisResult: true,
+					createdAt: true,
+				},
+			}),
+			prisma.prescriptionHistory.count({ where: { userId } }),
+			prisma.medicineHistory.findMany({
+				where: { userId },
+				orderBy: { createdAt: "desc" },
+				take: 8,
+				select: { id: true, medicineName: true, createdAt: true },
+			}),
+			prisma.drugInteractionHistory.findMany({
+				where: { userId },
+				orderBy: { createdAt: "desc" },
+				take: 8,
+				select: { id: true, drugs: true, createdAt: true },
+			}),
+			prisma.symptomAnalysisHistory.findMany({
+				where: { userId },
+				orderBy: { createdAt: "desc" },
+				take: 8,
+				select: { id: true, symptoms: true, urgencyLevel: true, createdAt: true },
+			}),
+		]);
+
+		const typedLabReports = labReports as unknown as DashboardLabReportRow[];
+		const reportsAsc = [...typedLabReports].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+		const latestReport = typedLabReports[0] ?? null;
+
+		const timeline = reportsAsc.map((report) => {
+			let criticalCount = 0;
+			let highCount = 0;
+			let lowCount = 0;
+			let borderlineCount = 0;
+			let normalCount = 0;
+
+			report.components.forEach((component) => {
+				switch (component.status) {
+					case "critical":
+						criticalCount += 1;
+						break;
+					case "high":
+						highCount += 1;
+						break;
+					case "low":
+						lowCount += 1;
+						break;
+					case "borderline":
+						borderlineCount += 1;
+						break;
+					case "normal":
+						normalCount += 1;
+						break;
+					default:
+						break;
+				}
+			});
+
+			return {
+				reportId: report.id,
+				date: report.createdAt.toISOString(),
+				criticalCount,
+				highCount,
+				lowCount,
+				borderlineCount,
+				normalCount,
+				totalCount: report.totalCount,
+			};
+		});
+
+		const seriesMap = new Map<
+			string,
+			{ componentName: string; unit: string | null; points: DashboardTrendPoint[] }
+		>();
+
+		reportsAsc.forEach((report) => {
+			report.components.forEach((component) => {
+				if (component.observedValue === null) return;
+
+				const key = component.componentName.trim().toLowerCase();
+				const point: DashboardTrendPoint = {
+					reportId: report.id,
+					date: report.createdAt.toISOString(),
+					value: component.observedValue,
+					status: component.status,
+					referenceMin: component.referenceMin,
+					referenceMax: component.referenceMax,
+				};
+
+				if (!seriesMap.has(key)) {
+					seriesMap.set(key, {
+						componentName: component.componentName,
+						unit: component.unit,
+						points: [point],
+					});
+					return;
+				}
+
+				const entry = seriesMap.get(key);
+				if (!entry) return;
+				entry.points.push(point);
+				if (!entry.unit && component.unit) {
+					entry.unit = component.unit;
+				}
+			});
+		});
+
+		const allSeries: DashboardTrendSeries[] = Array.from(seriesMap.values())
+			.map((entry) => {
+				const latestPoint = entry.points[entry.points.length - 1] ?? null;
+				const previousPoint = entry.points.length > 1 ? entry.points[entry.points.length - 2] : null;
+
+				const latestValue = latestPoint?.value ?? null;
+				const previousValue = previousPoint?.value ?? null;
+				const rawDelta = latestValue !== null && previousValue !== null ? latestValue - previousValue : null;
+				const delta = rawDelta === null ? null : roundToTwo(rawDelta);
+				const deltaPercent = toDeltaPercent(previousValue, latestValue);
+				const trendDirection: DashboardTrendDirection =
+					delta === null || delta === 0 ? "stable" : delta > 0 ? "up" : "down";
+
+				return {
+					componentName: entry.componentName,
+					unit: entry.unit,
+					points: entry.points,
+					latestValue,
+					previousValue,
+					delta,
+					deltaPercent: deltaPercent === null ? null : roundToTwo(deltaPercent),
+					trendDirection,
+					latestStatus: latestPoint?.status ?? "unknown",
+				};
+			})
+			.filter((series) => series.points.length > 0);
+
+		const scoredSeries = allSeries
+			.map((series) => {
+				const absDeltaPercent = Math.abs(series.deltaPercent ?? 0);
+				const absDelta = Math.abs(series.delta ?? 0);
+				const latestAbnormalBoost = ABNORMAL_STATUSES.has(series.latestStatus) ? 70 : 0;
+				const criticalBoost = series.latestStatus === "critical" ? 30 : 0;
+				const score = absDeltaPercent + absDelta + latestAbnormalBoost + criticalBoost;
+				return { series, score };
+			})
+			.sort((a, b) => b.score - a.score);
+
+		const topSeries = scoredSeries.slice(0, 5).map((item) => item.series);
+
+		const medicinesByName = new Map<string, { displayName: string; count: number; lastSeenAt: Date }>();
+
+		prescriptionHistory.forEach((prescription) => {
+			const medicines = parsePrescriptionMedicines(prescription.analysisResult);
+			medicines.forEach((medicineName) => {
+				const key = normalizeMedicineName(medicineName);
+				const existing = medicinesByName.get(key);
+				if (!existing) {
+					medicinesByName.set(key, {
+						displayName: medicineName,
+						count: 1,
+						lastSeenAt: prescription.createdAt,
+					});
+					return;
+				}
+
+				existing.count += 1;
+				if (prescription.createdAt.getTime() > existing.lastSeenAt.getTime()) {
+					existing.lastSeenAt = prescription.createdAt;
+					existing.displayName = medicineName;
+				}
+			});
+		});
+
+		const medicineAggregates: MedicineAggregate[] = Array.from(medicinesByName.values()).map((item) => ({
+			name: item.displayName,
+			count: item.count,
+			lastSeenAt: item.lastSeenAt.toISOString(),
+		}));
+
+		const recentMedicines = [...medicineAggregates]
+			.sort((a, b) => new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime())
+			.slice(0, 6);
+
+		const frequentMedicines = [...medicineAggregates]
+			.sort((a, b) => b.count - a.count || new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime())
+			.slice(0, 6);
+
+		const recentActivity = [
+			...medicineHistory.map((item) => ({
+				id: item.id,
+				type: "medicine",
+				title: item.medicineName || "Medicine Lookup",
+				subtitle: "Medicine analysis",
+				date: item.createdAt.toISOString(),
+			})),
+			...prescriptionHistory.map((item) => ({
+				id: item.id,
+				type: "prescription",
+				title: "Prescription Scan",
+				subtitle: `${parsePrescriptionMedicines(item.analysisResult).length} medicines extracted`,
+				date: item.createdAt.toISOString(),
+			})),
+			...drugInteractionHistory.map((item) => ({
+				id: item.id,
+				type: "interaction",
+				title: item.drugs.slice(0, 2).join(" + "),
+				subtitle: `${item.drugs.length} drugs checked`,
+				date: item.createdAt.toISOString(),
+			})),
+			...symptomHistory.map((item) => ({
+				id: item.id,
+				type: "symptom",
+				title: item.symptoms.slice(0, 2).join(", "),
+				subtitle: `Urgency: ${item.urgencyLevel}`,
+				date: item.createdAt.toISOString(),
+			})),
+		]
+			.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+			.slice(0, 8);
+
+		const insightCards = topSeries.slice(0, 4).map((series) => {
+			const latest = series.latestValue;
+			const previous = series.previousValue;
+			const directionWord =
+				series.trendDirection === "up"
+					? "increased"
+					: series.trendDirection === "down"
+						? "decreased"
+						: "is stable";
+
+			const metricLabel = series.componentName;
+			const unitLabel = series.unit ? ` ${series.unit}` : "";
+			const valueMessage =
+				latest !== null && previous !== null
+					? `${metricLabel} ${directionWord} from ${roundToTwo(previous)} to ${roundToTwo(latest)}${unitLabel}.`
+					: `${metricLabel} latest value is ${latest ?? "unavailable"}${unitLabel}.`;
+
+			const rangeMessage = ABNORMAL_STATUSES.has(series.latestStatus)
+				? `${metricLabel} is currently ${series.latestStatus}.`
+				: `${metricLabel} is currently within a safer range.`;
+
+			const severity =
+				series.latestStatus === "critical" || series.latestStatus === "high"
+					? "high"
+					: ABNORMAL_STATUSES.has(series.latestStatus)
+						? "moderate"
+						: "info";
+
+			return {
+				componentName: metricLabel,
+				title: `${metricLabel} trend`,
+				message: `${valueMessage} ${rangeMessage}`,
+				severity,
+				direction: series.trendDirection,
+			};
+		});
+
+		const latestHighRiskComponents =
+			latestReport?.components.filter(
+				(component) => component.status === "high" || component.status === "critical"
+			).length ?? 0;
+
+		const latestAbnormalComponents =
+			latestReport?.components.filter((component) => ABNORMAL_STATUSES.has(component.status)).length ?? 0;
+
+		return res.status(200).json({
+			generatedAt: new Date().toISOString(),
+			meta: {
+				reportWindow,
+			},
+			snapshot: {
+				profileComplete: Boolean(healthProfile),
+				healthScore: healthProfile?.healthRiskScore ?? null,
+				lastLabReportAt: latestReport?.createdAt.toISOString() ?? null,
+				totalLabReports: labReportCount,
+				totalPrescriptionScans: prescriptionCount,
+				highRiskComponents: latestHighRiskComponents,
+				abnormalComponents: latestAbnormalComponents,
+				latestOverallRisk: latestReport?.overallRisk ?? null,
+			},
+			prescribedMedicines: {
+				recent: recentMedicines,
+				frequent: frequentMedicines,
+				lastPrescriptionAt: prescriptionHistory[0]?.createdAt.toISOString() ?? null,
+			},
+			labTrends: {
+				series: topSeries,
+				timeline,
+				insights: insightCards,
+			},
+			recentActivity,
+		});
+	} catch (error) {
+		handleControllerError({
+			error,
+			res,
+			logger,
+			context: "Failed to fetch dashboard insights",
+			internalErrorMessage: "Failed to fetch dashboard insights",
+		});
+		return;
+	}
+};

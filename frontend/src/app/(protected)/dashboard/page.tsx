@@ -13,9 +13,16 @@ const DashboardClient = dynamic(() => import("./DashboardClient").then((m) => m.
 
 export const metadata: Metadata = generatePageMetadata({
 	title: "Dashboard",
-	description: "Your health dashboard — view activity summary, health stats, and quick actions.",
+	description:
+		"Insight-focused dashboard with recent prescribed medicines, lab trend charts, and health change highlights.",
 	path: "/dashboard",
-	keywords: ["health dashboard", "health overview", "health stats", "Niraksh Guardian"],
+	keywords: [
+		"health dashboard",
+		"prescription insights",
+		"lab trends",
+		"health stats",
+		"Niraksh Guardian",
+	],
 });
 
 export default function DashboardPage() {
