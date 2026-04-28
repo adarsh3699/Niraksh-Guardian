@@ -133,3 +133,89 @@ export interface DiseaseInfo {
 	treatment: string[];
 	whenToSeeDoctor: string;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard insights                                                */
+/* ------------------------------------------------------------------ */
+
+export interface DashboardTrendPoint {
+	reportId: string;
+	date: string;
+	value: number;
+	status: string;
+	referenceMin: number | null;
+	referenceMax: number | null;
+}
+
+export interface DashboardTrendSeries {
+	componentName: string;
+	unit: string | null;
+	points: DashboardTrendPoint[];
+	latestValue: number | null;
+	previousValue: number | null;
+	delta: number | null;
+	deltaPercent: number | null;
+	trendDirection: "up" | "down" | "stable";
+	latestStatus: string;
+}
+
+export interface DashboardTimelinePoint {
+	reportId: string;
+	date: string;
+	criticalCount: number;
+	highCount: number;
+	lowCount: number;
+	borderlineCount: number;
+	normalCount: number;
+	totalCount: number;
+}
+
+export interface DashboardInsightCard {
+	componentName: string;
+	title: string;
+	message: string;
+	severity: "high" | "moderate" | "info";
+	direction: "up" | "down" | "stable";
+}
+
+export interface DashboardMedicineSummaryItem {
+	name: string;
+	count: number;
+	lastSeenAt: string;
+}
+
+export interface DashboardRecentActivityItem {
+	id: string;
+	type: "medicine" | "prescription" | "interaction" | "symptom";
+	title: string;
+	subtitle: string;
+	date: string;
+}
+
+export interface DashboardInsightsResponse {
+	generatedAt: string;
+	meta: {
+		reportWindow: 3 | 6 | 12 | number;
+	};
+	snapshot: {
+		profileComplete: boolean;
+		healthScore: number | null;
+		lastLabReportAt: string | null;
+		totalLabReports: number;
+		totalPrescriptionScans: number;
+		highRiskComponents: number;
+		abnormalComponents: number;
+		latestOverallRisk: string | null;
+	};
+	prescribedMedicines: {
+		recent: DashboardMedicineSummaryItem[];
+		frequent: DashboardMedicineSummaryItem[];
+		lastPrescriptionAt: string | null;
+	};
+	labTrends: {
+		series: DashboardTrendSeries[];
+		timeline: DashboardTimelinePoint[];
+		insights: DashboardInsightCard[];
+	};
+	recentActivity: DashboardRecentActivityItem[];
+}

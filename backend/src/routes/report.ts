@@ -6,6 +6,7 @@ import {
 	deleteLabReportController,
 	getLabReportController,
 	getLabReportJobStatusController,
+	getDashboardInsightsController,
 	listLabReportsController,
 	streamLabReportJobStatusController,
 	addLabReportNoteController,
@@ -25,6 +26,7 @@ router.use(authenticate);
 
 router.get("/", listHealthReports);
 router.post("/health-summary", generateHealthReport);
+router.get("/dashboard-insights", getDashboardInsightsController);
 router.get("/lab", listLabReportsController);
 router.get("/lab/jobs/:jobId", getLabReportJobStatusController);
 router.get("/lab/jobs/:jobId/stream", streamLabReportJobStatusController);

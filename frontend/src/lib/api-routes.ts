@@ -46,6 +46,9 @@ export const API_ROUTES = {
 	REPORTS: "/api/reports",
 	GENERATE_REPORT: "/api/reports/health-summary",
 	LAB_REPORTS: "/api/reports/lab",
+	DASHBOARD_INSIGHTS: "/api/reports/dashboard-insights",
+	DASHBOARD_INSIGHTS_QUERY: (reportWindow: number) =>
+		`/api/reports/dashboard-insights?reportWindow=${reportWindow}`,
 	LAB_REPORT_ANALYZE: "/api/reports/lab/analyze",
 	LAB_REPORT_JOB_STATUS: (jobId: string) => `/api/reports/lab/jobs/${jobId}`,
 	LAB_REPORT_JOB_STREAM: (jobId: string) => `/api/reports/lab/jobs/${jobId}/stream`,
