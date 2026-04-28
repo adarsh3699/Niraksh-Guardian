@@ -10,7 +10,7 @@ app = FastAPI()
 
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 LOCAL_MODEL = "medgemma1.5"
-REQUEST_TIMEOUT_SECONDS = 60
+REQUEST_TIMEOUT_SECONDS = 300
 TEMPERATURE = 0.7
 TOP_P = 0.9
 
@@ -61,6 +61,13 @@ def apply_greeting_guard(prompt: str):
         return "I am an AI assistant for health-related concerns. How can I assist you today?"
 
     return None
+
+
+def filter_medgemma_tags(text: str) -> str:
+    """Extract content after <unused95> tag, removing model artifacts."""
+    if "<unused95>" in text:
+        return text.split("<unused95>", 1)[1]
+    return text
 
 
 def build_prompt(user_prompt: str, language: Optional[str]):
@@ -146,6 +153,8 @@ def generate(req: PromptRequest):
     if not text.strip():
         return error_response("Local AI returned an empty response", "GENERATION_ERROR", False, 500)
 
+    # Filter medgemma tags and return only content after <unused95>
+    text = filter_medgemma_tags(text)
     return {"response": text}
 
 
@@ -181,6 +190,9 @@ def generate_stream(req: PromptRequest):
 
     def event_generator():
         try:
+            buffer = ""
+            tag_found = False
+            
             for line in upstream.iter_lines(decode_unicode=True):
                 if not line:
                     continue
@@ -188,9 +200,23 @@ def generate_stream(req: PromptRequest):
                 event = json.loads(line)
                 chunk = event.get("response", "")
                 if chunk:
-                    yield f"data: {json.dumps({'type': 'chunk', 'delta': chunk})}\n\n"
+                    buffer += chunk
+                    
+                    # Check if we've encountered the tag
+                    if not tag_found and "<unused95>" in buffer:
+                        tag_found = True
+                        # Extract content after the tag
+                        buffer = buffer.split("<unused95>", 1)[1]
+                    
+                    # Yield buffered content if tag was found
+                    if tag_found and buffer:
+                        yield f"data: {json.dumps({'type': 'chunk', 'delta': buffer})}\n\n"
+                        buffer = ""
 
                 if event.get("done"):
+                    # Yield any remaining buffer content
+                    if tag_found and buffer:
+                        yield f"data: {json.dumps({'type': 'chunk', 'delta': buffer})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
         except Exception as exc:  # noqa: BLE001
