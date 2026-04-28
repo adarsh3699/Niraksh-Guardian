@@ -150,7 +150,7 @@ export async function* generateWithLocalAIStream(input: LocalGenerationInput): A
 	try {
 		const response = await axios.post(`${LOCAL_AI_BASE_URL}/generate/stream`, toRequestPayload(input), {
 			responseType: "stream",
-			timeout: 70000,
+			timeout: 700000,
 			validateStatus: () => true,
 		});
 
