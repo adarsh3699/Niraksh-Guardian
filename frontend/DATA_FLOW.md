@@ -10,7 +10,6 @@
 
 - 2026-05-03: Expanded lab report component model, added SWR caching strategy, streaming SSE handling, and upload state machine. Added Redis Pub/Sub example in backend schema.
 
-
 ## 1. System-Level Data Flow Overview
 
 ```

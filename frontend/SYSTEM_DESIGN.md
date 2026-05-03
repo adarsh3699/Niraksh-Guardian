@@ -62,12 +62,14 @@ This document describes the frontend architecture and engineering standards for 
 ## 5. `apiClient` Contract
 
 Responsibilities:
+
 - Include `Authorization: Bearer <accessToken>` header when available
 - Detect 401 and attempt silent refresh via `POST /api/auth/refresh-token` using stored refresh token
 - Provide typed responses and map backend error shape (`{ error, code, details }`) to frontend exceptions
 - Support streaming (SSE) helper for AI endpoints with `onChunk`, `onMeta`, `onDone`, `onError` callbacks
 
 Usage example:
+
 ```
 const { data } = await apiClient('/api/profile')
 ```
@@ -153,6 +155,7 @@ const { data } = await apiClient('/api/profile')
 - Environment variables: prefix `NEXT_PUBLIC_` for variables that must be exposed to client; keep secret keys server-side.
 
 Deployment checklist:
+
 1. Validate env variables for `NEXT_PUBLIC_API_BASE`, `CLOUDINARY_KEY`, `NEXT_PUBLIC_SENTRY_DSN`.
 2. Ensure backend `OPENAI/GEMINI` keys are present in target environment.
 3. Run `pnpm build` and smoke test main flows.

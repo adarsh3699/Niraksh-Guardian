@@ -134,6 +134,7 @@ Purpose: Aggregates parsed lab documents and exposes granular component rows map
 Purpose: Top-level parsed document properties and metadata.
 
 Fields:
+
 - id (UUID, Primary Key)
 - user_id (UUID, Foreign Key → users.id)
 - file_url (VARCHAR) // Cloudinary resource
@@ -149,6 +150,7 @@ Fields:
 Purpose: Granular rows for individual metrics inside a single report (e.g., Glucose, Hemoglobin).
 
 Fields:
+
 - id (UUID, Primary Key)
 - report_id (UUID, Foreign Key → lab_reports.id)
 - component_name (VARCHAR)
@@ -173,6 +175,7 @@ Fields:
 Purpose: User annotations and share tokens for secure sharing.
 
 Notes Fields:
+
 - id (UUID, Primary Key)
 - report_id (UUID, Foreign Key → lab_reports.id)
 - user_id (UUID, Foreign Key → users.id)
@@ -181,6 +184,7 @@ Notes Fields:
 - created_at (TIMESTAMP)
 
 Shares Fields:
+
 - id (UUID, Primary Key)
 - report_id (UUID, Foreign Key → lab_reports.id)
 - share_token (VARCHAR, unique)
@@ -189,14 +193,17 @@ Shares Fields:
 - created_at (TIMESTAMP)
 
 Retention:
+
 - Health reports: keep last 10 reports per user; older reports auto-deleted when new generated (enforced by application logic).
 - Lab reports: retention policy configurable (recommend: retain for 1 year by default, archive thereafter).
 
 Indexes:
+
 - Index on report_id
 - Index on component_name
 
 ---
+
 # 7. Redis Data Structure
 
 Redis will store:
@@ -220,9 +227,14 @@ Emergency Alerts:
 Pub/Sub Patterns (Emergency & Alerts):
 
 - Channel: `emergency:alerts:<user_id>` — payload example:
-	```json
-	{ "type": "emergency", "severity": "high", "message": "user triggered emergency", "timestamp": "2026-05-03T12:00:00Z" }
-	```
+    ```json
+    {
+    	"type": "emergency",
+    	"severity": "high",
+    	"message": "user triggered emergency",
+    	"timestamp": "2026-05-03T12:00:00Z"
+    }
+    ```
 - Subscribers: WebSocket workers, notification queue (email/SNS), mobile push workers.
 
 Note: use short-lived channels and minimal payloads; store state in Redis keys for TTL-based replay.
