@@ -125,7 +125,79 @@ Indexes:
 
 ---
 
-# 6. Redis Data Structure
+# 6. Lab Reports System (NEW)
+
+Purpose: Aggregates parsed lab documents and exposes granular component rows mapped to UI components.
+
+## 6.1 Lab Reports Table
+
+Purpose: Top-level parsed document properties and metadata.
+
+Fields:
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key → users.id)
+- file_url (VARCHAR) // Cloudinary resource
+- file_name (VARCHAR)
+- extracted_text (TEXT, OCR blob)
+- overall_summary (TEXT)
+- overall_risk (VARCHAR, default "low")
+- abnormal_count (INTEGER)
+- created_at (TIMESTAMP)
+
+## 6.2 Lab Report Components Table
+
+Purpose: Granular rows for individual metrics inside a single report (e.g., Glucose, Hemoglobin).
+
+Fields:
+- id (UUID, Primary Key)
+- report_id (UUID, Foreign Key → lab_reports.id)
+- component_name (VARCHAR)
+- observed_value (FLOAT, nullable)
+- reference_min (FLOAT, nullable)
+- reference_max (FLOAT, nullable)
+- status (VARCHAR) // e.g., Normal / High / Low
+- risk_tag (VARCHAR, nullable)
+- ai_insight (TEXT, nullable) // Human-readable AI analysis
+- source_snippet (TEXT, nullable) // OCR snippet that produced the value
+- category (VARCHAR, nullable) // e.g., "Chemistry", "Hematology"
+- confidence (FLOAT, nullable) // 0.0 - 1.0 AI parse confidence
+- urgency (VARCHAR, nullable) // low|medium|high
+- what_to_do_next (TEXT, nullable) // actionable recommendation
+- related_conditions (JSON, nullable) // array or object of related disease links
+- symptom_connections (TEXT[], array)
+- trend (FLOAT[], array) // historical trend values for UI sparkline
+- created_at (TIMESTAMP)
+
+## 6.3 Lab Report Notes & Shares
+
+Purpose: User annotations and share tokens for secure sharing.
+
+Notes Fields:
+- id (UUID, Primary Key)
+- report_id (UUID, Foreign Key → lab_reports.id)
+- user_id (UUID, Foreign Key → users.id)
+- note_text (TEXT)
+- pinned (BOOLEAN, default false)
+- created_at (TIMESTAMP)
+
+Shares Fields:
+- id (UUID, Primary Key)
+- report_id (UUID, Foreign Key → lab_reports.id)
+- share_token (VARCHAR, unique)
+- expires_at (TIMESTAMP)
+- created_by (UUID)
+- created_at (TIMESTAMP)
+
+Retention:
+- Health reports: keep last 10 reports per user; older reports auto-deleted when new generated (enforced by application logic).
+- Lab reports: retention policy configurable (recommend: retain for 1 year by default, archive thereafter).
+
+Indexes:
+- Index on report_id
+- Index on component_name
+
+---
+# 7. Redis Data Structure
 
 Redis will store:
 
@@ -144,6 +216,16 @@ Emergency Alerts:
 
 - key: emergency:<user_id>
 - TTL 24h
+
+Pub/Sub Patterns (Emergency & Alerts):
+
+- Channel: `emergency:alerts:<user_id>` — payload example:
+	```json
+	{ "type": "emergency", "severity": "high", "message": "user triggered emergency", "timestamp": "2026-05-03T12:00:00Z" }
+	```
+- Subscribers: WebSocket workers, notification queue (email/SNS), mobile push workers.
+
+Note: use short-lived channels and minimal payloads; store state in Redis keys for TTL-based replay.
 
 ---
 
@@ -175,7 +257,7 @@ Fields:
 
 ---
 
-# 10. AI & Health Tools History (Enhanced)
+# 8. AI & Health Tools History (Enhanced)
 
 ## 10.1 Medicine History Table
 

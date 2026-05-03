@@ -69,11 +69,7 @@ Landing (/)
   ├─ Risk score shows 0/100 (no chronic conditions yet)
   └─ Recent activity is empty → "No recent activity"
 
-  PLANNED (Phase 8 — not yet implemented):
-  └─ If healthProfile.city/state are null:
-      └─ Show location prompt banner:
-          "📍 Add your location to get nearby doctor recommendations"
-          └─ Click → /profile (pre-scrolled to Location section)
+  Note: location prompt banner is implemented when `healthProfile.city`/`state` are missing.
 ```
 
 ### 2.2 Returning User (Login → Dashboard → Use Features)

@@ -6,6 +6,11 @@
 
 ---
 
+## Changes
+
+- 2026-05-03: Expanded lab report component model, added SWR caching strategy, streaming SSE handling, and upload state machine. Added Redis Pub/Sub example in backend schema.
+
+
 ## 1. System-Level Data Flow Overview
 
 ```
@@ -627,6 +632,57 @@ Scenario: User analyzes prescription on /prescription, clicks "Check Interaction
   /drug-interaction
     └─ Reads URL params → pre-fills medicine list
     └─ No SWR cache dependency (data passed via URL)
+
+### SWR Caching Strategy (Guidelines)
+
+- Cache key conventions:
+  - Use the full query string for list endpoints: `/api/doctors?specialization=...&page=...`
+  - Use resource-id keys for single items: `/api/chats/${chatId}`
+  - For paginated lists include `page` and `limit` in the key
+
+- TTL / revalidation:
+  - Short-lived interactive endpoints (chats, messages): revalidate on focus and after mutation.
+  - Profile & static user data: keep until mutate (manual revalidation after PUT).
+  - Disease info: cache per-topic+language for 30 days (backend enforces TTL); frontend may set `staleWhileRevalidate: true`.
+
+- Invalidation rules (examples):
+  - After POST /api/chats/:chatId/messages → mutate `/api/chats/${chatId}` and `/api/chats`
+  - After generating a report → mutate `/api/reports`
+  - After analysis saved server-side (symptom/prescription) → mutate relevant history key if active
+
+- Optimistic updates:
+  - Use optimistic UI for sending messages: append temporary message with `pending: true` then replace on success.
+  - Reconcile by message id or timestamp on server response.
+
+### Streaming Response Handling (Frontend)
+
+- Consumer pattern:
+  1. Open SSE connection to `/api/ai/stream?requestId=...` or POST then subscribe.
+  2. On `chunk` events, append text to the output buffer and render progressively.
+  3. On `meta` events, update progress indicators (tokens used, elapsed time).
+  4. On `done`, finalize and persist message to DB if not already saved.
+  5. On `error`, show a recoverable UI and offer retry.
+
+- Robustness:
+  - Use an incremental backoff when reconnecting; cap total retries.
+  - Send a `requestId` on initial POST so reconnection can resume where left off.
+  - Log partial transcripts to local IndexedDB if user navigates away unexpectedly.
+
+### Image Upload State Machine
+
+- States: `idle` → `validating` → `uploading` → `processing` → `success` | `error`
+
+- Transitions:
+  - `idle` → `validating` when user selects file(s)
+  - `validating` → `uploading` if size/type OK (else `error`)
+  - `uploading` → `processing` after server acknowledges upload and begins AI analysis
+  - `processing` → `success` on analysis completion (server returns result)
+  - Any step can move to `error` (show actionable message + retry button)
+
+- Retry strategy:
+  - For network failures: exponential backoff (2s, 4s, 8s) up to 3 attempts
+  - For server 5xx: surface to user and allow manual retry
+
 ```
 
 ---

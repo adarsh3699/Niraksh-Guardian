@@ -127,6 +127,33 @@ Strategy:
 - Transformations (optimization, resizing)
 - Delivery via CDN URL
 
+### 3.11 FastAPI AI Microservice (Local Inference)
+
+Purpose: host local model inference endpoints (used as low-latency fallback or for on-prem inference workloads). The microservice runs separately (Python / FastAPI) and exposes a narrow contract to the Node API server.
+
+Endpoints (recommended):
+
+- `POST /generate` — request body: { prompt: string, maxTokens?: int, temperature?: float, metadata?: object }
+    - Response: { id: string, status: "completed" | "processing", output: string | null, meta: { durationMs } }
+    - Errors: 400 for invalid payload, 503 for model not ready
+
+- `GET /generate/stream?requestId=<id>` — SSE endpoint that streams incremental chunks: events `chunk`, `done`, `error`.
+
+- `POST /vision/analyze` — multipart/form-data for images; Response: structured JSON (OCR + entities)
+
+Operational notes:
+
+- Load model on startup; keep 1–2 warm workers depending on available memory.
+- Health endpoint: `/health` returns { ok: true, model: 'medgemma1.5', ready: true }
+- Retries: Node API should implement circuit-breaker (e.g., `opossum`) when calling this service.
+
+Security:
+
+- Mutual TLS or internal network-only access.
+- Rate limit per-IP and per-token to avoid runaway inference costs.
+
+---
+
 ---
 
 ### 3.5 Authentication Flow
@@ -216,6 +243,104 @@ Basic Setup:
 
 - /health endpoint
 - Manual alert thresholds
+
+Concrete Metrics & Alerts:
+
+- API latency: p50 < 200ms, p95 < 500ms, p99 < 2s. Alert if p95 > 1s for 5 minutes.
+- Error rate: alert if 5xx rate > 1% sustained for 5 minutes.
+- Auth failures: alert if login failure rate spikes > 5x baseline.
+- Gemini error quota: alert on > 10 Gemini errors/minute.
+- FastAPI inference queue depth: alert if requests queued > 5 for > 1 minute.
+
+Recommended tools: DataDog/Prometheus + Grafana, Slack for paging, PagerDuty for on-call escalation.
+
+Tracing & Logs:
+
+- Add distributed tracing (OpenTelemetry) across Express ↔ FastAPI ↔ Gemini.
+- Correlate requestId across logs (Pino) and traces.
+
+---
+
+### 3.12 Streaming & SSE Protocol
+
+Design:
+
+- Use Server-Sent Events (SSE) for streaming text responses from AI models to the frontend.
+- SSE event types:
+    - `ack`: acknowledges request received { requestId }
+    - `chunk`: incremental text chunk { requestId, text }
+    - `meta`: metadata about the response { requestId, tokensUsed }
+    - `done`: finalization { requestId, durationMs }
+    - `error`: terminal error { requestId, message, code }
+
+Client behavior:
+
+- Render incremental `chunk` events into the UI; show a typing indicator until `done` or `error`.
+- On `error`, show fallback UI with retry option; log telemetry.
+
+Backpressure & Limits:
+
+- Server should bound payload sizes and emit `error` if message > configured max.
+- Use heartbeat comments (`: keep-alive`) to keep connections healthy behind proxies.
+
+---
+
+### 3.13 AI Fallback & Resilience
+
+Strategy:
+
+- Primary model: Gemini (external). Secondary: local FastAPI (`medgemma1.5`) as fallback.
+- Decision logic:
+    1. If Gemini returns error or rate-limited → attempt FastAPI.
+    2. If FastAPI fails → return graceful degraded response with `status: partial` and cached data if available.
+
+Partial responses:
+
+- If only partial reasoning available, save partial analysis into DB with flag `partial: true` and include `notes` to user.
+
+Observability:
+
+- Count fallbacks and alert when fallback rate > 10% of total AI calls.
+
+---
+
+### 3.14 API Error Codes & Contract
+
+Standard error shape (JSON):
+
+```
+{ "error": "string message", "code": "ERROR_CODE", "details": object | null }
+```
+
+Common codes:
+
+- `VALIDATION_ERROR` (400) — zod schema problems
+- `UNAUTHORIZED` (401) — auth failed
+- `FORBIDDEN` (403) — permission
+- `NOT_FOUND` (404)
+- `RATE_LIMITED` (429)
+- `BAD_GATEWAY` (502) — third-party error
+- `AI_SERVICE_UNAVAILABLE` (503) — Gemini / FastAPI down
+
+Retry guidance:
+
+- Client may retry on 502/503/429 with exponential backoff; do NOT retry on 4xx except where instructed.
+
+---
+
+### 3.15 Deployment & CI/CD Notes
+
+- Environments: dev, staging, prod. Use distinct Cloudinary and Gemini keys per env.
+- Containerization: Docker images for Node API and FastAPI service. Keep images small and pin base images.
+- CI: Run tests, lint, and build; publish images to registry; deploy via Vercel for frontend and ECS / Cloud Run for backend services.
+- Secrets: Use platform secrets (Vercel env, AWS Secrets Manager) and never check them into repo.
+
+Deployment checklist:
+
+1. Run migrations (`prisma migrate deploy`) on DB migration window.
+2. Warm FastAPI model container before traffic.
+3. Enable feature flags for AI fallbacks and new endpoints during rollout.
+
 
 ---
 
