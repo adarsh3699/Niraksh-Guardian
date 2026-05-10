@@ -120,7 +120,7 @@ export function Footer() {
 							Contact Us
 						</h3>
 						<ul className="mt-4 flex flex-col gap-3">
-							<li className="flex items-start gap-2.5 text-sm text-muted">
+							{/* <li className="flex items-start gap-2.5 text-sm text-muted">
 								<Phone className="mt-0.5 size-4 shrink-0 text-primary" />
 								<span>+91 9470 7564 60</span>
 							</li>
@@ -132,7 +132,7 @@ export function Footer() {
 								>
 									adarsh3699@gmail.com
 								</a>
-							</li>
+							</li> */}
 							<li className="flex items-start gap-2.5 text-sm text-muted">
 								<MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
 								<span>Jalandhar, Punjab, India</span>
