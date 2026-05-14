@@ -20,6 +20,8 @@ const envSchema = z.object({
 	AWS_SECRET_ACCESS_KEY: z.string().optional(),
 	CORS_ORIGINS: z.string().optional(),
 	FRONTEND_URL: z.string().default("http://localhost:3000"),
+	// Gemini AI
+	GEMINI_MODEL_NAME: z.string().default("gemini-3.1-flash-lite"),
 	// Cloudinary
 	CLOUDINARY_CLOUD_NAME: z.string().optional(),
 	CLOUDINARY_API_KEY: z.string().optional(),

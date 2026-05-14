@@ -177,7 +177,7 @@ ChatWindow
                                               ├─ Fetch last 20 messages (context window)
                                               │
                                               ├─ generateAIResponse( ─────────► Google Gemini
-                                              │    history, content,              (gemini-2.5-flash-lite)
+                                              │    history, content,              (gemini-3.1-flash-lite)
                                               │    language, imageBuffer)
                                               │◄─ AI response text ──────────┘
                                               │

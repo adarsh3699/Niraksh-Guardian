@@ -22,7 +22,7 @@ const ai = {
 		},
 	},
 };
-const MODEL_NAME = "gemini-2.5-flash-lite";
+const MODEL_NAME = "gemini-3.1-flash-lite";
 
 export type LabComponentStatus = "critical" | "high" | "borderline" | "normal" | "low" | "unknown";
 
