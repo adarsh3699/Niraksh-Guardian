@@ -12,6 +12,7 @@ import { doctorApplicationUpdateSchema } from "../validators/auth.schema";
 import logger from "../config/logger";
 import { handleControllerError } from "../utils/controllerError";
 import { checkDrugInteraction } from "../services/ai/gemini";
+import { buildClinicalTimeline, findSharedClinicalIntake } from "./clinicalIntake.controller";
 
 const normalizeMedicineNames = (values: string[]) =>
 	Array.from(new Map(values.map((value) => [value.trim().toLowerCase(), value.trim()])).values()).filter(Boolean);
@@ -220,6 +221,8 @@ export const getPatientRecord = async (req: Request, res: Response) => {
 			medicineHistory,
 			symptomHistory,
 			doctorPrescriptions,
+			clinicalIntake,
+			clinicalTimeline,
 		] = await Promise.all([
 			prisma.user.findUnique({
 				select: { id: true, name: true, email: true, gender: true, createdAt: true },
@@ -249,6 +252,8 @@ export const getPatientRecord = async (req: Request, res: Response) => {
 				orderBy: { createdAt: "desc" },
 				take: 20,
 			}),
+			findSharedClinicalIntake(patientId, access.appointmentId),
+			buildClinicalTimeline(patientId, profile.id),
 		]);
 
 		if (!patient) return res.status(404).json({ error: "Patient not found" });
@@ -261,6 +266,8 @@ export const getPatientRecord = async (req: Request, res: Response) => {
 			medicineHistory,
 			symptomHistory,
 			doctorPrescriptions,
+			clinicalIntake,
+			clinicalTimeline,
 		});
 	} catch (error) {
 		handleControllerError({ error, res, logger, context: "Failed to get patient health record" });

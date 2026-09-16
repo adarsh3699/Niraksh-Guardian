@@ -130,5 +130,34 @@ export interface PatientRecordResponse {
 			frequency: string | null;
 			duration: string | null;
 		}>;
+		}>;
+	clinicalIntake: ClinicalIntake | null;
+	clinicalTimeline: Array<{
+		sourceType: string;
+		sourceId: string | null;
+		eventDate: string;
+		title: string;
+		summary: string | null;
 	}>;
+}
+
+export interface ClinicalIntake {
+	id: string;
+	appointmentId: string | null;
+	status: "DRAFT" | "SUBMITTED" | "REVIEWED" | "EXPIRED";
+	chiefComplaint: string | null;
+	hpi: Record<string, string>;
+	ros: Record<string, string>;
+	medicationNotes: string | null;
+	allergyNotes: string | null;
+	summaryDraft: string | null;
+	summaryEdited: string | null;
+	triageLevel: "ROUTINE" | "URGENT" | "EMERGENCY";
+	triageReasons: string[];
+	triageMessage: string | null;
+	consentGrantedAt: string | null;
+	consentRevokedAt: string | null;
+	expiresAt: string;
+	submittedAt: string | null;
+	reviewedAt: string | null;
 }

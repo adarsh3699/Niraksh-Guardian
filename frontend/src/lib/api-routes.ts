@@ -32,6 +32,11 @@ export const API_ROUTES = {
 	DOCTOR_SLOTS: (doctorId: string, date: string) =>
 		`/api/appointments/doctors/${doctorId}/slots?date=${encodeURIComponent(date)}`,
 	APPOINTMENT: (id: string) => `/api/appointments/${id}`,
+	CLINICAL_INTAKE: "/api/clinical-intake",
+	CLINICAL_INTAKE_TIMELINE: "/api/clinical-intake/timeline",
+	CLINICAL_INTAKE_REVOKE: (id: string) => `/api/clinical-intake/${id}/revoke-consent`,
+	DOCTOR_CLINICAL_INTAKE_SUMMARY: (patientId: string, intakeId: string) =>
+		`/api/doctor/patients/${patientId}/clinical-intake/${intakeId}/summary`,
 	ADMIN_DOCTOR_APPLICATIONS: "/api/admin/doctor-applications",
 	ADMIN_DOCTOR_APPLICATION: (id: string) => `/api/admin/doctor-applications/${id}`,
 

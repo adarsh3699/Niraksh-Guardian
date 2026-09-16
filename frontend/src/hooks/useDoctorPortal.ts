@@ -10,6 +10,7 @@ import type {
 	DoctorSlotResponse,
 	PatientRecordResponse,
 } from "@/types/appointments";
+import type { ClinicalIntakeResponse, ClinicalTimelineResponse } from "@/types/clinicalIntake";
 
 export function useDoctorMe() {
 	return useSWR<DoctorMeResponse>(API_ROUTES.DOCTOR_ME, swrFetcher, { revalidateOnFocus: false });
@@ -33,6 +34,19 @@ export function usePatientRecord(patientId: string) {
 		swrFetcher,
 		{ revalidateOnFocus: false },
 	);
+}
+
+export function useClinicalIntake(appointmentId?: string) {
+	const endpoint = appointmentId
+		? `${API_ROUTES.CLINICAL_INTAKE}?appointmentId=${encodeURIComponent(appointmentId)}`
+		: API_ROUTES.CLINICAL_INTAKE;
+	return useSWR<ClinicalIntakeResponse>(endpoint, swrFetcher, { revalidateOnFocus: false });
+}
+
+export function useClinicalTimeline() {
+	return useSWR<ClinicalTimelineResponse>(API_ROUTES.CLINICAL_INTAKE_TIMELINE, swrFetcher, {
+		revalidateOnFocus: false,
+	});
 }
 
 export function useDoctorSlots(doctorId: string, date: string) {
@@ -67,5 +81,12 @@ export async function issueDoctorPrescription(patientId: string, body: unknown) 
 	return apiClient<{ prescription: unknown }>(API_ROUTES.DOCTOR_PATIENT_PRESCRIPTIONS(patientId), {
 		method: "POST",
 		body,
+	});
+}
+
+export async function updateClinicalSummary(patientId: string, intakeId: string, summary: string) {
+	return apiClient<{ intake: unknown }>(API_ROUTES.DOCTOR_CLINICAL_INTAKE_SUMMARY(patientId, intakeId), {
+		method: "PATCH",
+		body: { summary },
 	});
 }

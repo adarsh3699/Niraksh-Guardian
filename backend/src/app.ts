@@ -24,6 +24,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import appointmentRoutes from "./routes/appointments";
 import doctorPortalRoutes from "./routes/doctorPortal";
 import adminRoutes from "./routes/admin";
+import clinicalIntakeRoutes from "./routes/clinicalIntake";
 
 const app: Application = express();
 
@@ -144,6 +145,7 @@ app.use("/api/doctors", apiRateLimiter, doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/doctor", doctorPortalRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/clinical-intake", clinicalIntakeRoutes);
 app.use("/api/disease", apiRateLimiter, diseaseRoutes);
 app.use("/api/history", apiRateLimiter, historyRoutes);
 app.use("/api/profile", apiRateLimiter, profileRoutes);

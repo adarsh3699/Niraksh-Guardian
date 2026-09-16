@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileText, HeartPulse, Pill, ShieldCheck, Stethoscope } from "lucide-react";
-import { issueDoctorPrescription, runPrePrescriptionCheck, usePatientRecord } from "@/hooks/useDoctorPortal";
+import { ArrowLeft, AlertTriangle, FileText, HeartPulse, Pill, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
+import { issueDoctorPrescription, runPrePrescriptionCheck, updateClinicalSummary, usePatientRecord } from "@/hooks/useDoctorPortal";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/contexts/ToastProvider";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const formatDate = (value: string) =>
 	new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
@@ -28,6 +28,13 @@ export function PatientRecordClient({ patientId }: { patientId: string }) {
 	} | null>(null);
 	const [checking, setChecking] = useState(false);
 	const [issuing, setIssuing] = useState(false);
+	const [clinicalSummary, setClinicalSummary] = useState("");
+	const [savingClinicalSummary, setSavingClinicalSummary] = useState(false);
+
+	useEffect(() => {
+		if (!data?.clinicalIntake) return;
+		setClinicalSummary(data.clinicalIntake.summaryEdited || data.clinicalIntake.summaryDraft || "");
+	}, [data?.clinicalIntake]);
 
 	if (isLoading)
 		return (
@@ -152,6 +159,48 @@ export function PatientRecordClient({ patientId }: { patientId: string }) {
 				/>
 				<SummaryCard icon={FileText} label="Lab reports" value={String(data.labReports.length)} />
 			</div>
+
+			{data.clinicalIntake && (
+				<section className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-card sm:p-6">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+						<div className="flex items-start gap-3">
+							<div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+								<Sparkles className="size-5" />
+							</div>
+							<div>
+								<h2 className="font-heading text-lg font-bold text-foreground">Pre-consultation clinical summary</h2>
+								<p className="mt-1 text-sm text-muted">Patient consented to share this intake. Review and edit the AI-assisted draft before consultation.</p>
+							</div>
+						</div>
+						<span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-800">
+							<ShieldCheck className="size-3.5" /> Consent active
+						</span>
+					</div>
+					{data.clinicalIntake.triageLevel !== "ROUTINE" && (
+						<div role="alert" className={`mt-4 flex items-start gap-3 rounded-xl border p-4 ${data.clinicalIntake.triageLevel === "EMERGENCY" ? "border-red-300 bg-red-50 text-red-950" : "border-amber-300 bg-amber-50 text-amber-950"}`}>
+							<AlertTriangle className="mt-0.5 size-5 shrink-0" />
+							<div><p className="font-semibold">{data.clinicalIntake.triageLevel} triage flag</p><p className="mt-1 text-sm">{data.clinicalIntake.triageMessage}</p>{data.clinicalIntake.triageReasons.length > 0 && <p className="mt-1 text-xs">Signals: {data.clinicalIntake.triageReasons.join("; ")}</p>}</div>
+						</div>
+					)}
+					<div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+						<div className="rounded-xl border border-border bg-surface p-4">
+							<p className="text-xs font-bold uppercase tracking-wider text-muted">Patient input</p>
+							<p className="mt-2 text-sm font-semibold text-foreground">{data.clinicalIntake.chiefComplaint}</p>
+							<p className="mt-3 text-xs text-muted">Submitted {data.clinicalIntake.submittedAt ? formatDate(data.clinicalIntake.submittedAt) : "before consultation"}</p>
+							<p className="mt-2 text-xs text-muted">Shared access expires {formatDate(data.clinicalIntake.expiresAt)}</p>
+						</div>
+						<div>
+							<label htmlFor="clinical-summary" className="text-sm font-semibold text-foreground">Editable clinical summary</label>
+							<textarea id="clinical-summary" value={clinicalSummary} onChange={(event) => setClinicalSummary(event.target.value)} rows={8} className="mt-2 w-full resize-y rounded-xl border border-border bg-surface p-3 text-sm leading-6 text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+							<div className="mt-3 flex justify-end">
+								<button type="button" disabled={savingClinicalSummary || clinicalSummary.trim().length < 20} onClick={async () => { setSavingClinicalSummary(true); try { await updateClinicalSummary(patientId, data.clinicalIntake!.id, clinicalSummary); await mutate(); addToast("success", "Clinical summary saved"); } catch (error) { addToast("error", error instanceof Error ? error.message : "Could not save summary"); } finally { setSavingClinicalSummary(false); } }} className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+									{savingClinicalSummary ? <Spinner size="sm" /> : "Save reviewed summary"}
+								</button>
+							</div>
+						</div>
+					</div>
+				</section>
+			)}
 
 			<div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
 				<section className="space-y-6">
@@ -306,6 +355,20 @@ export function PatientRecordClient({ patientId }: { patientId: string }) {
 							{data.labReports.length === 0 && (
 								<p className="text-sm text-muted">No lab reports available.</p>
 							)}
+						</div>
+					</RecordSection>
+					<RecordSection title="Complete health timeline" icon={FileText}>
+						<div className="space-y-3">
+							{data.clinicalTimeline.slice(0, 12).map((entry) => (
+								<div key={`${entry.sourceType}-${entry.sourceId ?? entry.eventDate}`} className="border-l-2 border-primary/20 pl-4">
+									<div className="flex flex-col justify-between gap-1 sm:flex-row">
+										<p className="text-sm font-semibold text-foreground">{entry.title}</p>
+										<span className="text-xs text-muted">{formatDate(entry.eventDate)}</span>
+									</div>
+									{entry.summary && <p className="mt-1 text-xs leading-5 text-muted">{entry.summary}</p>}
+								</div>
+							))}
+							{data.clinicalTimeline.length === 0 && <p className="text-sm text-muted">No timeline entries available.</p>}
 						</div>
 					</RecordSection>
 				</section>

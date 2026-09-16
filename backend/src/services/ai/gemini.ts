@@ -510,6 +510,43 @@ ${formattedConversation}`,
 	}
 };
 
+export const generateClinicalIntakeSummary = async (input: {
+	chiefComplaint: string;
+	hpi: Record<string, string>;
+	ros: Record<string, string>;
+	medicationNotes?: string;
+	allergyNotes?: string;
+}): Promise<string> => {
+	try {
+		if (!API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+
+		const result = await ai.models.generateContent({
+			model: MODEL_NAME,
+			config: {
+				systemInstruction:
+					"You create concise, factual clinical intake drafts for a licensed clinician. Never diagnose, prescribe, or invent missing facts. Clearly label missing information. Return plain text with these headings: Chief complaint, HPI, ROS, Medicines and allergies, Triage note. End with: AI-assisted draft — clinician review required.",
+			},
+			contents: [
+				{
+					role: "user",
+					parts: [
+						{
+							text: `Prepare a doctor-facing intake draft from this patient-submitted information. Preserve uncertainty and do not add a diagnosis.\n\n${JSON.stringify(input)}`,
+						},
+					],
+				},
+			],
+		});
+
+		const summary = typeof result.text === "string" ? result.text.trim() : "";
+		if (!summary) throw new Error("Gemini returned an empty clinical summary");
+		return summary;
+	} catch (error) {
+		logger.warn({ err: error }, "Clinical intake AI summary unavailable; using structured fallback");
+		throw error;
+	}
+};
+
 // --- Health Tool AI Functions ---
 
 export const analyzeMedicine = async (

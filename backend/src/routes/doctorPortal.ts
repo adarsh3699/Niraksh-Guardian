@@ -13,6 +13,7 @@ import {
 	replaceDoctorAvailability,
 	runPrePrescriptionCheck,
 } from "../controllers/doctorPortal.controller";
+import { updateClinicalSummary } from "../controllers/clinicalIntake.controller";
 import { updateAppointmentStatus } from "../controllers/appointment.controller";
 
 const router = Router();
@@ -25,6 +26,7 @@ router.get("/appointments", requireApprovedDoctor, getDoctorAppointments);
 router.patch("/appointments/:id/status", requireApprovedDoctor, updateAppointmentStatus);
 router.get("/patients", requireApprovedDoctor, getDoctorPatients);
 router.get("/patients/:patientId", requireApprovedDoctor, getPatientRecord);
+router.patch("/patients/:patientId/clinical-intake/:intakeId/summary", requireApprovedDoctor, updateClinicalSummary);
 router.post("/patients/:patientId/pre-prescription-check", requireApprovedDoctor, runPrePrescriptionCheck);
 router.post("/patients/:patientId/prescriptions", requireApprovedDoctor, issueDoctorPrescription);
 router.get("/availability", requireApprovedDoctor, getDoctorAvailability);

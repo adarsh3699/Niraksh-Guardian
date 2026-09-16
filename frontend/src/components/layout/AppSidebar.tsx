@@ -15,6 +15,7 @@ import {
 	History,
 	FileBarChart,
 	CalendarDays,
+	ClipboardList,
 	LogOut,
 	X,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const mainNavItems = [
 	{ href: "/medicine", label: "Medicine Search", icon: Pill },
 	{ href: "/disease", label: "Disease Info", icon: BookOpen },
 	{ href: "/appointments", label: "Appointments", icon: CalendarDays },
+	{ href: "/clinical-intake", label: "Prepare for Visit", icon: ClipboardList },
 ];
 
 const accountNavItems = [
