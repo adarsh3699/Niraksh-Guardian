@@ -211,7 +211,7 @@ Extract structured lab test rows from the attached report and return JSON only.
 
 Strict JSON schema:
 {
-  "extractedText": "short extracted summary",
+	"extractedText": "complete transcription of all readable report text, including patient/report metadata and every result row",
   "overallSummary": "4-6 lines summary with key abnormalities and likely risk tendency",
   "components": [
     {
@@ -242,10 +242,15 @@ Strict JSON schema:
 }
 
 Rules:
-- Include only medically meaningful test rows.
+- Extract EVERY readable result row from the report. Do not return a representative subset.
+- Include CBC sub-rows and calculated indices (for example TLC, DLC percentages, RBC, MCH, MCHC, RDW, MPV, and PCT), even when they are normal.
+- Include qualitative and microbiology rows (for example Widal, culture, reactive/non-reactive, positive/negative) with observedRaw preserved exactly as shown; observedValue may be null for non-numeric results.
+- Do not combine multiple rows into one component, omit normal rows, or infer values that are not visible.
 - referenceMin/referenceMax may be null if unavailable.
 - If observed value cannot be parsed, keep observedRaw and set status unknown.
 - If reference interval is shown as a combined range (e.g. "21-43"), split into referenceMin/referenceMax numbers.
+- Preserve the complete readable source in extractedText, not a short summary. Keep line breaks or row separators where possible.
+- Before responding, compare the components array against the image and verify that every visible result row has exactly one component entry.
 - Keep effectSummary concise and educational (not diagnosis).
 - No markdown.
 
