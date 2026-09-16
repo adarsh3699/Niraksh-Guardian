@@ -21,6 +21,9 @@ import medicineRoutes from "./routes/medicine";
 import researchRouter from "./routes/research";
 import { apiRateLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
+import appointmentRoutes from "./routes/appointments";
+import doctorPortalRoutes from "./routes/doctorPortal";
+import adminRoutes from "./routes/admin";
 
 const app: Application = express();
 
@@ -138,6 +141,9 @@ app.use("/api/symptoms", symptomRelationshipRoutes);
 app.use("/api/research", researchRouter);
 app.use("/api/reports", reportRoutes);
 app.use("/api/doctors", apiRateLimiter, doctorRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/doctor", doctorPortalRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/disease", apiRateLimiter, diseaseRoutes);
 app.use("/api/history", apiRateLimiter, historyRoutes);
 app.use("/api/profile", apiRateLimiter, profileRoutes);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
 	signup,
+	doctorSignup,
 	login,
 	refreshToken,
 	logout,
@@ -13,6 +14,7 @@ import { loginLimiter, resetEmailLimiter } from "../middlewares/rateLimiter";
 const router = Router();
 
 router.post("/signup", signup);
+router.post("/doctor/signup", doctorSignup);
 router.post("/login", loginLimiter, login);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", logout);

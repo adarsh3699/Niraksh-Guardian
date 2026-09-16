@@ -1,10 +1,11 @@
 import * as express from "express";
-import { signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
+import { doctorSignupSchema, signupSchema, loginSchema, refreshTokenSchema } from "../validators/auth.schema";
 import { hashPassword, verifyPassword, hashToken } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../services/jwt/jwt";
 import { blacklistToken } from "../services/tokenBlacklist";
 import jwt from "jsonwebtoken";
 import prisma from "../db/prisma";
+import { Prisma } from "../generated/prisma/client";
 import env from "../config/env";
 import logger from "../config/logger";
 import { handleControllerError } from "../utils/controllerError";
@@ -108,11 +109,89 @@ export const signup = async (req: express.Request, res: express.Response) => {
 
 		res.status(201).json({
 			message: "User created successfully",
-			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
+			user: {
+				id: user.id,
+				email: user.email,
+				name: user.name || null,
+				gender: user.gender || null,
+				role: user.role,
+			},
 			tokens: { accessToken },
 		});
 	} catch (error) {
 		handleControllerError({ error, res, logger, context: "Signup failed" });
+	}
+};
+
+export const doctorSignup = async (req: express.Request, res: express.Response) => {
+	try {
+		const validatedData = doctorSignupSchema.parse(req.body);
+		const existingUser = await prisma.user.findUnique({ where: { email: validatedData.email } });
+		if (existingUser) return res.status(400).json({ error: "An account with this email already exists" });
+
+		const passwordHash = await hashPassword(validatedData.password);
+		const user = await prisma.$transaction(async (tx) => {
+			const createdUser = await tx.user.create({
+				data: {
+					email: validatedData.email,
+					name: validatedData.name,
+					passwordHash,
+					role: "DOCTOR",
+				},
+			});
+			const directoryDoctor = await tx.doctor.create({
+				data: {
+					name: validatedData.name,
+					specialization: validatedData.specialization,
+					qualification: validatedData.qualification,
+					experienceYears: validatedData.experienceYears,
+					consultationFee: validatedData.consultationFee,
+					city: validatedData.city,
+					state: validatedData.state,
+					bio: validatedData.bio,
+					contactInfo: validatedData.contactInfo,
+					phone: validatedData.phone,
+					tags: [validatedData.specialization],
+					isAvailable: false,
+				},
+			});
+
+			await tx.doctorProfile.create({
+				data: {
+					userId: createdUser.id,
+					directoryDoctorId: directoryDoctor.id,
+					verificationStatus: "PENDING",
+					displayName: validatedData.name,
+					licenseNumber: validatedData.licenseNumber,
+					specialization: validatedData.specialization,
+					qualification: validatedData.qualification,
+					experienceYears: validatedData.experienceYears,
+					consultationFee: validatedData.consultationFee,
+					city: validatedData.city,
+					state: validatedData.state,
+					bio: validatedData.bio,
+					contactInfo: validatedData.contactInfo,
+					phone: validatedData.phone,
+					clinicName: validatedData.clinicName,
+					clinicAddress: validatedData.clinicAddress,
+					consultationModes: validatedData.consultationModes,
+				},
+			});
+			return createdUser;
+		});
+
+		const accessToken = await issueAuthSession(res, user.id);
+		return res.status(201).json({
+			message: "Doctor application submitted for verification",
+			applicationStatus: "PENDING",
+			user: { id: user.id, email: user.email, name: user.name || null, gender: null, role: user.role },
+			tokens: { accessToken },
+		});
+	} catch (error) {
+		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+			return res.status(409).json({ error: "Email or medical license number is already registered" });
+		}
+		handleControllerError({ error, res, logger, context: "Doctor signup failed" });
 	}
 };
 
@@ -144,7 +223,13 @@ export const login = async (req: express.Request, res: express.Response) => {
 
 		res.status(200).json({
 			message: "Login successful",
-			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
+			user: {
+				id: user.id,
+				email: user.email,
+				name: user.name || null,
+				gender: user.gender || null,
+				role: user.role,
+			},
 			tokens: { accessToken },
 		});
 	} catch (error) {
@@ -378,7 +463,13 @@ export const googleLogin = async (req: express.Request, res: express.Response) =
 
 		res.status(200).json({
 			message: "Google login successful",
-			user: { id: user.id, email: user.email, name: user.name || null, gender: user.gender || null },
+			user: {
+				id: user.id,
+				email: user.email,
+				name: user.name || null,
+				gender: user.gender || null,
+				role: user.role,
+			},
 			tokens: { accessToken },
 		});
 	} catch (error) {

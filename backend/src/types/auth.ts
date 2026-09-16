@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
+import { UserRole } from "../generated/prisma/client";
 
 export interface AuthenticatedRequest extends Request {
 	user?: {
 		userId: string;
+		role?: UserRole;
 	};
 }
 

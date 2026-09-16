@@ -20,6 +20,8 @@ export interface Doctor {
 	tags: string[];
 	createdAt: string;
 	updatedAt: string;
+	isBookable?: boolean;
+	doctorProfileId?: string | null;
 	/** Computed relevance score — present only when matchTags/location params were sent */
 	_relevanceScore?: number;
 	/** True when the doctor's city matches the user's city */

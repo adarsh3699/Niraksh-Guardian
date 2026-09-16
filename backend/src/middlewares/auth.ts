@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../services/jwt/jwt";
 import { checkTokenBlacklist } from "../services/tokenBlacklist";
 import env from "../config/env";
+import prisma from "../db/prisma";
+import { UserRole } from "../generated/prisma/client";
+import { getAuthenticatedUserId } from "../types/auth";
 
 // Extend Express Request interface to include user
 
@@ -31,5 +34,51 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 		next();
 	} catch {
 		return res.status(401).json({ error: "Unauthorized: Invalid token" });
+	}
+};
+
+export const requireRole = (...allowedRoles: UserRole[]) => {
+	return async (req: Request, res: Response, next: NextFunction) => {
+		const userId = getAuthenticatedUserId(req);
+		if (!userId) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
+
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: userId },
+				select: { role: true, isActive: true },
+			});
+
+			if (!user || !user.isActive) {
+				return res.status(401).json({ error: "Unauthorized" });
+			}
+
+			if (!allowedRoles.includes(user.role)) {
+				return res.status(403).json({ error: "You do not have access to this area" });
+			}
+
+			next();
+		} catch (error) {
+			next(error);
+		}
+	};
+};
+
+export const requireApprovedDoctor = async (req: Request, res: Response, next: NextFunction) => {
+	const userId = getAuthenticatedUserId(req);
+	if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+	try {
+		const profile = await prisma.doctorProfile.findUnique({
+			where: { userId },
+			select: { verificationStatus: true },
+		});
+		if (!profile || profile.verificationStatus !== "APPROVED") {
+			return res.status(403).json({ error: "Doctor profile approval is required for this action" });
+		}
+		next();
+	} catch (error) {
+		next(error);
 	}
 };

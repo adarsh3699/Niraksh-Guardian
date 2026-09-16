@@ -6,6 +6,7 @@ export const API_ROUTES = {
 	// Auth
 	LOGIN: "/api/auth/login",
 	SIGNUP: "/api/auth/signup",
+	DOCTOR_SIGNUP: "/api/auth/doctor/signup",
 	GOOGLE_AUTH: "/api/auth/google",
 	REFRESH_TOKEN: "/api/auth/refresh-token",
 	LOGOUT: "/api/auth/logout",
@@ -20,6 +21,19 @@ export const API_ROUTES = {
 
 	// Doctor
 	DOCTORS: "/api/doctors",
+	DOCTOR_ME: "/api/doctor/me",
+	DOCTOR_APPLICATION: "/api/doctor/application",
+	DOCTOR_APPOINTMENTS: "/api/doctor/appointments",
+	DOCTOR_PATIENTS: "/api/doctor/patients",
+	DOCTOR_PATIENT_PRESCRIPTIONS: (patientId: string) => `/api/doctor/patients/${patientId}/prescriptions`,
+	DOCTOR_AVAILABILITY: "/api/doctor/availability",
+	APPOINTMENTS: "/api/appointments",
+	MY_APPOINTMENTS: "/api/appointments/mine",
+	DOCTOR_SLOTS: (doctorId: string, date: string) =>
+		`/api/appointments/doctors/${doctorId}/slots?date=${encodeURIComponent(date)}`,
+	APPOINTMENT: (id: string) => `/api/appointments/${id}`,
+	ADMIN_DOCTOR_APPLICATIONS: "/api/admin/doctor-applications",
+	ADMIN_DOCTOR_APPLICATION: (id: string) => `/api/admin/doctor-applications/${id}`,
 
 	// AI / Symptom
 	ANALYZE_SYMPTOMS: "/api/ai/analyze",

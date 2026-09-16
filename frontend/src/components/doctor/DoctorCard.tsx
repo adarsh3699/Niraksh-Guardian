@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
 	Star,
 	MapPin,
@@ -11,6 +12,7 @@ import {
 	IndianRupee,
 	Briefcase,
 	Navigation,
+	CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Doctor } from "@/types/doctor";
@@ -200,6 +202,18 @@ export function DoctorCard({ doctor, rank }: DoctorCardProps) {
 					</>
 				)}
 			</button>
+			{doctor.isBookable ? (
+				<Link
+					href={`/appointments/book?doctorId=${doctor.id}`}
+					className="flex w-full items-center justify-center gap-2 border-t border-border bg-primary/5 py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+				>
+					<CalendarDays className="size-3.5" /> Book appointment
+				</Link>
+			) : (
+				<div className="flex w-full items-center justify-center gap-2 border-t border-border py-2.5 text-xs font-medium text-muted">
+					Doctor booking coming soon
+				</div>
+			)}
 		</div>
 	);
 }

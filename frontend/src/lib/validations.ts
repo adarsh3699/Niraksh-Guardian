@@ -26,6 +26,53 @@ export const signupSchema = z
 	});
 export type SignupFormData = z.infer<typeof signupSchema>;
 
+export const doctorSignupSchema = z
+	.object({
+		name: z.string().min(2, "Full name is required"),
+		email: z.string().email("Enter a valid email"),
+		password: z.string().min(8, "Password must be at least 8 characters"),
+		confirmPassword: z.string().min(1, "Please confirm your password"),
+		licenseNumber: z.string().min(3, "License number is required"),
+		specialization: z.string().min(2, "Specialization is required"),
+		qualification: z.string().min(2, "Qualification is required"),
+		experienceYears: z.number().int().min(0).max(70),
+		consultationFee: z.number().int().min(0).max(100000),
+		city: z.string().min(2, "City is required"),
+		state: z.string().min(2, "State is required"),
+		bio: z.string().min(20, "Tell patients at least 20 characters about your practice").max(2000),
+		contactInfo: z.string().min(3, "Contact information is required").max(200),
+		phone: z.string().min(7, "Enter a valid phone number").max(20),
+		clinicName: z.string().optional(),
+		clinicAddress: z.string().max(500).optional(),
+		consultationModes: z
+			.array(z.enum(["IN_PERSON", "VIDEO", "PHONE"]))
+			.min(1, "Select one consultation mode"),
+	})
+	.refine((data) => data.password === data.confirmPassword, {
+		message: "Passwords do not match",
+		path: ["confirmPassword"],
+	});
+export type DoctorSignupFormData = z.infer<typeof doctorSignupSchema>;
+export const doctorApplicationUpdateSchema = z.object({
+	name: z.string().min(2, "Full name is required"),
+	licenseNumber: z.string().min(3, "License number is required"),
+	specialization: z.string().min(2, "Specialization is required"),
+	qualification: z.string().min(2, "Qualification is required"),
+	experienceYears: z.number().int().min(0).max(70),
+	consultationFee: z.number().int().min(0).max(100000),
+	city: z.string().min(2, "City is required"),
+	state: z.string().min(2, "State is required"),
+	bio: z.string().min(20, "Tell patients at least 20 characters about your practice").max(2000),
+	contactInfo: z.string().min(3, "Contact information is required").max(200),
+	phone: z.string().min(7, "Enter a valid phone number").max(20),
+	clinicName: z.string().optional(),
+	clinicAddress: z.string().max(500).optional(),
+	consultationModes: z
+		.array(z.enum(["IN_PERSON", "VIDEO", "PHONE"]))
+		.min(1, "Select one consultation mode"),
+});
+export type DoctorApplicationUpdateFormData = z.infer<typeof doctorApplicationUpdateSchema>;
+
 export const forgotPasswordSchema = z.object({
 	email: z.string().min(1, "Email is required").email("Invalid email address"),
 });

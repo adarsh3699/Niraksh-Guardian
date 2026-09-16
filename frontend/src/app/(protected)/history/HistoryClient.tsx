@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import useSWR, { mutate as globalMutate } from "swr";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -167,14 +168,14 @@ function HistoryEntry({
 										<span className="text-xs font-semibold">View PDF</span>
 									</div>
 								) : (
-									<>
-										{/* eslint-disable-next-line @next/next/no-img-element */}
-										<img
-											src={imageUrl}
-											alt={title}
-											className="max-h-32 rounded-lg border border-border object-contain"
-										/>
-									</>
+									<Image
+										src={imageUrl}
+										alt={title}
+										width={224}
+										height={128}
+										unoptimized
+										className="max-h-32 rounded-lg border border-border object-contain"
+									/>
 								)}
 							</a>
 						</div>

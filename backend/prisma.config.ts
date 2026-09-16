@@ -8,7 +8,8 @@ export default defineConfig({
 		seed: "tsx prisma/seed.ts",
 	},
 	datasource: {
-		// Keep generate working even when DATABASE_URL is not set (e.g. CI type-check jobs).
-		url: process.env.DATABASE_URL ?? "",
+		// Prisma Migrate needs a direct PostgreSQL URL; the app may use an Accelerate URL.
+		// Keep generate working even when neither URL is set (e.g. CI type-check jobs).
+		url: process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
 	},
 });

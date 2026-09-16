@@ -22,6 +22,19 @@ interface ScoredDoctor {
 	_isNearby: boolean;
 }
 
+type DoctorWithBooking = Prisma.DoctorGetPayload<{
+	include: { doctorProfile: { select: { id: true; verificationStatus: true } } };
+}>;
+
+const toPublicDoctor = (doctor: DoctorWithBooking) => {
+	const { doctorProfile, ...publicDoctor } = doctor;
+	return {
+		...publicDoctor,
+		isBookable: doctorProfile?.verificationStatus === "APPROVED",
+		doctorProfileId: doctorProfile?.id ?? null,
+	};
+};
+
 /**
  * Computes a holistic relevance score for a doctor given:
  * - matchTagsList: keywords derived from symptom analysis possibleConditions
@@ -117,16 +130,26 @@ export const getDoctors = async (req: Request, res: Response) => {
 
 		const where: Prisma.DoctorWhereInput = {
 			isAvailable: true,
+			AND: [
+				{
+					OR: [
+						// Keep the original seeded directory doctors visible.
+						{ doctorProfile: null },
+						// Portal doctors become visible only after admin approval.
+						{ doctorProfile: { is: { verificationStatus: "APPROVED" } } },
+					],
+				},
+			],
 		};
 
 		if (specializationList.length === 1) {
 			where.specialization = { contains: specializationList[0], mode: "insensitive" };
 		} else if (specializationList.length > 1) {
-			where.OR = [
-				...specializationList.map((s) => ({
+			(where.AND as Prisma.DoctorWhereInput[]).push({
+				OR: specializationList.map((s) => ({
 					specialization: { contains: s, mode: "insensitive" as const },
 				})),
-			];
+			});
 		}
 
 		if (city) {
@@ -181,25 +204,22 @@ export const getDoctors = async (req: Request, res: Response) => {
 					{ tags: { has: word.toLowerCase() } },
 				]);
 
-				// Merge with existing OR (multi-specialization) if present
-				if (where.OR) {
-					where.AND = [{ OR: where.OR as Prisma.DoctorWhereInput[] }, { OR: searchConditions }];
-					delete where.OR;
-				} else {
-					where.OR = searchConditions;
-				}
+				(where.AND as Prisma.DoctorWhereInput[]).push({ OR: searchConditions });
 			}
 		}
 
 		/* ---- Relevance sort (in-memory) ---- */
 		if (useRelevanceSort) {
 			// Fetch all matching doctors (no DB pagination — score/sort in memory)
-			const allDoctors = await prisma.doctor.findMany({ where });
+			const allDoctors = await prisma.doctor.findMany({
+				where,
+				include: { doctorProfile: { select: { id: true, verificationStatus: true } } },
+			});
 			const total = allDoctors.length;
 
 			const scored: ScoredDoctor[] = allDoctors.map((d) => {
 				const { score, isNearby } = scoreDoctor(d, matchTagsList, userCity, userState);
-				return { ...d, _relevanceScore: score, _isNearby: isNearby };
+				return { ...toPublicDoctor(d), _relevanceScore: score, _isNearby: isNearby };
 			});
 
 			// Sort by relevance score desc, then rating desc as tie-breaker
@@ -228,6 +248,7 @@ export const getDoctors = async (req: Request, res: Response) => {
 		const [doctors, total] = await Promise.all([
 			prisma.doctor.findMany({
 				where,
+				include: { doctorProfile: { select: { id: true, verificationStatus: true } } },
 				orderBy: { [orderByField]: order || "desc" },
 				skip,
 				take: limit,
@@ -236,7 +257,7 @@ export const getDoctors = async (req: Request, res: Response) => {
 		]);
 
 		res.json({
-			data: doctors,
+			data: doctors.map(toPublicDoctor),
 			meta: {
 				total,
 				page,

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Instagram, Github, Linkedin, Phone, Mail, MapPin } from "lucide-react";
+import { Instagram, Github, Linkedin, MapPin } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Footer — Server Component                                         */
