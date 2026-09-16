@@ -271,6 +271,12 @@ export function SignupForm() {
 								Log in
 							</Link>
 						</p>
+						<p className="text-center text-sm text-muted">
+							Are you a doctor?{" "}
+							<Link href="/doctor/register" className="font-bold text-primary hover:underline">
+								Apply as a doctor
+							</Link>
+						</p>
 					</div>
 				</div>
 			</div>

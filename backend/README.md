@@ -59,6 +59,8 @@ To solve the challenge of accurately and securely interpreting fragmented person
     ```env
     PORT=4000
     DATABASE_URL=postgresql://user:password@localhost:5432/niraksh_guardian?schema=public
+    # Set this separately when DATABASE_URL is a Prisma Accelerate URL.
+    DIRECT_DATABASE_URL=postgresql://user:password@localhost:5432/niraksh_guardian?schema=public
     REDIS_URL=redis://localhost:6379
     JWT_SECRET=your_jwt_secret
     # Add other required keys for AWS, Cloudinary, and Gemini
@@ -72,6 +74,10 @@ To solve the challenge of accurately and securely interpreting fragmented person
     pnpm prisma:migrate
     pnpm seed
     ```
+
+    For a production database, use `pnpm prisma:deploy` instead of
+    `pnpm prisma:migrate`. If `DATABASE_URL` uses Prisma Accelerate, set
+    `DIRECT_DATABASE_URL` to the direct PostgreSQL connection string first.
 
 4. Start the Server:
     ```bash

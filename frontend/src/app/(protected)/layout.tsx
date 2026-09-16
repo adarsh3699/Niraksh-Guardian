@@ -12,16 +12,23 @@ import { DashboardHeader } from "@/components/layout/DashboardHeader";
  * Includes a persistent sidebar (desktop) and header with mobile hamburger.
  */
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-	const { isAuthenticated, isLoading } = useAuth();
+	const { isAuthenticated, isLoading, user } = useAuth();
 	const router = useRouter();
 	const pathname = usePathname();
 	const [menuOpen, setMenuOpen] = useState(false);
 
 	useEffect(() => {
-		if (!isLoading && !isAuthenticated) {
+		if (isLoading) return;
+		if (!isAuthenticated) {
 			router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
+			return;
 		}
-	}, [isAuthenticated, isLoading, router, pathname]);
+		if (user?.role === "DOCTOR") {
+			router.replace("/doctor/dashboard");
+		} else if (user?.role === "ADMIN") {
+			router.replace("/admin/doctor-applications");
+		}
+	}, [isAuthenticated, isLoading, pathname, router, user?.role]);
 
 	const toggleMenu = useCallback(() => setMenuOpen((o) => !o), []);
 	const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -34,7 +41,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 		);
 	}
 
-	if (!isAuthenticated) {
+	if (!isAuthenticated || user?.role === "DOCTOR" || user?.role === "ADMIN") {
 		return null;
 	}
 

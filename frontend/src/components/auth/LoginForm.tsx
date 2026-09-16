@@ -20,7 +20,11 @@ import type { AuthResponse } from "@/types/auth";
 export function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const returnUrl = searchParams.get("returnUrl") || "/dashboard";
+	const requestedReturnUrl = searchParams.get("returnUrl");
+	const returnUrl =
+		requestedReturnUrl?.startsWith("/") && !requestedReturnUrl.startsWith("//")
+			? requestedReturnUrl
+			: "/dashboard";
 	const redirectMessage = searchParams.get("message");
 
 	const { login } = useAuth();
@@ -46,7 +50,13 @@ export function LoginForm() {
 			});
 			login(data.tokens, data.user);
 			addToast("success", "Logged in successfully");
-			router.push(returnUrl);
+			const defaultDestination =
+				data.user.role === "DOCTOR"
+					? "/doctor/dashboard"
+					: data.user.role === "ADMIN"
+						? "/admin/doctor-applications"
+						: "/dashboard";
+			router.push(returnUrl === "/dashboard" ? defaultDestination : returnUrl);
 		} catch (err) {
 			addToast("error", err instanceof Error ? err.message : "Login failed");
 		} finally {
@@ -193,6 +203,15 @@ export function LoginForm() {
 									className="font-bold text-primary transition-colors hover:underline"
 								>
 									Create one
+								</Link>
+							</p>
+							<p className="text-center text-sm text-muted">
+								Are you a doctor?{" "}
+								<Link
+									href="/doctor/register"
+									className="font-bold text-primary transition-colors hover:underline"
+								>
+									Apply to join Niraksh
 								</Link>
 							</p>
 						</div>

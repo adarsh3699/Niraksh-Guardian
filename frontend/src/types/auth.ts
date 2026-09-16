@@ -7,6 +7,7 @@ export interface User {
 	email: string;
 	name: string | null;
 	gender: string | null;
+	role: "PATIENT" | "DOCTOR" | "ADMIN";
 }
 
 export interface Tokens {
