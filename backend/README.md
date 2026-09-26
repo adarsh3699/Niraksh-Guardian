@@ -20,6 +20,10 @@ To solve the challenge of accurately and securely interpreting fragmented person
 - **📄 Centralized Patient Portfolios:** Health summaries, generated reports, and lab report history are stored together so users and doctors can review a complete timeline.
 - **📧 Proactive Communication Safety:** SES event handling and delivery monitoring help keep critical email notifications reliable.
 - **🌐 Language-Aware Health Context:** User language preference is stored so the platform can keep conversational and UI flows more accessible.
+- **🩺 Care Coordination:** Appointment requests, doctor approval, weekly availability, and consultation modes are managed through a role-aware doctor portal.
+- **🔐 Consent-Based Clinical Context:** Appointment-linked intake sessions use explicit patient consent, triage flags, expiry, revocation, and doctor-only access grants.
+- **🧾 Clinical Continuity:** A merged patient timeline combines lab reports, uploaded prescriptions, medicine and symptom analyses, clinical intake, and issued doctor prescriptions.
+- **💊 Prescription Safety Workflow:** Doctors must run an interaction check against proposed and recorded medicines before issuing an appointment-linked prescription.
 
 ## 💻 Tech Stack
 
@@ -91,6 +95,26 @@ Dive deeper into our backend architecture, database schemas, and AI engineering 
 
 - [Backend System Design](./SYSTEM_DESIGN.md)
 - [Database Schema Guide](./DATABASE_SCHEMA.md)
+
+### Current care-coordination API
+
+Patient endpoints are mounted under `/api/appointments` and `/api/clinical-intake`. Doctor workspace endpoints are mounted under `/api/doctor` and require an authenticated doctor; patient-facing doctor access requires an approved professional profile.
+
+| Capability | Endpoint | Notes |
+|---|---|---|
+| Available slots | `GET /api/appointments/doctors/:doctorId/slots?date=YYYY-MM-DD` | Generates unbooked slots from weekly IST availability windows |
+| Request appointment | `POST /api/appointments` | Creates `REQUESTED` appointment for an approved, available doctor |
+| Patient appointments | `GET /api/appointments/mine` | Includes doctor-issued prescription and clinical-intake status when available |
+| Cancel appointment | `PATCH /api/appointments/:id/cancel` | Also revokes the appointment access grant |
+| Read/save intake | `GET/POST /api/clinical-intake` | Draft or submit appointment-linked HPI/ROS and consent |
+| Revoke consent | `POST /api/clinical-intake/:id/revoke-consent` | Stops the intake from being shared with the doctor |
+| Patient timeline | `GET /api/clinical-intake/timeline` | Merges persisted clinical events |
+| Doctor appointments | `GET /api/doctor/appointments` | Approved doctors only |
+| Doctor availability | `GET/PUT /api/doctor/availability` | Replace weekly booking windows |
+| Patient record | `GET /api/doctor/patients/:patientId` | Requires active, unexpired patient access |
+| Review intake | `PATCH /api/doctor/patients/:patientId/clinical-intake/:intakeId/summary` | Saves a doctor-edited summary |
+| Safety check | `POST /api/doctor/patients/:patientId/pre-prescription-check` | Checks proposed medicines before prescribing |
+| Issue prescription | `POST /api/doctor/patients/:patientId/prescriptions` | Requires a completed safety check |
 
 ## 🛠️ Scripts
 

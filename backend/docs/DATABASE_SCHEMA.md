@@ -339,7 +339,8 @@ Fields:
 - specialization (VARCHAR, indexed)
 - experience_years (INTEGER)
 - consultation_fee (INTEGER)
-- location (VARCHAR)
+- city (VARCHAR)
+- state (VARCHAR)
 - bio (TEXT)
 - contact_info (VARCHAR)
 - image_url (VARCHAR, nullable)
@@ -398,3 +399,71 @@ Flow:
 5. IF found AND expired → call Gemini → `update` cache with new response + new `expiresAt`
 6. IF not found → call Gemini → `create` new cache entry with `expiresAt = now + 30 days`
 7. Optional `?refresh=true` query param → force regeneration regardless of cache status
+
+---
+
+# Current Prisma additions (September 2026)
+
+The Prisma schema and migration `20260916100000_add_clinical_intake` are authoritative for the care-coordination models below. The earlier baseline sections remain useful for the original health-tool tables but do not replace these relationships.
+
+## `DoctorProfile`
+
+Links an authenticated doctor user to an optional directory `Doctor`, stores professional application details, verification status, consultation modes, and the approval boundary used by booking and clinical operations.
+
+## `ClinicalIntakeSession`
+
+| Field | Purpose |
+|---|---|
+| `patientId` | Owning patient |
+| `appointmentId` | Optional unique appointment link; `SET NULL` on appointment deletion |
+| `status` | `DRAFT`, `SUBMITTED`, `REVIEWED`, or `EXPIRED` |
+| `chiefComplaint`, `hpi`, `ros` | Patient-entered visit history; HPI/ROS are JSON documents |
+| `medicationNotes`, `allergyNotes` | Additional safety context |
+| `summaryDraft`, `summaryEdited` | AI/fallback draft and doctor-reviewed version |
+| `triageLevel`, `triageReasons`, `triageMessage` | Deterministic red-flag safety signal |
+| `consentVersion`, `consentGrantedAt`, `consentRevokedAt` | Explicit sharing audit trail |
+| `expiresAt`, `submittedAt`, `reviewedAt` | Draft/share lifecycle and review timestamps |
+| `reviewedByDoctorProfileId` | Doctor reviewer, nullable and `SET NULL` on profile deletion |
+
+Indexes: `(patientId, status, expiresAt)` and `(appointmentId, status)`; `appointmentId` is unique so one intake belongs to at most one appointment.
+
+## `ClinicalTimelineEntry`
+
+Stores patient timeline events with `sourceType`, optional `sourceId`, event date, title, summary, and optional metadata. The runtime timeline also merges existing lab, prescription, medicine, symptom, and doctor-prescription tables.
+
+## `DoctorAvailability`
+
+Stores recurring weekly booking windows: `weekday` (0–6), `startTime`, `endTime`, `slotDurationMinutes`, and `isActive`. The controller interprets these values in IST and enforces uniqueness per doctor/day/window.
+
+## `Appointment`
+
+Stores patient, directory doctor, approved doctor profile, scheduled time, consultation mode, status, visit reason/notes, and relations to access, intake, safety checks, and an issued prescription. Active statuses are `REQUESTED`, `CONFIRMED`, and `RESCHEDULED`.
+
+## `PatientDoctorAccess`
+
+Represents the doctor’s time-limited patient-record grant. It carries `ACTIVE`, `REVOKED`, or `EXPIRED` status plus grant, expiry, and revocation timestamps. Patient-record reads require an active, unexpired row.
+
+## `PrePrescriptionCheck`, `DoctorPrescription`, and `DoctorPrescriptionMedicine`
+
+These models make prescription issuance auditable and appointment-scoped. A pre-prescription check stores proposed medicines, current medicines, and the interaction result. The issued prescription stores optional diagnosis/instructions and child medicines with dosage, frequency, duration, and instructions.
+
+## Enum values
+
+```text
+UserRole: PATIENT | DOCTOR | ADMIN
+DoctorVerificationStatus: PENDING | APPROVED | REJECTED | SUSPENDED
+AppointmentStatus: REQUESTED | CONFIRMED | RESCHEDULED | CANCELLED_BY_PATIENT | CANCELLED_BY_DOCTOR | COMPLETED | NO_SHOW
+ConsultationMode: IN_PERSON | VIDEO | PHONE
+PatientAccessStatus: ACTIVE | REVOKED | EXPIRED
+ClinicalIntakeStatus: DRAFT | SUBMITTED | REVIEWED | EXPIRED
+ClinicalTriageLevel: ROUTINE | URGENT | EMERGENCY
+DoctorPrescriptionStatus: DRAFT | ISSUED | CANCELLED
+```
+
+## Data-sharing rules
+
+- Patient ownership is enforced on patient routes.
+- Intake sharing is not implied by booking or browser-prefilled context; submission requires `consentGiven`.
+- Revocation or expiry prevents doctor access to intake content.
+- Cancelling an appointment revokes its active access grant.
+- Lab records retain `fileUrl` so an authorized doctor can open the original uploaded document.

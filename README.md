@@ -194,6 +194,9 @@ Niraksh-Guardian now covers a broader set of health workflows across analysis, e
 - Disease and medicine exploration for faster health understanding
 - Centralized health history, reports, and profile context in one place
 - Research-backed medical guidance with supporting references and citations
+- Appointment booking with doctor availability, consultation mode, and request status
+- Consent-based pre-consultation intake with red-flag triage and appointment-scoped sharing
+- Doctor workspace with patient records, reviewed clinical summaries, availability windows, and prescription safety checks
 
 ---
 
@@ -205,6 +208,45 @@ If you want to run the project locally, use the setup guides in the service-spec
 - [Frontend setup](./frontend/README.md)
 
 Typical local ports are `4000` for the backend API and `3000` for the frontend app.
+
+## 🩺 Current Care Journey
+
+The implemented patient-to-doctor flow is:
+
+```text
+Symptoms / condition
+        ↓
+Doctor discovery and relevance ranking
+        ↓
+Availability-based appointment request
+        ↓
+Optional appointment-linked clinical intake
+        ↓ consent + 7-day shared access
+Doctor reviews the AI-assisted summary
+        ↓
+Pre-prescription interaction check → doctor-issued prescription
+```
+
+Important safeguards:
+
+- A doctor is bookable only when the directory record is available and the professional profile is approved.
+- Availability is configured as weekly windows and slots are generated in India Standard Time (IST, UTC+05:30).
+- Intake drafts expire after 30 minutes; submitted intake sharing expires after 7 days.
+- The patient can revoke intake consent. Doctors can only view an active, appointment-scoped access grant.
+- Triage flags are advisory safety signals; emergency or worsening symptoms require local emergency care.
+
+## 📚 Documentation Map
+
+- [Functional requirements](./FRD.md) — user-facing behavior and acceptance criteria
+- [Technical requirements](./TRD.md) — architecture, APIs, security, and deployment
+- [Backend README](./backend/README.md) — API setup and backend workflows
+- [Backend system design](./backend/docs/SYSTEM_DESIGN.md)
+- [Database schema](./backend/docs/DATABASE_SCHEMA.md)
+- [Frontend README](./frontend/README.md) — web app setup and route groups
+- [Frontend web flow](./frontend/doc/WEB_FLOW.md)
+- [Frontend data flow](./frontend/doc/DATA_FLOW.md)
+- [Frontend system design](./frontend/doc/SYSTEM_DESIGN.md)
+- [AI service README](./ai-services/README.md) — local FastAPI/Ollama fallback
 
 ---
 

@@ -17,6 +17,9 @@ To eliminate the friction and anxiety commonly associated with digital healthcar
 - **🧪 Disease & Medicine Explorers:** Users can browse disease information, search medicines by name or image, and get clearer context on conditions and treatments.
 - **💬 Streaming AI Chat:** Niraksh AI supports image attachments, real-time response streaming, and language-aware conversations for more natural health guidance.
 - **🕒 Health History & Reports:** The dashboard, history timeline, and report pages give users a centralized view of health activity and downloadable summaries.
+- **🩺 Guided Care Journey:** Patients can carry symptom context into doctor discovery, request an available slot, prepare an appointment-linked intake, and choose exactly when to share it.
+- **🔒 Consent and Safety UX:** Intake forms show routine/urgent/emergency signals, consent status, expiry, revoke controls, and clear doctor-sharing boundaries.
+- **👨‍⚕️ Doctor Workspace:** Approved doctors can manage availability and appointments, review time-limited patient records, edit clinical summaries, open original lab files, and issue safety-checked prescriptions.
 
 ## 💻 Tech Stack
 
@@ -76,3 +79,15 @@ For a detailed breakdown of our React Server Components boundary strategy, data 
 - `pnpm start`: Starts the production server
 - `pnpm lint`: Runs ESLint checks
 - `pnpm clean`: Cleans generated build files and node_modules
+
+## Current route groups
+
+In addition to the public and patient health-tool routes, the App Router includes:
+
+- `/appointments` and `/appointments/book` — patient appointment list and availability-based booking
+- `/clinical-intake` — appointment selection, multi-step HPI/ROS intake, triage, consent, submit, and revoke
+- `/lab-reports` — patient lab report workspace
+- `/doctor/register`, `/doctor/application`, `/doctor/dashboard`, `/doctor/appointments`, `/doctor/availability`, and `/doctor/patients` — doctor onboarding and approved-doctor workspace
+- `/admin/doctor-applications` — admin review of doctor applications
+
+Booking context is carried between symptom analysis and appointment preparation in browser session storage under `ng:appointment-context`; it is a convenience prefill only and is not treated as consent.

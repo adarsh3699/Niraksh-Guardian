@@ -522,3 +522,49 @@ Dynamically recommends doctors based on **Smart Symptom Intelligence**.
 Main Tables (updated):
 
 - disease_info_cache (new)
+
+---
+
+## 13. Current Care-Coordination Design (September 2026)
+
+### 13.1 Patient flow
+
+```text
+symptom analysis
+  └─ sessionStorage context (prefill only)
+      └─ doctor directory: approved + available
+          └─ weekly availability → IST slot generation
+              └─ appointment REQUESTED
+                  └─ appointment-linked intake draft
+                      └─ triage evaluation + explicit consent
+                          └─ submitted intake shared through active access grant
+                              └─ doctor review → safety check → prescription
+```
+
+The browser context key `ng:appointment-context` is transient UI state. It may prefill the reason/chief complaint, but it never grants access or substitutes for persisted consent.
+
+### 13.2 Authorization boundaries
+
+- Patient routes verify `req.user.userId` is the intake, appointment, or record owner.
+- Doctor routes require the `DOCTOR` role; appointment, patient, prescription, and availability operations also require an approved `DoctorProfile`.
+- A doctor patient-record request requires an `ACTIVE` `PatientDoctorAccess` grant whose `expiresAt` is in the future.
+- Intake content is returned only when it is submitted/reviewed, consent is granted and not revoked, and the intake has not expired.
+- Admin routes are isolated behind the `ADMIN` role for doctor-application review.
+
+### 13.3 Intake lifecycle
+
+| Operation | Result | Lifetime |
+|---|---|---|
+| Save without submit | `DRAFT`; no doctor sharing | 30 minutes |
+| Submit with consent | `SUBMITTED`; AI or deterministic fallback summary | 7 days |
+| Doctor saves review | `REVIEWED`; summary edit and reviewer audit fields set | Until access/expiry policy removes visibility |
+| Revoke consent | `consentRevokedAt` set | Immediate sharing block |
+| Draft timeout | `EXPIRED` on read/expiry check | No longer editable as an active draft |
+
+### 13.4 Appointment and prescribing invariants
+
+The appointment controller validates future time, approved/available doctor, supported consultation mode, weekday/window alignment, and duplicate active slot. Patient cancellation changes status and revokes active access. The doctor portal persists a pre-prescription interaction result before allowing an issued prescription, keeping the proposed medicine set tied to the appointment.
+
+### 13.5 Deployment compatibility
+
+`GET /api/appointments/mine` treats a missing clinical-intake table (`P2021`) as a compatibility condition and returns the appointment list without intake metadata. The migration must still be applied before enabling intake sharing and doctor review in a target environment.

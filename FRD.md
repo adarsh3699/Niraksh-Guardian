@@ -2,9 +2,9 @@
 
 ## Niraksh-Guardian — AI-Assisted Healthcare Understanding & Guidance Platform
 
-**Version:** 1.0  
-**Date:** May 2026  
-**Status:** Baseline  
+**Version:** 1.1
+**Date:** September 2026
+**Status:** Baseline plus implemented care-coordination addendum
 **Authors:** Engineering Team
 
 ---
@@ -40,6 +40,34 @@
 This Functional Requirements Document (FRD) describes the complete set of functional behaviors, user interactions, and business rules for **Niraksh-Guardian** — an AI-assisted digital health understanding and guidance platform.
 
 This document is intended for product managers, developers, QA engineers, and stakeholders who need to understand what the system does and how it should behave from a user-facing perspective.
+
+### Current implementation note
+
+The care-coordination requirements below are implemented in the current repository and supersede older baseline statements that described doctor booking as out of scope.
+
+Current frontend route names are `/niraksh-ai` (AI chat) and `/symptom-analysis` (symptom analysis and doctor discovery). Older baseline references to `/assistance` and `/doctor-suggest` mean those current routes.
+
+## Current Implementation: Care Coordination and Pre-Consultation Intake
+
+**FR-CARE-001:** Patients shall be able to open doctor discovery from symptom analysis, carry symptom/condition context into booking, and view only approved doctors whose directory record is available.
+
+**FR-CARE-002:** Patients shall be able to choose an available future slot, consultation mode (`IN_PERSON`, `VIDEO`, or `PHONE` when supported), and an optional visit reason. New requests start with `REQUESTED` status.
+
+**FR-CARE-003:** Doctors shall configure recurring weekly availability windows with weekday, start time, end time, slot duration, and active state. Slot generation and validation use India Standard Time (UTC+05:30).
+
+**FR-CARE-004:** Patients shall be able to prepare an appointment-linked clinical intake containing a chief complaint, history of present illness (HPI), review of systems (ROS), current medicines, and allergies.
+
+**FR-CARE-005:** Intake drafts shall expire after 30 minutes. Submitted intake sharing shall require explicit patient consent, be limited to the selected appointment/doctor access grant, and expire after 7 days.
+
+**FR-CARE-006:** The intake service shall evaluate configured red-flag phrases as `ROUTINE`, `URGENT`, or `EMERGENCY`, explain the signal, and advise emergency care when appropriate. Triage is an advisory safety layer, not a diagnosis.
+
+**FR-CARE-007:** Patients shall be able to revoke consent. Revoked, expired, cancelled, or inactive grants shall not expose intake data to doctors.
+
+**FR-CARE-008:** Approved doctors shall be able to view an authorized patient record, review the AI-assisted intake draft, save an edited clinical summary, and see a merged timeline of relevant health events.
+
+**FR-CARE-009:** Before issuing an appointment-linked prescription, doctors shall run a pre-prescription interaction check against proposed medicines and recorded/current medicines. Issued prescriptions shall include medicine name and optional dosage, frequency, duration, and instructions.
+
+**FR-CARE-010:** Patient appointment responses shall include associated clinical-intake status where the migration is available; the appointment list remains usable during a rolling deployment before that migration is applied.
 
 ### 1.2 Scope
 
@@ -138,7 +166,6 @@ Niraksh-Guardian is an **AI-assisted health understanding platform** that conver
 
 ### 4.2 Out-of-Scope
 
-- Telemedicine / live doctor consultation booking
 - Real-time medical device integration (wearables, IoT)
 - Insurance claim processing
 - Pharmacy order management
@@ -707,6 +734,10 @@ Results are sorted by `_relevanceScore` descending.
 | AI Chat | User can create chat, send messages with optional images; AI responds with health guidance; history persisted |
 | Symptom Analysis | System returns severity, conditions, urgency, specialist, home remedies; saved to history |
 | Doctor Search | Filterable paginated doctor list; location-aware sorting; "Near You" badge for city matches |
+| Appointment Booking | Approved and available doctor exposes IST-generated slots; patient can request, view, and cancel an appointment |
+| Clinical Intake | Patient can save a 30-minute draft, submit with consent, see triage, and revoke sharing; submitted access expires after 7 days |
+| Doctor Portal | Approved doctor can manage availability, update appointment status, review authorized patient records, and edit intake summaries |
+| Prescription Safety | Doctor must complete a pre-prescription interaction check before issuing an appointment-linked prescription |
 | Prescription | Up to 5 images analyzed; medicine list extracted; result saved to history; can link to drug checker |
 | Medicine | Text or image lookup; Markdown result returned; saved to history |
 | Drug Interaction | Minimum 2 medicines; interaction report generated; saved to history |

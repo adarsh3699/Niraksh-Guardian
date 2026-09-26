@@ -144,12 +144,12 @@ Niraksh-Guardian/             ← Monorepo root
 │   │   │   ├── cloudinary/   ← File upload service
 │   │   │   └── ai/           ← Gemini, LLM, FastAPI connector
 │   │   ├── middlewares/      ← Auth, rate limiter, error handler
-│   │   ├── routes/           ← Express routers (13 files)
+│   │   ├── routes/           ← Express routers (18 files)
 │   │   ├── validators/       ← Zod schemas
 │   │   ├── types/            ← TypeScript interfaces
 │   │   └── utils/            ← Helpers
 │   ├── prisma/
-│   │   ├── schema.prisma     ← Database schema (16 models)
+│   │   ├── schema.prisma     ← Database schema (care coordination + health models)
 │   │   └── migrations/       ← Prisma migration history
 │   └── package.json
 │
@@ -257,15 +257,20 @@ src/app/
 │   └── reset-password/page.tsx
 └── (protected)/                ← Authenticated routes (AuthGuard)
     ├── dashboard/page.tsx
-    ├── assistance/page.tsx     ← AI Chat
-    ├── doctor-suggest/page.tsx
+    ├── niraksh-ai/page.tsx     ← AI Chat
+    ├── symptom-analysis/page.tsx
     ├── disease/page.tsx
     ├── prescription/page.tsx
     ├── medicine/page.tsx
     ├── drug-interaction/page.tsx
+    ├── appointments/page.tsx
+    ├── appointments/book/page.tsx
+    ├── clinical-intake/page.tsx
+    ├── lab-reports/page.tsx
     ├── profile/page.tsx
     ├── history/page.tsx
-    └── reports/page.tsx
+    ├── reports/page.tsx
+    └── (doctor)/doctor/        ← Doctor onboarding and approved portal
 ```
 
 ### 4.2 Rendering Strategy
@@ -430,6 +435,10 @@ Request
 | `/api/symptoms/*` | symptomRelationship.ts | ✅ | ❌ |
 | `/api/research/*` | research.ts | ✅ | ❌ |
 | `/api/reports/*` | report.ts | ✅ | ❌ |
+| `/api/appointments/*` | appointments.ts | ✅; patient role for mutations/list | per route |
+| `/api/doctor/*` | doctorPortal.ts | ✅; doctor role; approval for clinical operations | per route |
+| `/api/clinical-intake/*` | clinicalIntake.ts | ✅; patient role | per route |
+| `/api/admin/*` | admin.ts | ✅; admin role | per route |
 | `/api/doctors/*` | doctor.ts | ✅ | ✅ |
 | `/api/disease/*` | education.ts | ✅ | ✅ |
 | `/api/history/*` | history.ts | ✅ | ✅ |
@@ -553,7 +562,7 @@ POST /vision/analyze   → Structured JSON (OCR + entities)
 - Max tokens: 1000
 - Temperature: 0.7
 - Top-P: 0.9
-- Context window: last 3 messages
+- Context window: last 10 messages supplied by the backend
 
 **Security:**
 - Internal network access only (not exposed to public internet)
@@ -592,7 +601,7 @@ POST /vision/analyze   → Structured JSON (OCR + entities)
 - **Connection Pooling:** Prisma Accelerate (serverless-compatible)
 - **Migration Tool:** `prisma migrate deploy` (CI/CD pipeline)
 
-### 7.2 Schema Overview (16 Models)
+### 7.2 Schema Overview (27 Models)
 
 ```
 users (1)
@@ -610,9 +619,17 @@ users (1)
   │     │     └── lab_report_notes (N)
   │     └── lab_report_shares (N)
   ├── health_reports (N)
-  └── patient_health_profiles (1:1)
+  ├── patient_health_profiles (1:1)
+  ├── clinical_intake_sessions (N)
+  └── clinical_timeline_entries (N)
 
-doctors (standalone)
+doctors (directory)
+  └── doctor_profiles (0..1) ── doctor_availability (N)
+                              └── appointments (N)
+                                  ├── patient_doctor_access (0..1)
+                                  ├── pre_prescription_checks (N)
+                                  ├── doctor_prescriptions (0..1)
+                                  └── clinical_intake_sessions (0..1)
 disease_info_cache (standalone)
 ```
 
@@ -977,6 +994,43 @@ Body: { name, gender, city, state, languagePreference,
         emergencyContactName, emergencyContactPhone, emergencyContactEmail }
 Response 200: { user: {...}, healthProfile: {...} }
 ```
+
+#### Care Coordination and Doctor Portal Endpoints
+
+```text
+GET  /api/appointments/doctors/:doctorId/slots?date=YYYY-MM-DD
+     → { doctor: { id, name, consultationModes }, date, slots: string[] }
+
+POST /api/appointments
+Body: { doctorId, scheduledAt, mode, reason?, patientNote? }
+     → { appointment }                       // status starts REQUESTED
+
+GET  /api/appointments/mine
+     → { appointments: Appointment[] }       // includes clinicalIntake when migration exists
+PATCH /api/appointments/:id/cancel
+     → { appointment }                        // revokes active appointment access
+
+GET  /api/clinical-intake?appointmentId=:id
+     → { intake: ClinicalIntakeSession | null }
+POST /api/clinical-intake
+Body: { appointmentId?, chiefComplaint, hpi, ros, medicationNotes?, allergyNotes?, consentGiven, submit }
+     → { intake }                             // DRAFT or SUBMITTED
+POST /api/clinical-intake/:id/revoke-consent
+     → { intake }
+GET  /api/clinical-intake/timeline
+     → { timeline: TimelineEntry[] }
+
+GET  /api/doctor/me
+GET  /api/doctor/appointments
+PATCH /api/doctor/appointments/:id/status
+GET/PUT /api/doctor/availability
+GET  /api/doctor/patients/:patientId
+PATCH /api/doctor/patients/:patientId/clinical-intake/:intakeId/summary
+POST /api/doctor/patients/:patientId/pre-prescription-check
+POST /api/doctor/patients/:patientId/prescriptions
+```
+
+Appointment slots are generated and validated against active `DoctorAvailability` rows in IST. Doctor patient-record reads require an active, unexpired `PatientDoctorAccess` row; shared intake reads additionally require active consent and a non-expired submitted/reviewed intake.
 
 ---
 
@@ -1622,6 +1676,19 @@ function computeRelevanceScore(doctor: Doctor, params: {
   return score;
 }
 ```
+
+---
+
+## Appendix D — Current Care-Coordination Invariants (September 2026)
+
+1. Directory visibility and booking are separate: `Doctor.isAvailable` and an approved `DoctorProfile` are both required.
+2. Appointment writes validate the future timestamp, consultation mode, active weekly availability window, slot alignment, and duplicate active booking.
+3. Appointment cancellation revokes the related active patient-doctor access grant.
+4. Intake submission requires consent; draft and submitted records use different TTLs (30 minutes and 7 days respectively).
+5. Triage is deterministic red-flag phrase evaluation with an AI/fallback clinician-facing summary; it does not diagnose.
+6. Doctor patient records require active, unexpired access. Clinical intake content additionally requires active, unrevoked consent.
+7. Doctor prescriptions are appointment-scoped and require a persisted pre-prescription interaction check.
+8. `GET /api/appointments/mine` tolerates a not-yet-applied clinical-intake table during rolling deployment and still returns core appointments.
 
 ---
 

@@ -6,7 +6,7 @@ This is the local AI service component of the Niraksh Guardian health platform. 
 
 - **Health Guidance API**: Provides general, non-diagnostic health information
 - **Symptom Discussion**: Helps users understand health concerns through conversational AI
-- **Context-Aware Responses**: Considers the last 3 messages to provide coherent, progressive guidance
+- **Context-Aware Responses**: The backend supplies recent conversation context; the local prompt is designed for continuity across the last 10 messages
 - **Safety First**: Explicitly avoids medical diagnosis and recommends professional consultation for serious issues
 - **Multi-turn Conversations**: Maintains conversational continuity while building on previous information
 
@@ -14,7 +14,7 @@ This is the local AI service component of the Niraksh Guardian health platform. 
 
 ✅ RESTful API with FastAPI  
 ✅ Real-time health guidance using local medgemma1.5 model  
-✅ Conversation context awareness (tracks last 3 messages)  
+✅ Conversation context awareness (supports the recent context supplied by the backend)
 ✅ Greeting detection to provide appropriate responses  
 ✅ Health-only scope control (refuses non-medical queries)  
 ✅ Structured response format (Explanation → Causes → Action Plan)
@@ -478,6 +478,6 @@ Part of the Niraksh Guardian project. See main repository for license details.
 
 ---
 
-**Last Updated**: April 2026  
-**Version**: 1.0  
-**Status**: Production Ready ✅
+**Last Updated**: September 2026
+**Version**: 1.1
+**Status**: Local fallback service; validate model availability and safety behavior before production use

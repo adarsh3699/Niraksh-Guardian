@@ -177,4 +177,27 @@ Deployment checklist:
 
 ---
 
-Last updated: 2026-05-03
+## 18. Current Care-Coordination UI Architecture (September 2026)
+
+### 18.1 Shared journey component
+
+`components/care/CareJourney.tsx` renders the patient progress indicator for symptom analysis, doctor selection, booking, and visit preparation. It is used by symptom analysis, booking, appointments, and clinical intake so the next action stays visible across the flow.
+
+### 18.2 Appointment and intake state
+
+- `useDoctorSlots(doctorId, date)` reads server-generated slots; the client does not calculate or trust availability locally.
+- Booking stores only a transient prefill object in `sessionStorage` under `ng:appointment-context`, then uses the appointment ID returned by `POST /api/appointments` for the intake route.
+- `useClinicalIntake(appointmentId)` hydrates the appointment-specific draft/submitted intake.
+- Intake has three visible stages: patient/visit context, guided HPI/ROS fields, and review/consent. Draft save and submit are separate mutations.
+- Consent is represented by server timestamps; a checked client control alone never grants doctor access.
+- `useClinicalTimeline()` is shown as a compact preview while preparing a visit.
+
+### 18.3 Doctor portal boundaries
+
+Doctor pages use `useDoctorMe()` to gate approved-only operations. Patient record UI renders only data returned by the access-controlled backend, shows the consent-active intake when present, exposes original lab files through `fileUrl`, and requires a completed pre-prescription check before enabling prescription issuance.
+
+### 18.4 Route and API naming
+
+The current frontend paths are `/niraksh-ai`, `/symptom-analysis`, `/appointments`, `/appointments/book`, and `/clinical-intake`. The canonical client route map is `frontend/src/lib/api-routes.ts`; it includes appointment, intake, doctor portal, and admin application endpoints.
+
+Last updated: 2026-09-26

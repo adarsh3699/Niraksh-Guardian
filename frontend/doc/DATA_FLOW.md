@@ -948,3 +948,84 @@ _isNearby: boolean; // true if city matched userCity
 Currently, location comes only from the user's profile (`city`/`state` fields added in migration `20260219195244`). If the user hasn't filled in their profile, `userCity`/`userState` are omitted and the relevance sort falls back to tag-only scoring.
 
 The planned enhancement: when a user signs in via Google OAuth, attempt to extract location from the Google profile (if available and consented), pre-populate the profile form, and prompt for confirmation on first login.
+
+---
+
+## 15. Current Care-Coordination Data Flow (September 2026)
+
+### 15.1 Context handoff from symptom analysis to booking
+
+```text
+DoctorSuggestClient
+  ├─ analysis result: symptoms, condition, specialization, possibleConditions
+  ├─ sessionStorage.setItem("ng:appointment-context", JSON)
+  └─ navigate to /appointments/book?doctorId=...
+       └─ BookAppointmentClient reads context and pre-fills visit reason
+```
+
+This handoff is non-authoritative UI state. The backend receives only the explicit booking body and later the explicit intake body.
+
+### 15.2 Slot and appointment flow
+
+```text
+GET /api/appointments/doctors/:doctorId/slots?date=YYYY-MM-DD
+  → approved profile + directory availability check
+  → active DoctorAvailability windows in IST
+  → remove active booked timestamps and past slots
+  → frontend renders selectable ISO timestamps
+
+POST /api/appointments
+  → validate future time, mode, window alignment, duplicate slot
+  → create Appointment(status=REQUESTED)
+  → return appointment.id
+  → frontend offers /clinical-intake?appointmentId=<id>
+```
+
+### 15.3 Intake and consent flow
+
+```text
+GET /api/clinical-intake?appointmentId=<id>
+  → hydrate appointment-specific draft/submitted intake
+
+POST /api/clinical-intake { ..., submit: false }
+  → evaluate triage
+  → save DRAFT with 30-minute expiresAt
+
+POST /api/clinical-intake { ..., consentGiven: true, submit: true }
+  → evaluate triage
+  → generate Gemini summary or deterministic fallback
+  → save SUBMITTED + consentGrantedAt + 7-day expiresAt
+
+POST /api/clinical-intake/:id/revoke-consent
+  → set consentRevokedAt
+  → doctor lookup no longer returns the intake
+```
+
+### 15.4 Doctor read and prescribing flow
+
+```text
+GET /api/doctor/patients/:patientId
+  → active, unexpired PatientDoctorAccess required
+  → load profile, histories, lab reports (including fileUrl), doctor prescriptions
+  → load intake only if submitted/reviewed + consent active + not expired
+  → build merged clinical timeline
+
+POST .../pre-prescription-check
+  → compare proposed medicines with current medicines
+  → persist PrePrescriptionCheck
+
+POST .../prescriptions
+  → require matching appointment + completed check
+  → persist DoctorPrescription and DoctorPrescriptionMedicine rows
+  → timeline includes the issued prescription
+```
+
+### 15.5 Cache and invalidation additions
+
+| Resource | Frontend key | Mutation/invalidation |
+|---|---|---|
+| Slots | `/api/appointments/doctors/:id/slots?date=...` | Date/doctor change; booking does not assume the slot remains free |
+| Patient appointments | `/api/appointments/mine` | Revalidate after booking/cancel and after intake status changes |
+| Intake | `/api/clinical-intake?appointmentId=...` | Revalidate after draft, submit, or revoke |
+| Clinical timeline | `/api/clinical-intake/timeline` | Revalidate after submitted intake or issued prescription |
+| Doctor record | `/api/doctor/patients/:id` | Revalidate after summary save, safety check, or prescription issue |

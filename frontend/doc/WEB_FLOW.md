@@ -3,9 +3,11 @@
 > This document maps **every possible user journey** through the application.
 > Use it to verify completeness, catch dead ends, and validate that every action has a clear next step.
 
+> **Current naming note (September 2026):** The implemented routes are `/niraksh-ai` for chat and `/symptom-analysis` for symptom analysis. Older examples in this baseline flow that use `/assistance` or `/doctor-suggest` should be read as these current routes.
+
 ---
 
-## 1. Route Map (All 15 Pages)
+## 1. Route Map (Current Patient, Doctor, and Admin Pages)
 
 ```
 /                         Public    HomePage (hero, disease cards, health tool CTAs)
@@ -15,8 +17,8 @@
 /forgot-password          Public    Email input → sends reset link
 /reset-password?token=... Public    New password form (from email link)
 /dashboard                Auth      Aggregated user dashboard (risk score, activity, reports)
-/assistance               Auth      AI Chat (sidebar + chat window + image upload)
-/doctor-suggest           Auth      Symptom analysis + doctor search/filters
+/niraksh-ai               Auth      AI Chat (sidebar + chat window + image upload)
+/symptom-analysis         Auth      Symptom analysis + doctor search/filters
 /disease                  Auth      Disease info (AI-powered) from disease cards
 /prescription             Auth      Upload prescription images → AI analysis
 /medicine                 Auth      Medicine search (text or image) → AI analysis
@@ -24,6 +26,18 @@
 /profile                  Auth      User info + health profile + emergency contacts
 /history                  Auth      Tabbed history (medicine, prescription, interaction, symptom)
 /reports                  Auth      List + generate PDF health reports
+/lab-reports              Auth      Lab report list, analysis, notes, sharing, export, original files
+/appointments             Auth      Patient appointment list and intake entry points
+/appointments/book        Auth      Availability-based appointment request
+/clinical-intake          Auth      Appointment-linked HPI/ROS intake, triage, consent, timeline
+/doctor/register          Auth      Doctor account registration
+/doctor/application       Doctor    Professional application and verification status
+/doctor/dashboard         Doctor    Approved-doctor overview
+/doctor/appointments      Doctor    Appointment status management
+/doctor/availability      Doctor    Weekly booking-window editor
+/doctor/patients           Doctor    Authorized patient list
+/doctor/patients/:id       Doctor    Patient record, intake review, safety check, prescription
+/admin/doctor-applications Admin    Doctor application review
 ```
 
 ---
@@ -517,3 +531,62 @@ Chat page (< 768px):
 - All interactive elements ≥ 44px touch target
 - Generous padding on mobile form inputs
 - Swipe gestures: none required (tap-only for simplicity)
+
+---
+
+## 9. Current Care Journey (September 2026)
+
+### 9.1 Patient: symptom to appointment
+
+```text
+/symptom-analysis
+  └─ analyze symptoms
+      └─ choose approved + available doctor
+          └─ /appointments/book?doctorId=...
+              ├─ choose date, IST-generated slot, and consultation mode
+              ├─ visit reason is prefilled from sessionStorage context when available
+              └─ success → /clinical-intake?appointmentId=...
+```
+
+The booking success state offers “Prepare for this visit” or “View my appointments”. Session-storage context is convenience text only; it is not shared with the doctor.
+
+### 9.2 Patient: appointment-linked intake
+
+```text
+/clinical-intake
+  ├─ choose an active REQUESTED / CONFIRMED / RESCHEDULED appointment
+  ├─ Step 1: chief complaint + HPI
+  ├─ Step 2: review of systems + medicines + allergies
+  ├─ deterministic triage banner: ROUTINE / URGENT / EMERGENCY
+  ├─ save draft → 30-minute draft TTL
+  └─ submit → explicit consent required → AI/fallback summary → 7-day sharing TTL
+       └─ revoke consent at any time → doctor sharing blocked
+```
+
+The intake UI previews the merged patient timeline so existing reports, prescriptions, medicine checks, symptom analyses, and prior clinical intakes do not need to be retyped.
+
+### 9.3 Doctor: review and prescription
+
+```text
+/doctor/availability → save weekly booking windows
+/doctor/appointments → update appointment status
+/doctor/patients → active access-granted patient list
+/doctor/patients/:id
+  ├─ health profile, lab reports, histories, and original lab-file links
+  ├─ consent-active clinical intake and editable summary
+  ├─ pre-prescription medicine interaction check
+  └─ issue appointment-linked prescription after the check
+```
+
+Doctor patient records are available only while access is active and unexpired. Intake content additionally requires submitted/reviewed status, active consent, and a non-expired sharing window.
+
+### 9.4 Appointment states and access effects
+
+| Event | Patient view | Doctor access |
+|---|---|---|
+| Request | `REQUESTED` | Appointment context only |
+| Confirm/reschedule | Booking remains active | Doctor can operate within the active grant |
+| Patient/doctor cancellation | Cancelled appointment | Related active access is revoked |
+| Submitted intake | “Shared with doctor” and expiry shown | Consent-scoped intake is readable |
+| Revoke consent | Intake remains patient-owned | Intake content is no longer readable |
+| Expiry | Intake/access no longer active | Read is denied |
